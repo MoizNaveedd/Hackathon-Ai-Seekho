@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Audio } from 'expo-av';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
@@ -86,6 +87,11 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   const [bookingProposal, setBookingProposal] = useState<BookingProposal | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  
+  // Voice states
+  const [recording, setRecording] = useState<Audio.Recording | undefined>();
+  const [isRecording, setIsRecording] = useState(false);
+  const [pulseAnim] = useState(new Animated.Value(1));
 
   // Slide up when visible
   useEffect(() => {
@@ -106,8 +112,25 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       setBookingConfirmed(false);
       setIsTyping(false);
       setShowCloseConfirm(false);
+      setIsRecording(false);
+      setRecording(undefined);
     }
   }, [visible]);
+
+  // Voice Pulse Animation
+  useEffect(() => {
+    if (isRecording) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.3, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(1);
+    }
+  }, [isRecording]);
 
   // Keyboard listeners — slide sheet up/down with keyboard
   useEffect(() => {
@@ -151,6 +174,52 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       setMessages(prev => [...prev, errMsg]);
     } finally {
       setIsTyping(false);
+    }
+  }
+
+  async function startRecording() {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') return;
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      setRecording(recording);
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording', err);
+    }
+  }
+
+  async function cancelRecording() {
+    setIsRecording(false);
+    if (!recording) return;
+    try {
+      await recording.stopAndUnloadAsync();
+      setRecording(undefined);
+    } catch (err) {
+      console.error('Failed to cancel recording', err);
+    }
+  }
+
+  async function stopRecording() {
+    setIsRecording(false);
+    if (!recording) return;
+    try {
+      await recording.stopAndUnloadAsync();
+      setRecording(undefined);
+      
+      // Simulate AI Transcription
+      setIsTyping(true);
+      setTimeout(() => {
+        const transcribed = "Yes, please book the AC service for tomorrow morning.";
+        setIsTyping(false);
+        const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text: transcribed, timestamp: new Date() };
+        const updatedHistory = [...messages, userMsg];
+        setMessages(updatedHistory);
+        fetchReply(transcribed, updatedHistory);
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to stop recording', err);
     }
   }
 
@@ -291,24 +360,53 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
           {/* Input */}
           {!bookingConfirmed && (
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={styles.chatInput}
-                  placeholder="Type your reply..."
-                  placeholderTextColor="#6e7979"
-                  value={inputText}
-                  onChangeText={setInputText}
-                  multiline
-                  onSubmitEditing={handleSend}
-                />
-                <TouchableOpacity
-                  style={[styles.chatSendBtn, (!inputText.trim() || isTyping) && styles.chatSendBtnDisabled]}
-                  onPress={handleSend}
-                  disabled={!inputText.trim() || isTyping}
-                >
-                  <MaterialIcons name="arrow-upward" size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
+              {isRecording ? (
+                <View style={styles.recordingRow}>
+                  <TouchableOpacity onPress={cancelRecording} style={styles.voiceActionBtn}>
+                    <MaterialIcons name="close" size={24} color="#ba1a1a" />
+                  </TouchableOpacity>
+                  
+                  <View style={styles.voicePulseWrapper}>
+                    <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulseAnim }] }]}>
+                      <MaterialIcons name="mic" size={28} color="#00595c" />
+                    </Animated.View>
+                    <Text style={styles.listeningText}>Listening...</Text>
+                  </View>
+
+                  <TouchableOpacity onPress={stopRecording} style={styles.voiceActionBtn}>
+                    <MaterialIcons name="check-circle" size={32} color="#005c3e" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.chatInput}
+                    placeholder="Type your reply..."
+                    placeholderTextColor="#6e7979"
+                    value={inputText}
+                    onChangeText={setInputText}
+                    multiline
+                    onSubmitEditing={handleSend}
+                  />
+                  {inputText.trim().length > 0 ? (
+                    <TouchableOpacity
+                      style={[styles.chatSendBtn, isTyping && styles.chatSendBtnDisabled]}
+                      onPress={handleSend}
+                      disabled={isTyping}
+                    >
+                      <MaterialIcons name="arrow-upward" size={20} color="#fff" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.chatMicBtn}
+                      onPress={startRecording}
+                      disabled={isTyping}
+                    >
+                      <MaterialIcons name="mic" size={24} color="#00595c" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </KeyboardAvoidingView>
           )}
 
@@ -417,4 +515,10 @@ const styles = StyleSheet.create({
   confirmKeepText: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#fff' },
   confirmLeaveBtn: { flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1.5, borderColor: '#bec9c9', alignItems: 'center' },
   confirmLeaveText: { fontFamily: 'Inter_500Medium', fontSize: 14, color: '#ba1a1a' },
+  chatMicBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e8fff5', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#b3e8d8' },
+  recordingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderTopWidth: 1, borderTopColor: '#f0f2f2', backgroundColor: '#f0fdfa' },
+  voiceActionBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  voicePulseWrapper: { flex: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 12 },
+  pulseCircle: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(0, 89, 92, 0.15)', alignItems: 'center', justifyContent: 'center' },
+  listeningText: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#00595c' },
 });
