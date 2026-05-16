@@ -1,11 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 
 export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: () => void }) {
   const userName = user?.user?.name || user?.data?.user?.name || user?.name || "Ali";
   const [activeTab, setActiveTab] = useState('home');
+  const [locationName, setLocationName] = useState("Finding location...");
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationName("Location denied");
+        return;
+      }
+
+      try {
+        let location = await Location.getCurrentPositionAsync({});
+        let reverseGeocode = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        });
+
+        if (reverseGeocode && reverseGeocode.length > 0) {
+          const { city, district, region, subregion } = reverseGeocode[0];
+          const area = district || subregion || city || 'Unknown Area';
+          const reg = region ? `, ${region}` : '';
+          setLocationName(`${area}${reg}`);
+        } else {
+          setLocationName("Location found");
+        }
+      } catch (error) {
+        setLocationName("Location error");
+      }
+    })();
+  }, []);
   
   return (
     <SafeAreaView style={styles.container}>
@@ -16,7 +47,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             <MaterialIcons name="location-on" size={24} color="#00595c" />
             <View style={styles.locationTextContainer}>
               <Text style={styles.locationLabel}>CURRENT LOCATION</Text>
-              <Text style={styles.locationValue}>DHA, Lahore</Text>
+              <Text style={styles.locationValue} numberOfLines={1}>{locationName}</Text>
             </View>
           </View>
           <View style={styles.navActions}>
