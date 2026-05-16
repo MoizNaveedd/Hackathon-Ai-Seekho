@@ -4,7 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold } from "@expo-google-fonts/plus-jakarta-sans";
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
 // Prevent auto hide so we can wait for fonts to load
@@ -55,7 +55,11 @@ export default function RootLayout() {
         <View style={styles.contentContainer}>
           {/* Minimal Geometric Tool/Wrench Logo */}
           <View style={styles.logoBox}>
-            <MaterialIcons name="build" size={48} color="white" />
+            <Image 
+              source={require('../../assets/images/app-icon/icon.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
 
           {/* Brand Identity */}
@@ -86,17 +90,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   logoBox: {
-    width: 80,
-    height: 80,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
+    width: 110,
+    height: 110,
+    borderRadius: 24,
+    overflow: 'hidden',
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 12,
     marginBottom: 24,
+  },
+  logoImage: {
+    width: 110,
+    height: 110,
   },
   textContainer: {
     alignItems: "center",
