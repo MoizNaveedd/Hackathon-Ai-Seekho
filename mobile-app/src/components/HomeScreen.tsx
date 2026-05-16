@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: () => void }) {
@@ -9,26 +10,39 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   return (
     <SafeAreaView style={styles.container}>
       {/* Top Navigation Anchor */}
-      <View style={styles.navBar}>
-        <View style={styles.locationContainer}>
-          <MaterialIcons name="location-on" size={24} color="#00595c" />
-          <View style={styles.locationTextContainer}>
-            <Text style={styles.locationLabel}>CURRENT LOCATION</Text>
-            <Text style={styles.locationValue}>DHA, Lahore</Text>
+      {activeTab === 'home' && (
+        <View style={styles.navBar}>
+          <View style={styles.locationContainer}>
+            <MaterialIcons name="location-on" size={24} color="#00595c" />
+            <View style={styles.locationTextContainer}>
+              <Text style={styles.locationLabel}>CURRENT LOCATION</Text>
+              <Text style={styles.locationValue}>DHA, Lahore</Text>
+            </View>
+          </View>
+          <View style={styles.navActions}>
+            <TouchableOpacity style={styles.iconButton}>
+              <MaterialIcons name="notifications" size={24} color="#3e4949" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.profileAvatar} onPress={() => setActiveTab('profile')}>
+              <Image 
+                source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc" }} 
+                style={styles.avatarImage} 
+              />
+            </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.navActions}>
-          <TouchableOpacity style={styles.iconButton}>
-            <MaterialIcons name="notifications" size={24} color="#3e4949" />
+      )}
+      {activeTab === 'profile' && (
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => setActiveTab('home')} style={{ padding: 8 }}>
+            <MaterialIcons name="arrow-back" size={24} color="#00595c" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.profileAvatar} onPress={onSignOut}>
-            <Image 
-              source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc" }} 
-              style={styles.avatarImage} 
-            />
+          <Text style={styles.profileNavTitle}>Karigar.ai</Text>
+          <TouchableOpacity style={{ padding: 8 }}>
+            <MaterialIcons name="more-vert" size={24} color="#00595c" />
           </TouchableOpacity>
         </View>
-      </View>
+      )}
       {activeTab === 'home' ? (
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Greeting Section */}
@@ -114,6 +128,111 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             </TouchableOpacity>
           </View>
         </View>
+        </ScrollView>
+      ) : activeTab === 'profile' ? (
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* User Profile Header */}
+          <View style={styles.profileHeader}>
+            <View style={styles.avatarContainerLarge}>
+              <Image 
+                source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc" }} 
+                style={styles.avatarImageLarge} 
+              />
+              <TouchableOpacity style={styles.editAvatarBtn}>
+                <MaterialIcons name="edit" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.profileName}>{userName}</Text>
+            <Text style={styles.profileMember}>Premium Member</Text>
+          </View>
+
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>12</Text>
+              <Text style={styles.statLabel}>BOOKINGS</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>4.9</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialIcons name="star" size={14} color="#005c3e" />
+                <Text style={[styles.statLabel, { marginLeft: 4 }]}>RATING</Text>
+              </View>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>Rs 600</Text>
+              <Text style={styles.statLabel}>WALLET</Text>
+            </View>
+          </View>
+
+          {/* Menu Sections */}
+          <View style={styles.menuGroup}>
+            <Text style={styles.menuGroupTitle}>ACCOUNT</Text>
+            <View style={styles.menuCard}>
+              {[
+                { icon: 'person-outline', label: 'Edit Profile' },
+                { icon: 'location-on', label: 'Addresses' },
+                { icon: 'payments', label: 'Payment' },
+                { icon: 'account-balance-wallet', label: 'Wallet', trailing: 'Rs 600' },
+              ].map((item, i) => (
+                <TouchableOpacity key={i} style={[styles.menuItem, i !== 3 && styles.menuItemBorder]}>
+                  <View style={styles.menuItemLeft}>
+                    <MaterialIcons name={item.icon as any} size={24} color="#3e4949" />
+                    <Text style={styles.menuItemLabel}>{item.label}</Text>
+                  </View>
+                  <View style={styles.menuItemRight}>
+                    {item.trailing && <Text style={styles.menuItemTrailing}>{item.trailing}</Text>}
+                    <MaterialIcons name="chevron-right" size={24} color="#6e7979" />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.menuGroup}>
+            <Text style={styles.menuGroupTitle}>PREFERENCES</Text>
+            <View style={styles.menuCard}>
+              {[
+                { icon: 'translate', label: 'Language', trailing: 'English' },
+                { icon: 'notifications-active', label: 'Notifications' },
+              ].map((item, i) => (
+                <TouchableOpacity key={i} style={[styles.menuItem, i !== 1 && styles.menuItemBorder]}>
+                  <View style={styles.menuItemLeft}>
+                    <MaterialIcons name={item.icon as any} size={24} color="#3e4949" />
+                    <Text style={styles.menuItemLabel}>{item.label}</Text>
+                  </View>
+                  <View style={styles.menuItemRight}>
+                    {item.trailing && <Text style={styles.menuItemTrailing}>{item.trailing}</Text>}
+                    <MaterialIcons name="chevron-right" size={24} color="#6e7979" />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.menuGroup}>
+            <Text style={styles.menuGroupTitle}>SUPPORT</Text>
+            <View style={styles.menuCard}>
+              {[
+                { icon: 'help-outline', label: 'Help Center' },
+                { icon: 'gavel', label: 'Terms & Privacy' },
+              ].map((item, i) => (
+                <TouchableOpacity key={i} style={[styles.menuItem, i !== 1 && styles.menuItemBorder]}>
+                  <View style={styles.menuItemLeft}>
+                    <MaterialIcons name={item.icon as any} size={24} color="#3e4949" />
+                    <Text style={styles.menuItemLabel}>{item.label}</Text>
+                  </View>
+                  <MaterialIcons name="chevron-right" size={24} color="#6e7979" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Log Out */}
+          <TouchableOpacity style={styles.logoutBtn} onPress={onSignOut}>
+            <MaterialIcons name="logout" size={24} color="#410006" />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
         </ScrollView>
       ) : (
         <View style={styles.comingSoonContainer}>
@@ -477,5 +596,143 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#3e4949',
     marginTop: 8,
+  },
+  profileNavTitle: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 18,
+    color: '#1a1a2e',
+  },
+  profileHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  avatarContainerLarge: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  avatarImageLarge: {
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    borderWidth: 4,
+    borderColor: '#fff',
+  },
+  editAvatarBtn: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#00595c',
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#fff',
+    elevation: 4,
+  },
+  profileName: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 24,
+    color: '#1a1a2e',
+    marginBottom: 4,
+  },
+  profileMember: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: '#3e4949',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 32,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statValue: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 18,
+    color: '#00595c',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: '#3e4949',
+    letterSpacing: 0.5,
+  },
+  menuGroup: {
+    marginBottom: 24,
+  },
+  menuGroupTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#6e7979',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+    letterSpacing: 0.5,
+  },
+  menuCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  menuItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e0fc',
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  menuItemLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+    color: '#1a1a2e',
+  },
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  menuItemTrailing: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: '#005c3e',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffdad8',
+    padding: 16,
+    borderRadius: 12,
+    gap: 16,
+    marginTop: 8,
+  },
+  logoutText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 16,
+    color: '#410006',
   }
 });
