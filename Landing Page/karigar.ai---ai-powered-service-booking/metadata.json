@@ -1,0 +1,8 @@
+{
+  "name": "Karigar.ai - AI Powered Service Booking",
+  "description": "A premium landing page for Karigar.ai, an AI-powered mobile app that allows users to book any local service by simply sending a message in any language.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
