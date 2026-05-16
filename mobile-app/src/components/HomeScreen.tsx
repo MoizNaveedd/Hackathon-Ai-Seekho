@@ -255,7 +255,14 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
               { name: 'Pest Control', icon: 'pest-control' },
               { name: 'Appliances', icon: 'kitchen' },
             ].map((service, index) => (
-              <TouchableOpacity key={index} style={styles.gridItem}>
+              <TouchableOpacity 
+                key={index} 
+                style={styles.gridItem}
+                onPress={() => {
+                  setChatInitialQuery(`I want ${service.name}`);
+                  setChatVisible(true);
+                }}
+              >
                 <View style={styles.gridIconBox}>
                   <MaterialIcons name={service.icon as any} size={32} color="#00595c" />
                 </View>
