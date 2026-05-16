@@ -1,15 +1,83 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
+import { Audio } from 'expo-av';
 
 export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: () => void }) {
   const userName = user?.user?.name || user?.data?.user?.name || user?.name || "Ali";
   const [activeTab, setActiveTab] = useState('home');
   const [locationName, setLocationName] = useState("Finding location...");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [recording, setRecording] = useState<Audio.Recording | undefined>();
+  const [isRecording, setIsRecording] = useState(false);
+  const [pulseAnim] = useState(new Animated.Value(1));
   const router = useRouter();
+
+  useEffect(() => {
+    if (isRecording) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.3, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(1);
+    }
+  }, [isRecording]);
+
+  async function cancelRecording() {
+    setIsRecording(false);
+    if (!recording) return;
+    try {
+      await recording.stopAndUnloadAsync();
+      setRecording(undefined);
+    } catch (err) {
+      console.error('Failed to cancel recording', err);
+    }
+  }
+
+  async function startRecording() {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') return;
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(recording);
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording', err);
+    }
+  }
+
+  async function stopRecording() {
+    setIsRecording(false);
+    if (!recording) return;
+
+    try {
+      await recording.stopAndUnloadAsync();
+      setRecording(undefined);
+      
+      // Simulate AI Transcription
+      setSearchQuery("Transcribing...");
+      setTimeout(() => {
+        setSearchQuery("AC unit making loud noise and not cooling properly.");
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to stop recording', err);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -86,16 +154,46 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
 
         {/* Smart Request Section */}
         <View style={styles.searchSection}>
-          <View style={styles.searchInputContainer}>
-            <MaterialIcons name="auto-awesome" size={24} color="#00595c" style={styles.searchIconLeft} />
-            <TextInput 
-              style={styles.searchInput}
-              placeholder="AC kaam nahi kar raha..."
-              placeholderTextColor="#6e7979"
-            />
-            <TouchableOpacity style={styles.searchIconRight}>
-              <MaterialIcons name="mic" size={24} color="#00595c" />
-            </TouchableOpacity>
+          <View style={[styles.searchInputContainer, isRecording && styles.recordingContainer]}>
+            {isRecording ? (
+              <View style={styles.recordingActiveWrapper}>
+                <TouchableOpacity onPress={cancelRecording} style={styles.voiceActionBtn}>
+                  <MaterialIcons name="close" size={24} color="#ba1a1a" />
+                  <Text style={styles.voiceActionLabel}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <View style={styles.voicePulseContainer}>
+                  <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulseAnim }] }]}>
+                    <MaterialIcons name="mic" size={36} color="#00595c" />
+                  </Animated.View>
+                  <Text style={styles.listeningText}>Listening...</Text>
+                </View>
+
+                <TouchableOpacity onPress={stopRecording} style={styles.voiceActionBtn}>
+                  <MaterialIcons name="check-circle" size={28} color="#005c3e" />
+                  <Text style={[styles.voiceActionLabel, { color: '#005c3e' }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <MaterialIcons name="auto-awesome" size={24} color="#00595c" style={styles.searchIconLeft} />
+                <TextInput 
+                  style={styles.searchInput}
+                  placeholder="AC kaam nahi kar raha..."
+                  placeholderTextColor="#6e7979"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  multiline={true}
+                  numberOfLines={10}
+                />
+                <TouchableOpacity 
+                  style={styles.searchIconRight}
+                  onPress={startRecording}
+                >
+                  <MaterialIcons name="mic" size={24} color="#00595c" />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
           
           <View style={styles.suggestionsContainer}>
@@ -396,7 +494,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    height: 56,
+    minHeight: 56,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#bec9c9',
@@ -415,9 +514,53 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 16,
     color: '#1a1a2e',
+    textAlignVertical: 'center',
   },
   searchIconRight: {
     padding: 4,
+  },
+  recordingContainer: {
+    borderColor: '#00595c',
+    backgroundColor: '#f0fdfa',
+    borderWidth: 2,
+    height: 150,
+  },
+  recordingActiveWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
+  voiceActionBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 60,
+  },
+  voiceActionLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 10,
+    color: '#ba1a1a',
+    marginTop: 4,
+  },
+  voicePulseContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pulseCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 45,
+    backgroundColor: 'rgba(0, 89, 92, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listeningText: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 14,
+    color: '#00595c',
+    marginTop: 8,
   },
   suggestionsContainer: {
     flexDirection: 'row',
@@ -508,7 +651,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
-    
+  },
+  micActive: {
+    backgroundColor: '#ffdad6',
+    borderRadius: 20,
+    transform: [{ scale: 1.1 }],
   },
   gridIconBox: {
     width: 56,
