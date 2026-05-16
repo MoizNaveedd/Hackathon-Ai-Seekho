@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
+import ChatBottomSheet from './ChatBottomSheet';
 
 export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: () => void }) {
   const userName = user?.user?.name || user?.data?.user?.name || user?.name || "Ali";
@@ -13,6 +14,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   const [searchQuery, setSearchQuery] = useState("");
   const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [isRecording, setIsRecording] = useState(false);
+  const [chatVisible, setChatVisible] = useState(false);
+  const [chatInitialQuery, setChatInitialQuery] = useState("");
   const [pulseAnim] = useState(new Animated.Value(1));
   const router = useRouter();
 
@@ -72,7 +75,14 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       // Simulate AI Transcription
       setSearchQuery("Transcribing...");
       setTimeout(() => {
-        setSearchQuery("AC unit making loud noise and not cooling properly.");
+        const transcribed = "AC unit making loud noise and not cooling properly.";
+        setSearchQuery(transcribed);
+        // Auto-open chat after transcription
+        setTimeout(() => {
+          setChatInitialQuery(transcribed);
+          setChatVisible(true);
+          setSearchQuery("");
+        }, 600);
       }, 1500);
     } catch (err) {
       console.error('Failed to stop recording', err);
@@ -109,6 +119,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   }, []);
   
   return (
+    <>
     <SafeAreaView style={styles.container}>
       {/* Top Navigation Anchor */}
       {activeTab === 'home' && (
@@ -187,7 +198,15 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                   numberOfLines={10}
                 />
                 {searchQuery.trim().length > 0 ? (
-                  <TouchableOpacity style={styles.sendButton}>
+                  <TouchableOpacity 
+                    style={styles.sendButton}
+                    onPress={() => {
+                      const q = searchQuery.trim();
+                      setChatInitialQuery(q);
+                      setChatVisible(true);
+                      setSearchQuery("");
+                    }}
+                  >
                     <MaterialIcons name="arrow-forward" size={20} color="#fff" />
                   </TouchableOpacity>
                 ) : (
@@ -412,6 +431,14 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+
+    <ChatBottomSheet
+      visible={chatVisible}
+      initialQuery={chatInitialQuery}
+      onClose={() => setChatVisible(false)}
+      userName={userName}
+    />
+    </>
   );
 }
 
