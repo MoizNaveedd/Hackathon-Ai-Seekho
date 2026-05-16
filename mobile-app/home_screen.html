@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed": "#410006",
+                    "primary-container": "#0d7377",
+                    "secondary-fixed": "#ffdad8",
+                    "tertiary-fixed-dim": "#4edea3",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed-variant": "#004f52",
+                    "surface-bright": "#fcf8ff",
+                    "on-surface": "#1a1a2e",
+                    "surface-variant": "#e2e0fc",
+                    "on-tertiary-fixed": "#002113",
+                    "tertiary": "#005c3e",
+                    "error": "#ba1a1a",
+                    "inverse-on-surface": "#f2efff",
+                    "primary": "#00595c",
+                    "on-secondary-fixed-variant": "#8c1520",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#00696d",
+                    "on-primary": "#ffffff",
+                    "on-secondary-container": "#6d0010",
+                    "background": "#fcf8ff",
+                    "inverse-surface": "#2f2e43",
+                    "on-surface-variant": "#3e4949",
+                    "outline-variant": "#bec9c9",
+                    "secondary": "#ae2f34",
+                    "surface-container-low": "#f5f2ff",
+                    "surface": "#fcf8ff",
+                    "secondary-container": "#ff6b6b",
+                    "primary-fixed": "#9df0f4",
+                    "surface-container-highest": "#e2e0fc",
+                    "on-error": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-container": "#83ffc6",
+                    "surface-container": "#efecff",
+                    "outline": "#6e7979",
+                    "tertiary-container": "#007751",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-background": "#1a1a2e",
+                    "primary-fixed-dim": "#81d4d8",
+                    "inverse-primary": "#81d4d8",
+                    "tertiary-fixed": "#6ffbbe",
+                    "surface-dim": "#dad7f3",
+                    "secondary-fixed-dim": "#ffb3b0",
+                    "on-tertiary-fixed-variant": "#005236",
+                    "on-primary-container": "#a2f5f9",
+                    "on-primary-fixed": "#002021",
+                    "surface-container-high": "#e8e5ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "margin-mobile": "20px",
+                    "sm": "8px",
+                    "lg": "24px",
+                    "base": "16px",
+                    "gutter": "16px",
+                    "xl": "32px",
+                    "md": "16px",
+                    "margin-desktop": "40px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Plus Jakarta Sans"],
+                    "label-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-sm": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "body-lg": ["Inter"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "label-caps": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["22px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "500"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .shadow-soft {
+            shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .ai-gradient {
+            background: linear-gradient(135deg, #e8fff5 0%, #ffffff 100%);
+            border: 1px solid #00595c20;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#FAFAFA] text-on-surface font-body-md min-h-screen pb-[80px]">
+<!-- Top Navigation Anchor -->
+<nav class="fixed top-0 left-0 w-full z-50 flex items-center px-margin-mobile justify-between bg-surface h-[64px] border-b border-outline-variant">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">location_on</span>
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-surface-variant">CURRENT LOCATION</span>
+<span class="font-headline-sm text-label-caps font-bold">DHA, Lahore</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low hover:bg-surface-container-highest transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-primary overflow-hidden">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Professional portrait of a young South Asian man with a friendly expression, set against a blurred urban architectural background. The lighting is bright and natural, reflecting a clean and modern corporate aesthetic. The overall color palette is composed of soft blues and crisp whites to emphasize trust and reliability." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc"/>
+</div>
+</div>
+</nav>
+<main class="pt-[80px] px-margin-mobile max-w-[768px] mx-auto">
+<!-- Greeting Section -->
+<header class="mb-lg">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Hello, Ali</h1>
+<p class="text-on-surface-variant font-body-md">What can we help you fix today?</p>
+</header>
+<!-- Smart Request Section -->
+<section class="mb-xl">
+<div class="relative group">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+</div>
+<input class="w-full h-[56px] pl-12 pr-12 rounded-xl border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-white shadow-sm transition-all text-body-lg font-body-lg" placeholder="AC kaam nahi kar raha..." type="text"/>
+<div class="absolute inset-y-0 right-4 flex items-center">
+<button class="p-2 text-primary hover:bg-primary-container/10 rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined">mic</span>
+</button>
+</div>
+</div>
+<!-- Quick Suggestions -->
+<div class="flex flex-wrap gap-sm mt-md">
+<button class="px-md py-xs rounded-full bg-surface-container border border-outline-variant text-label-sm font-label-sm text-on-surface-variant hover:bg-primary-container/5 hover:border-primary transition-colors">
+                    AC not cooling
+                </button>
+<button class="px-md py-xs rounded-full bg-surface-container border border-outline-variant text-label-sm font-label-sm text-on-surface-variant hover:bg-primary-container/5 hover:border-primary transition-colors">
+                    Plumber needed
+                </button>
+<button class="px-md py-xs rounded-full bg-surface-container border border-outline-variant text-label-sm font-label-sm text-on-surface-variant hover:bg-primary-container/5 hover:border-primary transition-colors">
+                    Fan making noise
+                </button>
+</div>
+</section>
+<!-- AI Smart Match Card -->
+<section class="mb-xl p-md rounded-xl ai-gradient flex items-center justify-between">
+<div class="flex gap-md items-center">
+<div class="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined">verified_user</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary">Smart Assurance</h3>
+<p class="text-body-md text-on-surface-variant">Verified professionals at your doorstep.</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary">chevron_right</span>
+</section>
+<!-- Popular Services Grid -->
+<section class="mb-xl">
+<div class="flex justify-between items-center mb-md">
+<h2 class="font-headline-md text-headline-md text-on-surface">Popular Services</h2>
+<button class="text-primary font-label-caps text-label-caps hover:underline">VIEW ALL</button>
+</div>
+<div class="grid grid-cols-2 gap-gutter">
+<!-- AC Service -->
+<div class="bg-white p-md rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center text-center gap-sm group">
+<div class="w-14 h-14 bg-surface-container-low rounded-full flex items-center justify-center group-hover:bg-primary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[32px] text-primary">ac_unit</span>
+</div>
+<span class="font-headline-sm text-headline-sm">AC Service</span>
+</div>
+<!-- Plumbing -->
+<div class="bg-white p-md rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center text-center gap-sm group">
+<div class="w-14 h-14 bg-surface-container-low rounded-full flex items-center justify-center group-hover:bg-primary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[32px] text-primary">plumbing</span>
+</div>
+<span class="font-headline-sm text-headline-sm">Plumbing</span>
+</div>
+<!-- Electrical -->
+<div class="bg-white p-md rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center text-center gap-sm group">
+<div class="w-14 h-14 bg-surface-container-low rounded-full flex items-center justify-center group-hover:bg-primary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[32px] text-primary">electrical_services</span>
+</div>
+<span class="font-headline-sm text-headline-sm">Electrical</span>
+</div>
+<!-- Cleaning -->
+<div class="bg-white p-md rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center text-center gap-sm group">
+<div class="w-14 h-14 bg-surface-container-low rounded-full flex items-center justify-center group-hover:bg-primary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[32px] text-primary">cleaning_services</span>
+</div>
+<span class="font-headline-sm text-headline-sm">Cleaning</span>
+</div>
+<!-- Painting -->
+<div class="bg-white p-md rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center text-center gap-sm group">
+<div class="w-14 h-14 bg-surface-container-low rounded-full flex items-center justify-center group-hover:bg-primary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[32px] text-primary">format_paint</span>
+</div>
+<span class="font-headline-sm text-headline-sm">Painting</span>
+</div>
+<!-- Carpentry -->
+<div class="bg-white p-md rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center text-center gap-sm group">
+<div class="w-14 h-14 bg-surface-container-low rounded-full flex items-center justify-center group-hover:bg-primary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[32px] text-primary">carpenter</span>
+</div>
+<span class="font-headline-sm text-headline-sm">Carpentry</span>
+</div>
+<!-- Pest Control -->
+<div class="bg-white p-md rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center text-center gap-sm group">
+<div class="w-14 h-14 bg-surface-container-low rounded-full flex items-center justify-center group-hover:bg-primary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[32px] text-primary">pest_control</span>
+</div>
+<span class="font-headline-sm text-headline-sm">Pest Control</span>
+</div>
+<!-- Appliances -->
+<div class="bg-white p-md rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center text-center gap-sm group">
+<div class="w-14 h-14 bg-surface-container-low rounded-full flex items-center justify-center group-hover:bg-primary-container/20 transition-colors">
+<span class="material-symbols-outlined text-[32px] text-primary">kitchen</span>
+</div>
+<span class="font-headline-sm text-headline-sm">Appliances</span>
+</div>
+</div>
+</section>
+<!-- Promotional Banner -->
+<section class="mb-xl overflow-hidden rounded-2xl relative h-[160px]">
+<img class="w-full h-full object-cover" data-alt="A close-up shot of professional technician hands working on an intricate electrical panel with specialized tools. The lighting is focused and warm, highlighting the precision of the work. The background features a clean, organized home maintenance setting with a professional teal and white color scheme consistent with a premium service brand." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxn-ETJ6ap8Y5aCGIpVxin02ibsfixike5E-t6F81lsIi_3usgIx_kYtIyqIuL8Lk6Pj_liOrn93QtHIQeg76pK1DdWORaA48LXo4QfJoqxd3bP3plAHn0OnLT7PAu5SngaZ7HJucHf2CnuHhRgki90IcQItz4vppqtqRXiI0okaCwiZqYUOnJI2wZ3Ub6Y6t83kk8NCIYWV596ZQPxK9UE9WVPlVRpxfPrBFovuc46H8qNZoeT1hVSRk9sczwkJIgiRcKAjcMaas"/>
+<div class="absolute inset-0 bg-gradient-to-r from-primary/90 to-transparent flex flex-col justify-center px-lg text-white">
+<span class="font-label-caps text-label-caps opacity-80">SUMMER OFFER</span>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile max-w-[200px]">20% OFF on AC Services</h2>
+<button class="mt-sm w-fit px-md py-xs bg-white text-primary rounded-lg font-label-caps text-label-caps hover:bg-primary-container transition-colors">BOOK NOW</button>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Shell -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-margin-mobile pb-safe bg-surface h-[64px] border-t border-outline-variant">
+<div class="flex flex-col items-center justify-center text-primary after:content-[''] after:w-1 after:h-1 after:bg-primary after:rounded-full after:mt-1 opacity-100 transition-opacity">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">event_note</span>
+<span class="font-label-sm text-label-sm">My Bookings</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-label-sm text-label-sm">Notifications</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm">Profile</span>
+</div>
+</nav>
+<!-- Floating Action Button for main flow -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-40">
+<span class="material-symbols-outlined text-[32px]">add</span>
+</button>
+</body></html>

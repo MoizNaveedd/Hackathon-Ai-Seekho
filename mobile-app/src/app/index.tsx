@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Text, View, StyleSheet, TouchableOpacity, Alert, Image, Dimensions } from "react-native";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import { MaterialIcons } from "@expo/vector-icons";
+import HomeScreen from "../components/HomeScreen";
 
 const { width } = Dimensions.get("window");
 
@@ -45,17 +46,7 @@ export default function Index() {
   };
 
   if (userInfo) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <MaterialIcons name="check-circle" size={64} color="#00595c" style={{ marginBottom: 16 }} />
-        <Text style={styles.welcomeTitle}>
-          Welcome, {userInfo?.user?.name || userInfo?.data?.user?.name || userInfo?.name || "User"}
-        </Text>
-        <TouchableOpacity style={styles.phoneButton} onPress={signOut}>
-          <Text style={styles.phoneButtonText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    return <HomeScreen user={userInfo} onSignOut={signOut} />;
   }
 
   return (
