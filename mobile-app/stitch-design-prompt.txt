@@ -1,0 +1,757 @@
+# Google Stitch Design Prompt — Karigar.ai Mobile App (Customer Side)
+
+A modern, trustworthy, and polished mobile service-booking app for Pakistan's urban users. Users find home service providers through natural language (English, Urdu, Roman Urdu), get AI-powered transparent matching with reasoning, book services with clear pricing, track service lifecycle in real-time, and leave feedback. The app must feel human-crafted, premium, and consistent across every single screen.
+
+---
+
+## DESIGN SYSTEM & GLOBAL RULES (Apply to ALL screens)
+
+**Vibe:** Professional, trustworthy, warm, and effortless. Think of a well-designed fintech app — not flashy, not cold. It should feel like a premium Pakistani product, not a generic template.
+
+**Color Palette:**
+- Primary: Deep teal (#0D7377) for buttons, active states, and key highlights
+- Secondary: Warm coral (#FF6B6B) for urgency badges, alerts, and accent CTAs
+- Background: Off-white (#FAFAFA) for all screen backgrounds — never pure white
+- Surface: White (#FFFFFF) for cards, modals, and elevated containers with subtle shadow
+- Text Primary: Charcoal (#1A1A2E) for headings and body text
+- Text Secondary: Slate gray (#64748B) for captions, labels, and helper text
+- AI Accent: Soft mint (#E8FFF5) with teal border for Antigravity reasoning boxes
+- Success: Emerald (#10B981) for confirmations and completed states
+- Warning: Amber (#F59E0B) for scheduling conflicts and alerts
+- Error: Rose (#EF4444) for dispute states and errors
+
+**Typography:**
+- Headings: Medium-weight geometric sans-serif (like Plus Jakarta Sans or General Sans), tracking slightly tight
+- Body: Regular-weight clean sans-serif (like Inter), generous line height for readability
+- Captions/Labels: Uppercase letterspaced labels only for section dividers, never for body content
+
+**Element Styling:**
+- Buttons: Large (48px height minimum), rounded corners (12px radius — not fully pill-shaped), strong shadow on primary buttons
+- Cards: 16px padding, 12px border radius, subtle drop shadow (0 2px 8px rgba(0,0,0,0.06))
+- Input fields: 48px height, light gray border (#E2E8F0), 10px border radius, no background fill
+- Icons: Outlined stroke style, 24px size, consistent 1.5px stroke width. Use a single icon set throughout (Phosphor or Lucide style)
+- Spacing: 16px base grid, generous whitespace between sections (24px minimum)
+- Status pills/badges: Small rounded rectangles (6px radius), filled background with matching text color
+
+**Bottom Navigation Bar (present on screens: S04, S05, S09, S12, S13, S14, S15):**
+- 4 tabs: Home (house icon), My Bookings (calendar icon), Notifications (bell icon), Profile (user circle icon)
+- Background: White with a thin top border (#E2E8F0)
+- Active tab: Teal icon + teal dot indicator below the icon (no text labels — icon only for cleanliness)
+- Inactive tabs: Slate gray icons
+- Height: 64px with safe area padding on bottom
+
+**Status Bar:** Dark text on light background on all screens except Splash and Onboarding (which have light text on dark/colored backgrounds).
+
+**Transitions & Flow:** All screens within the same flow (e.g., booking flow) must share the same header style, same spacing, same card treatment. No screen should feel like it belongs to a different app.
+
+---
+
+## FLOW 1: ONBOARDING (First-time users only, no bottom nav)
+
+---
+
+### S01 — Splash Screen
+
+**Purpose:** Brand introduction during app load (2-3 seconds).
+
+**Layout:**
+- Full-screen deep teal (#0D7377) solid background
+- Centered vertically: App logo mark — a minimal geometric tool/wrench icon formed from abstract shapes, rendered in white
+- Below the logo: "Karigar.ai" in white, medium-weight geometric sans-serif, 28px size
+- Below the name: Tagline "Smart services. Transparent decisions." in white with 60% opacity, 14px
+- No navigation bar, no status bar content
+
+---
+
+### S02 — Onboarding Walkthrough (3 slides)
+
+**Purpose:** Introduce core value propositions to first-time users. Swipeable carousel.
+
+**Layout (same structure for all 3 slides):**
+- Top 55% of screen: A clean, flat-style illustration (NOT 3D, NOT photo-realistic, NOT gradient-heavy). Muted color palette matching the app theme.
+- Bottom 45%: White rounded container (top corners 24px radius) containing:
+  - Heading (20px, charcoal, medium weight)
+  - Subtext (14px, slate gray, regular weight, 2 lines max)
+  - Pagination dots: 3 small circles, active dot is teal and wider (pill shape)
+  - Bottom: "Next" button (teal, full-width) on slides 1-2. "Get Started" on slide 3.
+  - "Skip" text link in top-right corner (slate gray, 14px)
+
+**Slide 1 — "Tell us what you need"**
+- Illustration: A person casually speaking into their phone with speech bubble containing mixed English/Urdu text fragments
+- Heading: "Describe it in your words"
+- Subtext: "Type or speak in English, Urdu, or Roman Urdu. Our AI understands it all."
+
+**Slide 2 — "We find the best match"**
+- Illustration: Three provider cards being sorted/ranked with a subtle sparkle/brain icon suggesting AI
+- Heading: "Smart, transparent matching"
+- Subtext: "See exactly why a provider was recommended. No hidden logic."
+
+**Slide 3 — "Book with confidence"**
+- Illustration: A calendar with a checkmark and a price tag showing a clear breakdown
+- Heading: "Fair pricing, easy booking"
+- Subtext: "Transparent cost breakdown. No surprises. Track everything live."
+
+---
+
+### S03 — Sign In / Sign Up Screen
+
+**Purpose:** Authentication. Keep it minimal — Google Sign-In is the primary method.
+
+**Layout:**
+- Background: Off-white
+- Top section (40% of screen): Large teal circle or abstract shape in the background (decorative), with the Karigar.ai logo and name centered on top of it
+- Middle section:
+  - Heading: "Welcome to Karigar.ai" (20px, charcoal, medium weight)
+  - Subtext: "Find trusted service providers in seconds" (14px, slate gray)
+- Bottom section:
+  - Primary CTA: "Continue with Google" — white button with Google "G" logo on the left, charcoal text, subtle border, full-width, 48px height
+  - Secondary CTA: "Continue with Phone Number" — teal outlined button, full-width, 48px height
+  - Footer text: "By continuing, you agree to our Terms & Privacy Policy" (12px, slate gray, centered)
+- No bottom navigation bar
+
+---
+
+## FLOW 2: MAIN APP (Bottom nav visible)
+
+---
+
+### S04 — Home Screen (Smart Request Input)
+
+**Purpose:** The primary entry point. Users describe their need in natural language or pick a quick category. This is the most important screen — it must feel inviting and dead simple.
+
+**Layout:**
+- **Header area (no traditional nav bar — integrated into content):**
+  - Top-left: Location pin icon (teal) + "DHA, Lahore" text (14px, charcoal) with a small down-chevron for changing location
+  - Top-right: Notification bell icon (slate gray, with a small coral dot if unread) + circular user avatar (32px)
+  - Below: "Hello, Ali" greeting (24px, charcoal, medium weight)
+  - Below greeting: "What do you need help with?" (16px, slate gray)
+
+- **Smart Input Section (center of screen, most prominent element):**
+  - Large text input field: 56px height, light border, 12px radius
+  - Placeholder text (slate gray italic): "AC kaam nahi kar raha, need plumber urgent..."
+  - Right side of input: Microphone icon button (teal circle, 36px, white mic icon inside) for voice input
+  - Below input: 3 quick suggestion pills in a horizontal row: "AC not cooling", "Plumber needed", "Fan repair" — light teal background, teal text, 8px radius
+
+- **Quick Categories Section:**
+  - Section label: "POPULAR SERVICES" (12px, uppercase, slate gray, letterspaced)
+  - 2 rows x 4 columns grid of category tiles
+  - Each tile: White card (64x64px icon area + label below), subtle shadow, 12px radius
+  - Categories shown: AC Repair (snowflake icon), Plumbing (droplet icon), Electrical (zap icon), Cleaning (sparkles icon), Carpenter (hammer icon), Painter (paintbrush icon), Appliance (settings icon), Auto (car icon)
+  - Icon style: Outlined, teal colored, 28px
+  - Label: 11px, charcoal, centered below icon
+
+- **Recent Bookings Preview (if returning user):**
+  - Section label: "RECENT" (12px, uppercase, slate gray)
+  - One horizontal card showing last booking: Provider avatar (small), name, service type, status pill ("Completed" in emerald or "Upcoming" in teal)
+
+- **Bottom Navigation Bar:** Active on "Home" tab
+
+---
+
+### S04b — Voice Input Active State
+
+**Purpose:** Overlay state when user taps the microphone button.
+
+**Layout:**
+- Semi-transparent dark overlay covers the screen
+- Centered modal (white, 24px radius, 80% width):
+  - Animated sound wave visualization (3 teal bars pulsing) at center
+  - Below: "Listening..." text (16px, charcoal)
+  - Below: Real-time transcription text appearing (14px, slate gray, italic): "AC kaam nahi kar raha..."
+  - Bottom of modal: "Tap to stop" text (12px, slate gray) + circular red stop button
+
+---
+
+### S04c — Input Clarification Screen (Low Confidence Edge Case)
+
+**Purpose:** When AI confidence is below 70%, ask user to clarify before showing results.
+
+**Layout:**
+- Same header as Home Screen
+- **Clarification Card (centered, prominent):**
+  - Mint background card (#E8FFF5) with teal left border (4px)
+  - Top: Small sparkle/brain icon (teal) + "Karigar AI" label (12px, teal, medium weight)
+  - Message: "I understood you need AC help, but could you clarify:" (16px, charcoal)
+  - Option buttons (vertical stack, full-width within card):
+    - "AC Repair (not cooling/leaking)" — white button, charcoal text, subtle border
+    - "AC Installation (new unit setup)" — white button, charcoal text, subtle border
+    - "AC Gas Refill" — white button, charcoal text, subtle border
+  - Below card: Text input with placeholder "Or describe again in more detail..." (standard input field style)
+- **Bottom Navigation Bar:** Active on "Home" tab
+
+---
+
+## FLOW 3: SEARCH & BOOKING (Bottom nav hidden during booking sub-flow)
+
+---
+
+### S05 — Search Results / Provider Discovery Screen
+
+**Purpose:** Display AI-extracted intent summary and ranked list of matching providers.
+
+**Layout:**
+- **Header:**
+  - Back arrow (top-left)
+  - Title: "Search Results" (18px, charcoal, medium weight)
+
+- **Intent Summary Banner:**
+  - Light teal background strip (full-width, 8px vertical padding)
+  - Text: "AC Repair · DHA, Lahore · Tomorrow Morning · Urgency: High" (13px, teal, medium weight)
+  - Small "Edit" text link on the right (teal, underlined)
+
+- **Results Section:**
+  - "3 providers found" label (14px, slate gray)
+  - Sort/filter pills row: "Best Match" (active, teal fill), "Lowest Price", "Nearest", "Top Rated" (inactive, gray outline)
+
+- **Provider Cards (vertical scrolling list, 3 cards):**
+  Each card (white, 16px padding, 12px radius, subtle shadow):
+  - Left: Square provider photo/avatar (48px, 8px radius)
+  - Center content:
+    - Provider name: "Ali AC Services" (16px, charcoal, medium weight)
+    - Specialty: "AC inverter repair specialist" (13px, slate gray)
+    - Row of details: Star icon + "4.8" | Pin icon + "3.2 km" | Clock icon + "Available 10 AM"
+  - Right: Price "Rs 1,500" (16px, charcoal, bold) with "base fee" label below (11px, slate gray)
+  - **Top Match Badge (first card only):** Small mint pill at top-right corner of card: sparkle icon + "AI Top Match" (11px, teal)
+
+- **Bottom:** "Can't find what you need?" text link (14px, teal, centered)
+
+---
+
+### S06 — Provider Detail & AI Reasoning Screen
+
+**Purpose:** Full provider profile with transparent AI reasoning for why this provider was matched.
+
+**Layout:**
+- **Header:**
+  - Back arrow (top-left)
+  - "Provider Details" title (18px, charcoal)
+  - Share icon (top-right)
+
+- **Provider Header Section:**
+  - Large circular provider photo (72px)
+  - Name: "Ali AC Services" (22px, charcoal, medium weight)
+  - "AC Repair Specialist · 5 years experience" (14px, slate gray)
+  - Stats row (3 items, evenly spaced): "4.8 Rating" | "120 Reviews" | "92% On-time"
+  - Each stat: Number in charcoal (16px, bold), label in slate gray (12px)
+
+- **Antigravity Reasoning Box:**
+  - Container: Mint background (#E8FFF5), teal left border (4px), 12px radius, 16px padding
+  - Header: Sparkle icon + "Why Karigar AI matched this provider" (14px, teal, medium weight)
+  - Reasoning list (13px, charcoal, each line prefixed with colored dot):
+    - Green dot: "High AC inverter specialization"
+    - Green dot: "4.8 rating from 120 verified reviews"
+    - Green dot: "On-time reliability: 92%"
+    - Amber dot: "Slightly farther than others (3.2 km)"
+    - Green dot: "Low cancellation rate (5%)"
+
+- **Reviews Preview:**
+  - "Recent Reviews" section label
+  - 2 review cards (compact): Reviewer name, star rating, one-line excerpt, date
+  - "See all 120 reviews" text link (teal)
+
+- **Sticky Bottom CTA:**
+  - White bar with top shadow, 16px padding
+  - "View Pricing & Book" — full-width teal button, 48px height, white text
+
+---
+
+### S07 — Dynamic Pricing Breakdown Screen
+
+**Purpose:** Show fully transparent, itemized pricing with clear breakdown. Build trust.
+
+**Layout:**
+- **Header:**
+  - Back arrow
+  - "Pricing Details" title (18px, charcoal)
+
+- **Provider Mini Card (top, compact):**
+  - Small avatar (36px) + "Ali AC Services" + "AC Repair" — in a white card strip
+
+- **Pricing Breakdown Card (main content):**
+  - White card, full-width, 16px padding, 12px radius
+  - Title: "Cost Breakdown" (16px, charcoal, medium weight)
+  - Line items (14px, charcoal left-aligned, price right-aligned):
+    - "Base Service Fee" ............... "Rs 1,500"
+    - "Distance (3.2 km)" ............. "Rs 200"
+    - "Urgency Fee (High)" ............ "Rs 300"
+    - "Demand Surge" .................. "Rs 0" (with a green "No surge" label)
+  - Divider line (1px, #E2E8F0)
+  - Total row: "Total" (16px, bold) .... "Rs 2,000" (20px, bold, charcoal)
+  - Below total: "Estimated • Final price may vary based on actual work" (12px, slate gray)
+
+- **Cheaper Alternative Suggestion:**
+  - Subtle card (light amber background, amber left border):
+    - "Want to save? Ahmed Repairs offers similar service for Rs 1,400 (4.7 rating)" (13px, charcoal)
+    - "View Alternative" text link (teal)
+
+- **Sticky Bottom CTA:**
+  - "Continue to Scheduling" — full-width teal button
+
+---
+
+### S08 — Time Slot Selection / Scheduling Screen
+
+**Purpose:** Let users pick a date and available time slot.
+
+**Layout:**
+- **Header:**
+  - Back arrow
+  - "Select Time" title (18px, charcoal)
+
+- **Provider + Price Summary (compact top bar):**
+  - "Ali AC Services · Rs 2,000" (14px, charcoal) in a light gray strip
+
+- **Date Selection:**
+  - Horizontal scrollable row of date chips (next 7 days)
+  - Each chip: Day name (Mon, Tue...) on top (11px), Date number below (16px, bold)
+  - Active chip: Teal background, white text
+  - Inactive chips: White background, charcoal text, light border
+
+- **Time Slots Grid:**
+  - Section label: "Available Slots — May 17" (14px, charcoal, medium weight)
+  - Grid (2 columns, 3 rows) of time slot buttons:
+    - Available: White background, charcoal text, light border — "9:00 AM", "10:00 AM", "11:30 AM", "2:00 PM", "3:30 PM", "5:00 PM"
+    - Unavailable (grayed out, strikethrough): "1:00 PM"
+    - Selected: Teal background, white text
+  - Below grid: "Includes 30-min travel buffer" (12px, slate gray, info icon)
+
+- **Sticky Bottom CTA:**
+  - "Confirm Booking" — full-width teal button
+
+---
+
+### S08b — Scheduling Conflict Screen (Edge Case)
+
+**Purpose:** Handle when a slot becomes unavailable or provider cancels. Show AI auto-recovery.
+
+**Layout:**
+- Same base layout as S08 but with:
+- **Alert Banner (top, below header):**
+  - Amber background strip, amber icon (warning triangle)
+  - "This slot was just taken by another user" (14px, charcoal)
+
+- **Antigravity Auto-Recovery Card:**
+  - Mint background card with teal left border
+  - Header: Sparkle icon + "Karigar AI found an alternative" (14px, teal, medium weight)
+  - Content: "Ahmed Repairs (4.7 rating) is available at the same time for Rs 1,400"
+  - Two buttons side by side:
+    - "Accept Alternative" (teal filled, white text) — primary
+    - "See Other Options" (teal outline, teal text) — secondary
+
+---
+
+### S09 — Booking Confirmation Screen
+
+**Purpose:** Confirm the booking was placed successfully. Simulate SMS/WhatsApp notification.
+
+**Layout:**
+- **No header back button (this is a success terminal screen)**
+- **Success Animation Area (top 40%):**
+  - Large emerald checkmark icon (64px) inside a light green circle
+  - "Booking Confirmed!" heading (22px, charcoal, medium weight)
+  - "Your service is scheduled" (14px, slate gray)
+
+- **Booking Summary Card (white, 16px padding, full-width):**
+  - Provider row: Avatar (40px) + "Ali AC Services" + "AC Repair"
+  - Date/Time row: Calendar icon + "Sat, May 17 · 10:00 AM"
+  - Location row: Pin icon + "DHA Phase 5, Lahore"
+  - Price row: Tag icon + "Rs 2,000 (estimated)"
+
+- **Notification Simulation Section:**
+  - "Notifications sent" label (12px, slate gray, uppercase)
+  - Row 1: WhatsApp icon (green) + "WhatsApp confirmation sent" + green checkmark
+  - Row 2: Calendar icon (teal) + "Added to your calendar" + green checkmark
+
+- **Action Buttons:**
+  - "Track Service" — full-width teal button (primary)
+  - "Back to Home" — full-width teal outline button (secondary)
+
+- **Bottom Navigation Bar:** Active on "My Bookings" tab
+
+---
+
+## FLOW 4: SERVICE TRACKING (Bottom nav hidden)
+
+---
+
+### S10 — Active Service Tracking Screen
+
+**Purpose:** Real-time lifecycle tracking of the booked service. Shows current status and ETA.
+
+**Layout:**
+- **Header:**
+  - Back arrow
+  - "Track Service" title (18px, charcoal)
+  - Three-dot menu (top-right) for cancel/reschedule options
+
+- **Status Timeline (vertical, left-aligned):**
+  - 4 steps connected by a vertical line:
+    1. "Confirmed" — Green filled circle, green text, timestamp "10:00 AM"
+    2. "En Route" — Green filled circle (current/active state with pulse animation indicator), green text, "ETA: 15 min"
+    3. "In Progress" — Gray empty circle, gray text
+    4. "Completed" — Gray empty circle, gray text
+  - Active step has a subtle green glow/highlight
+  - Completed steps have green line connecting them
+  - Future steps have gray dashed line
+
+- **Provider Contact Card:**
+  - White card: Provider avatar (48px) + name + service type
+  - Two icon buttons on the right: Phone icon (teal circle) + WhatsApp icon (green circle)
+
+- **Live Info Card (below timeline):**
+  - Light gray card with map-style placeholder or abstract route illustration
+  - "Provider is 2.3 km away · Arriving by 10:15 AM" (14px, charcoal)
+
+- **Bottom Action:**
+  - "Cancel Booking" text link (rose/red, 14px, centered) — only visible in "Confirmed" or "En Route" states
+
+---
+
+### S10b — Service In-Progress State
+
+**Purpose:** Updated tracking screen once the provider has arrived and work has begun.
+
+**Layout:**
+- Same as S10 but:
+  - Timeline shows "In Progress" as active (step 3 highlighted)
+  - Provider Contact Card changes to show: "Ali is working on your AC" (14px, charcoal)
+  - Live Info Card replaced with: Elapsed time counter "Service started 25 min ago"
+  - Bottom shows: "Report an Issue" text link (amber) instead of Cancel
+
+---
+
+### S11 — Service Completed Transition Screen
+
+**Purpose:** Brief transition screen when service is marked complete, prompting feedback.
+
+**Layout:**
+- Full timeline showing all 4 steps completed (all green)
+- Large centered text: "Service Complete" (20px, charcoal, medium weight)
+- Subtext: "How was your experience with Ali AC Services?" (14px, slate gray)
+- CTA: "Rate & Review" — full-width teal button
+- Secondary: "Skip for now" text link (slate gray)
+
+---
+
+## FLOW 5: FEEDBACK & DISPUTES (Bottom nav hidden)
+
+---
+
+### S12 — Feedback & Rating Screen
+
+**Purpose:** Collect post-service rating and optional comment.
+
+**Layout:**
+- **Header:**
+  - Close (X) icon (top-left)
+  - "Rate Service" title (18px, charcoal)
+
+- **Provider Context (top):**
+  - Centered: Provider avatar (56px) + "Ali AC Services" + "AC Repair · May 17"
+
+- **Rating Section (centered):**
+  - 5 large star icons (36px each, tappable)
+  - Unselected: Gray outline stars
+  - Selected: Filled amber/gold stars
+  - Below stars: Dynamic label based on rating ("Excellent!", "Good", "Average", "Poor", "Terrible")
+
+- **Comment Section:**
+  - Text area (120px height, light border, placeholder: "Tell us about your experience...")
+  - Character count in bottom-right corner (12px, slate gray)
+
+- **Quick Tags (optional feedback categories):**
+  - Horizontal scrollable row of pill buttons: "Professional", "On Time", "Clean Work", "Good Value", "Friendly"
+  - Tappable — selected tags get teal fill
+
+- **Bottom CTA:**
+  - "Submit Review" — full-width teal button
+  - "Report a Problem" — text link (rose/red, 14px, centered below button)
+
+---
+
+### S13 — Dispute Filing Screen
+
+**Purpose:** Allow user to report an issue. Select dispute type and provide details.
+
+**Layout:**
+- **Header:**
+  - Back arrow
+  - "Report an Issue" title (18px, charcoal)
+
+- **Booking Context (compact):**
+  - Small card: "Ali AC Services · AC Repair · May 17, 10:00 AM" (13px, slate gray)
+
+- **Dispute Type Selection:**
+  - Section label: "What went wrong?" (16px, charcoal, medium weight)
+  - 3 large selectable cards (vertical stack, only one selectable at a time):
+    - "Provider didn't show up" — no-show icon (person with X)
+    - "Poor quality work" — thumbs-down icon
+    - "Price was different than quoted" — money/receipt icon
+  - Selected card: Teal border (2px), light teal background
+  - Unselected: Light gray border
+
+- **Details Text Area:**
+  - "Additional details (optional)" label
+  - Text area (80px height, placeholder: "Describe what happened...")
+
+- **Bottom CTA:**
+  - "Submit Report" — full-width teal button
+
+---
+
+### S14 — Dispute Resolution / AI Action Log Screen
+
+**Purpose:** Show transparent AI decision on the dispute. Build trust with clear automated logic.
+
+**Layout:**
+- **Header:**
+  - Back arrow
+  - "Dispute Resolution" title (18px, charcoal)
+
+- **Status Badge (centered at top):**
+  - Large emerald circle with checkmark + "Resolved" (16px, emerald, medium weight)
+
+- **Dispute Summary Card:**
+  - White card: "Issue: Poor Quality Service" (14px, charcoal) + "Booking #KRG-2847" (12px, slate gray)
+
+- **Antigravity Decision Log (main feature of this screen):**
+  - Dark charcoal card (#1A1A2E), 12px radius, 16px padding (terminal-style but clean)
+  - Monospace-style font (but still readable, not hacky)
+  - Header: Sparkle icon (teal) + "Karigar AI Resolution Engine" (13px, teal)
+  - Log lines (13px, off-white, line-by-line with subtle spacing):
+    - "> Analysing service history..."
+    - "> Provider on-time record: 92% (good)"
+    - "> Previous complaints: 0"
+    - "> Decision: First-time quality issue"
+    - "> Action: 30% refund (Rs 600) issued to wallet"
+    - "> Provider flagged for quality review"
+  - Bottom of card: Timestamp "Resolved in 4 seconds · May 17, 11:45 AM" (11px, slate gray)
+
+- **Refund Confirmation:**
+  - Emerald success card: "Rs 600 refunded to your wallet" + wallet icon
+
+- **Bottom CTA:**
+  - "Back to Home" — full-width teal button
+  - "Contact Support" — text link (14px, slate gray)
+
+---
+
+## FLOW 6: MAIN TAB SCREENS (Bottom nav visible)
+
+---
+
+### S15 — My Bookings Screen (Tab 2)
+
+**Purpose:** View all past and upcoming bookings in one place.
+
+**Layout:**
+- **Header:**
+  - "My Bookings" title (22px, charcoal, medium weight, left-aligned)
+
+- **Tab Switcher (top):**
+  - Two tabs: "Upcoming" | "Past"
+  - Active tab: Teal underline (3px), charcoal text
+  - Inactive tab: No underline, slate gray text
+
+- **Upcoming Bookings List:**
+  - Each booking card (white, 16px padding, 12px radius, subtle shadow):
+    - Top row: Service type pill (light teal background, teal text) + Status pill ("Confirmed" in emerald, "En Route" in amber)
+    - Middle: Provider name (16px, charcoal) + "AC Repair" (13px, slate gray)
+    - Bottom row: Calendar icon + "Sat, May 17 · 10:00 AM" | Pin icon + "DHA Phase 5"
+    - Right side: Chevron arrow for navigation to tracking screen
+  - If no upcoming: Empty state illustration (person relaxing) + "No upcoming bookings" + "Book a Service" teal button
+
+- **Past Bookings (when "Past" tab active):**
+  - Same card structure but with:
+    - Status pill shows "Completed" (emerald) or "Cancelled" (rose)
+    - Star rating shown (small, amber stars)
+    - "Book Again" text link (teal) on the right
+
+- **Bottom Navigation Bar:** Active on "My Bookings" tab
+
+---
+
+### S16 — Notifications Screen (Tab 3)
+
+**Purpose:** Show all system notifications — booking updates, promotions, dispute outcomes.
+
+**Layout:**
+- **Header:**
+  - "Notifications" title (22px, charcoal, medium weight, left-aligned)
+  - "Mark all read" text link (14px, teal, right-aligned)
+
+- **Notifications List (vertical, full-width):**
+  - Each notification item (no card — just rows with bottom border):
+    - Left: Colored circle icon (36px) — teal for booking updates, emerald for confirmations, amber for alerts, coral for disputes
+    - Center: Title (14px, charcoal, medium weight) + Description (13px, slate gray) + Timestamp (11px, slate gray)
+    - Unread: Entire row has off-white/light teal background tint + small teal dot on left
+    - Read: Pure white background
+
+  - Example notifications:
+    - "Booking Confirmed" / "Ali AC Services will arrive tomorrow at 10:00 AM" / "2 min ago"
+    - "Provider En Route" / "Your provider is on their way. ETA 15 min" / "1 hour ago"
+    - "Refund Processed" / "Rs 600 has been added to your wallet" / "Yesterday"
+
+- **Empty State (if no notifications):**
+  - Bell icon illustration (muted) + "You're all caught up!" (16px, slate gray)
+
+- **Bottom Navigation Bar:** Active on "Notifications" tab
+
+---
+
+### S17 — Profile Screen (Tab 4)
+
+**Purpose:** User account management, app settings, and quick links.
+
+**Layout:**
+- **Header Area (no standard header — profile-integrated):**
+  - Top section: Subtle teal gradient strip (very light, decorative) at the very top
+  - Large circular user photo (72px, centered) with edit camera icon overlay (small, bottom-right of photo)
+  - Name: "Ali Ahmad" (20px, charcoal, medium weight, centered)
+  - Email/Phone: "ali@email.com" (14px, slate gray, centered)
+  - Location: Pin icon + "DHA Phase 5, Lahore" (13px, slate gray)
+
+- **Stats Row (3 items, horizontal, evenly spaced in a white card):**
+  - "12 Bookings" | "4.9 Avg Rating Given" | "Rs 600 Wallet"
+  - Each: Number (16px, charcoal, bold), label (11px, slate gray)
+
+- **Menu Sections (grouped list items, white cards with separators):**
+  - **Account Section:**
+    - "Edit Profile" — user icon, chevron right
+    - "My Addresses" — map-pin icon, chevron right
+    - "Payment Methods" — credit-card icon, chevron right
+    - "Wallet" — wallet icon, "Rs 600" badge (emerald), chevron right
+
+  - **Preferences Section:**
+    - "Language" — globe icon, "English" label, chevron right
+    - "Notifications Settings" — bell icon, chevron right
+
+  - **Support Section:**
+    - "Help & Support" — help-circle icon, chevron right
+    - "About Karigar.ai" — info icon, chevron right
+
+  - **Danger Zone:**
+    - "Log Out" — log-out icon, rose/red text
+
+- **Bottom Navigation Bar:** Active on "Profile" tab
+
+---
+
+## FLOW 7: SECONDARY SCREENS (Accessible from various points)
+
+---
+
+### S18 — Service Categories Browse Screen
+
+**Purpose:** Full browsable list of all service categories when user taps "See All" from Home or browses without typing.
+
+**Layout:**
+- **Header:**
+  - Back arrow
+  - "All Services" title (18px, charcoal)
+  - Search icon (top-right) for filtering
+
+- **Category Groups (vertical scroll):**
+  - Each group has a section header (14px, uppercase, slate gray, letterspaced):
+
+  - **"HOME REPAIR"** — Grid (2 cols): AC Repair, Plumbing, Electrical, Carpenter, Painter, Handyman, Generator, Waterproofing
+
+  - **"APPLIANCES"** — Grid (2 cols): Washing Machine, Refrigerator, Microwave/Oven, Water Dispenser, Kitchen Appliances, UPS/Battery, TV Installation
+
+  - **"AUTOMOTIVE"** — Grid (2 cols): Car Mechanic, Bike Repair, Car Wash, Driver on Demand, Battery Jump-start, Tire Change, Oil Change
+
+  - **"CLEANING"** — Grid (2 cols): House Cleaning, Sofa & Carpet, Kitchen Deep Clean, Bathroom, Window, Move-in/out, Maid Service
+
+  - **"BEAUTY & WELLNESS"** — Grid (2 cols): Makeup Artist, Haircut/Barber, Facial/Skincare, Waxing, Bridal, Massage
+
+  - **"EDUCATION"** — Grid (2 cols): Home Tutors, Online Tutors, Language Learning, Quran Tutors, Test Prep, Coding/Design
+
+  - **"MOVING & DELIVERY"** — Grid (2 cols): House Shifting, Furniture Moving, Parcel Delivery, Loading Labor
+
+  - Each tile: White mini card (icon + label), consistent 12px radius, outlined teal icon (24px), label (12px, charcoal)
+
+---
+
+### S19 — Location Selection Screen
+
+**Purpose:** Let user set or change their service location.
+
+**Layout:**
+- **Header:**
+  - Close (X) icon
+  - "Set Location" title (18px, charcoal)
+
+- **Search Input:**
+  - Input field with search icon: "Search area, sector, phase..." placeholder
+  - Full-width, standard input styling
+
+- **Current Location Option:**
+  - Tappable row: GPS/crosshair icon (teal) + "Use current location" (14px, teal, medium weight)
+  - Divider line below
+
+- **Saved Addresses:**
+  - Section label: "SAVED" (12px, uppercase, slate gray)
+  - "Home — DHA Phase 5, Street 12" — home icon, charcoal text
+  - "Office — Blue Area, F-6" — briefcase icon, charcoal text
+
+- **Recent Searches:**
+  - Section label: "RECENT" (12px, uppercase, slate gray)
+  - List of recent locations with clock icon + address text
+
+---
+
+### S20 — Wallet Screen
+
+**Purpose:** Show wallet balance, refund history, and usage.
+
+**Layout:**
+- **Header:**
+  - Back arrow
+  - "My Wallet" title (18px, charcoal)
+
+- **Balance Card (prominent, top):**
+  - Teal gradient card (subtle, not flashy), 16px radius
+  - "Available Balance" (14px, white, 70% opacity)
+  - "Rs 600" (32px, white, bold)
+  - "Use wallet balance at checkout" (12px, white, 60% opacity)
+
+- **Transaction History:**
+  - Section label: "TRANSACTIONS" (12px, uppercase, slate gray)
+  - List items (vertical):
+    - Each: Icon (green arrow-down for credit, red arrow-up for debit) + description + amount + date
+    - "Refund — Dispute #KRG-2847" / "+Rs 600" (emerald) / "May 17"
+    - "Booking Payment" / "-Rs 2,000" (rose) / "May 15"
+
+---
+
+## DESIGN CONSISTENCY CHECKLIST (for the tool to follow)
+
+1. Every screen with the bottom nav MUST use the exact same 4-tab bar (Home, My Bookings, Notifications, Profile) with identical icon style and sizing
+2. All headers must use the same font size (18px for page titles), same weight, same back arrow icon
+3. All primary CTA buttons must be the same height (48px), same teal color, same border radius (12px), same font size (16px white text)
+4. All cards across the app must have the same border radius (12px), same shadow, same padding (16px)
+5. The Antigravity/AI reasoning boxes must ALWAYS use the same mint green background + teal left border treatment
+6. Provider cards must look identical whether they appear on S05, S06, S09, S10, or S15
+7. Status pills/badges must use consistent colors: Emerald for positive/completed, Amber for in-progress/warning, Rose for negative/cancelled, Teal for neutral/info
+8. Icon style must be consistent throughout: outlined, 1.5px stroke, same icon family on every screen
+9. Typography hierarchy must not change between screens: 22px for page titles, 18px for section headers, 16px for card titles, 14px for body, 13px for secondary, 12px for captions, 11px for tiny labels
+10. Spacing between sections must always be 24px. Card internal padding always 16px. Screen horizontal margins always 16px.
+
+---
+
+## SCREEN FLOW CONNECTIONS
+
+- S01 (Splash) -> S02 (Onboarding) -> S03 (Sign In) -> S04 (Home)
+- S04 (Home) -> S04b (Voice Input) -> S04 (Home with text filled)
+- S04 (Home) -> S04c (Clarification) -> S05 (Results)
+- S04 (Home) -> S05 (Results) [direct if confidence > 70%]
+- S04 (Home) -> S18 (All Categories) -> S05 (Results)
+- S05 (Results) -> S06 (Provider Detail) -> S07 (Pricing) -> S08 (Scheduling) -> S09 (Confirmed)
+- S08 (Scheduling) -> S08b (Conflict) -> S08 or S05
+- S09 (Confirmed) -> S10 (Tracking) -> S10b (In Progress) -> S11 (Completed) -> S12 (Feedback)
+- S12 (Feedback) -> S13 (Dispute) -> S14 (Resolution) -> S04 (Home)
+- S04 (Home) -> S15 (My Bookings) [via bottom nav tab 2]
+- S04 (Home) -> S16 (Notifications) [via bottom nav tab 3]
+- S04 (Home) -> S17 (Profile) [via bottom nav tab 4]
+- S17 (Profile) -> S20 (Wallet)
+- S04 (Home) -> S19 (Location Selection) [via location tap in header]

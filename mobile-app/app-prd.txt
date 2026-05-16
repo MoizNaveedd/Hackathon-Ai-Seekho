@@ -1,0 +1,296 @@
+﻿PRODUCT REQUIREMENTS DOCUMENT (PRD)
+
+
+App  Name: Karigar.ai
+
+
+\1.  Product Overview
+Problem
+Users rely on informal channels (calls, WhatsApp, referrals) to find service providers → leads to:
+* Poor matching
+* Unclear pricing
+* No scheduling system
+* Low trust
+* No feedback loop
+Solution
+A mobile app powered by an Antigravity orchestration engine that:
+* Understands natural language requests
+* Matches best providers
+* Generates transparent pricing
+* Simulates booking, tracking, feedback, and dispute resolution
+
+
+2. Target Users
+Primary:
+* Urban households (Pakistan)
+* Students / families needing home services
+Secondary:
+* Local service providers (technicians, tutors, etc.)
+
+
+3 Core Features (MVP Scope)
+4.1 Smart Request Input
+Description:
+User enters request in natural language through text or voice based inputs.
+Input Examples:
+* “AC kaam nahi kar raha kal subah”
+* “Need plumber urgent DHA”
+* “Fan repair cheap please”
+Requirements:
+* Accept:
+   * Urdu
+   * Roman Urdu
+   * English
+* Extract:
+   * Service type
+   * Location
+   * Time
+   * Urgency
+   * Budget hint
+4.2  Provider Discovery
+Data Source:
+* Mock dataset (10–20 providers)
+Provider Schema:{
+"service": "AC Repair",
+"location": "G-13",
+"urgency": "High",
+"time": "Tomorrow Morning",
+"budget": "Low",
+"confidence": 0.87
+}
+Edge Case:
+* If confidence < 0.7 → ask clarification
+
+
+4.3 Matching Engine (Antigravity Controlled)
+Scoring Formula:
+Score =
+0.25 * rating +
+0.20 * reliability +
+0.15 * distance +
+0.15 * availability +
+0.10 * price +
+0.10 * specialization +
+0.05 * cancellation_rate
+Output:
+* Ranked provider list
+* Top 3 recommendations
+MUST SHOW:
+Reasoning Trace
+[Antigravity]
+Provider A selected because:
++ High AC specialization
++ 4.8 rating (recent reviews)
++ On-time score: 92%
+- Slightly farther (3km)
+________________
+
+
+
+
+
+
+4.2 🔍 Provider Discovery
+Data Source:
+* Mock dataset (10–20 providers)
+Provider Schema:
+{
+ "id": 1,
+ "name": "Ali AC Services",
+ "service_type": "AC Repair",
+ "rating": 4.8,
+ "reviews_count": 120,
+ "distance_km": 3.2,
+ "availability": ["10:00", "14:00"],
+ "price_base": 1500,
+ "reliability_score": 0.92,
+ "specialization": "AC inverter repair",
+ "cancellation_rate": 0.05
+}
+________________
+
+
+4.3 ⚖️ Matching Engine (Antigravity Controlled)
+Scoring Formula:
+Score =
+0.25 * rating +
+0.20 * reliability +
+0.15 * distance +
+0.15 * availability +
+0.10 * price +
+0.10 * specialization +
+0.05 * cancellation_rate
+Output:
+* Ranked provider list
+* Top 3 recommendations
+MUST SHOW:
+Reasoning Trace
+[Antigravity]
+Provider A selected because:
++ High AC specialization
++ 4.8 rating (recent reviews)
++ On-time score: 92%
+- Slightly farther (3km)
+________________
+
+
+4.4 💰 Dynamic Pricing
+Formula:
+Total Price =
+Base Fee +
+(Distance * cost_per_km) +
+Urgency Fee +
+Demand Surge
+Example:
+Base Fee: 1500
+Distance Cost: 200
+Urgency: +300
+Total: 2000 PKR
+Requirements:
+* Show breakdown clearly
+* Suggest cheaper alternative
+________________
+
+
+4.5 Scheduling
+Features:
+* Show available slots
+* Prevent double booking
+* Add travel buffer (30–60 mins)
+Edge Cases:
+* No slot available → suggest alternatives
+* Provider busy → auto-select next best provider
+________________
+
+
+4.6 Booking Simulation
+Flow:
+* User selects provider + time
+* System confirms booking
+Output:
+Booking Confirmed
+Provider: Ali AC Services
+Time: 10:00 AM
+Simulate:
+* SMS / WhatsApp confirmation
+* Calendar update (local state)
+4.7 Service Lifecycle Tracking
+States:
+1. Confirmed
+2. En Route
+3. In Progress
+4. Completed
+UI:
+* Status updates
+* ETA simulation
+________________
+
+
+4.8 Feedback System
+After completion:
+* Rating (1–5)
+* Comment
+Impact:
+* Updates provider rating
+* Affects future ranking
+4.9 Dispute Resolution
+Types:
+* No-show
+* Poor quality
+* Price dispute
+Logic:
+If no-show → full refund
+If bad service → 30% refund
+If price dispute → review log
+Output:
+[Antigravity]
+Dispute: Quality Issue
+Action: 30% refund issued
+Provider penalty applied
+
+
+6. User Flow
+User Input →
+Intent Extraction →
+Provider Ranking →
+Price Display →
+Time Selection →
+Booking →
+Tracking →
+Completion →
+Feedback →
+(Optional Dispute)
+
+
+8. Edge Cases
+* No providers available
+* Low confidence input
+* Provider cancels
+* Two users same slot conflict
+* Price mismatch complaint
+10. Demo Requirements
+Must Show:
+* Multilingual input
+* Matching logic
+* Price breakdown
+* Booking flow
+* Lifecycle tracking
+* Feedback
+* Dispute resolution
+* Antigravity logs
+11. Key Differentiator
+Not just booking — intelligent orchestration with explainable decisions
+
+
+Services We are covering in this app:
+* AC repair & installation
+* Plumbing (leak, pipe, geyser)
+* Electrical work (wiring, fan, UPS, inverter)
+* Carpenter (furniture, doors)
+* Painter (wall paint, touch-ups)
+* Handyman (general fixes)
+* Generator repair
+* Water tank cleaning
+* Waterproofing
+* Washing machine repair
+* Refrigerator repair
+* Microwave / oven repair
+* TV installation (wall mount)
+* Water dispenser repair
+* Kitchen appliance fixing
+* UPS / battery maintenance
+* Car mechanic (home service)
+* Bike repair
+* Car wash / detailing
+* Driver on demand
+* Battery jump-start
+* Tire change / puncture
+* Oil change service
+* House cleaning (basic / deep)
+* Sofa & carpet cleaning
+* Kitchen deep cleaning
+* Bathroom cleaning
+* Window cleaning
+* Move-in / move-out cleaning
+* Maid services
+* Makeup artist (home service)
+* Haircut / barber
+* Facial / skincare
+* Waxing / threading
+* Bridal services
+* Massage therapy
+* Home tutors (school subjects)
+* Online tutors
+* Language learning (English, Urdu)
+* Quran tutors
+* Test prep (MDCAT, SAT, etc.)
+* Skill-based (coding, design)
+* Home tutors (school subjects)
+* Online tutors
+* Language learning (English, Urdu)
+* Quran tutors
+* Test prep (MDCAT, SAT, etc.)
+* House shifting (packers & movers)
+* Furniture moving
+* Small parcel delivery
+* Loading/unloading labor
