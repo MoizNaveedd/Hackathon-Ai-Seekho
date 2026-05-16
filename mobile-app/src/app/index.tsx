@@ -3,6 +3,7 @@ import { Text, View, StyleSheet, TouchableOpacity, Alert, Image, Dimensions } fr
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import { MaterialIcons } from "@expo/vector-icons";
 import HomeScreen from "../components/HomeScreen";
+import { Link } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
@@ -95,7 +96,11 @@ export default function Index() {
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           By continuing, you agree to Karigar.ai's{"\n"}
-          <Text style={styles.linkText}>Terms of Service</Text> and <Text style={styles.linkText}>Privacy Policy</Text>.
+          <Link href="/terms" asChild>
+            <Text style={styles.linkText}>Terms of Service</Text>
+          </Link> and <Link href="/terms" asChild>
+            <Text style={styles.linkText}>Privacy Policy</Text>
+          </Link>.
         </Text>
       </View>
     </View>

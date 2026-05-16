@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: () => void }) {
   const userName = user?.user?.name || user?.data?.user?.name || user?.name || "Ali";
   const [activeTab, setActiveTab] = useState('home');
   const [locationName, setLocationName] = useState("Finding location...");
+  const router = useRouter();
 
   useEffect(() => {
     (async () => {
@@ -246,9 +248,13 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             <View style={styles.menuCard}>
               {[
                 { icon: 'help-outline', label: 'Help Center' },
-                { icon: 'gavel', label: 'Terms & Privacy' },
+                { icon: 'gavel', label: 'Terms & Privacy', onPress: () => router.push('/terms') },
               ].map((item, i) => (
-                <TouchableOpacity key={i} style={[styles.menuItem, i !== 1 && styles.menuItemBorder]}>
+                <TouchableOpacity 
+                  key={i} 
+                  style={[styles.menuItem, i !== 1 && styles.menuItemBorder]}
+                  onPress={item.onPress}
+                >
                   <View style={styles.menuItemLeft}>
                     <MaterialIcons name={item.icon as any} size={24} color="#3e4949" />
                     <Text style={styles.menuItemLabel}>{item.label}</Text>
@@ -502,6 +508,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    
   },
   gridIconBox: {
     width: 56,
