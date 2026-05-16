@@ -186,12 +186,18 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                   multiline={true}
                   numberOfLines={10}
                 />
-                <TouchableOpacity 
-                  style={styles.searchIconRight}
-                  onPress={startRecording}
-                >
-                  <MaterialIcons name="mic" size={24} color="#00595c" />
-                </TouchableOpacity>
+                {searchQuery.trim().length > 0 ? (
+                  <TouchableOpacity style={styles.sendButton}>
+                    <MaterialIcons name="arrow-forward" size={20} color="#fff" />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity 
+                    style={styles.searchIconRight}
+                    onPress={startRecording}
+                  >
+                    <MaterialIcons name="mic" size={24} color="#00595c" />
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </View>
@@ -518,6 +524,14 @@ const styles = StyleSheet.create({
   },
   searchIconRight: {
     padding: 4,
+  },
+  sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#00595c',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   recordingContainer: {
     borderColor: '#00595c',
