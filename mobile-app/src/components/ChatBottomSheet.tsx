@@ -11,7 +11,8 @@ import { Audio } from 'expo-av';
 interface Message {
   id: string;
   role: 'user' | 'assistant';
-  text: string;
+  text?: string;
+  audioUri?: string;
   timestamp: Date;
 }
 
@@ -24,7 +25,8 @@ interface BookingProposal {
 
 interface Props {
   visible: boolean;
-  initialQuery: string;
+  initialQuery?: string;
+  initialAudioUri?: string;
   onClose: () => void;
   userName: string;
 }
@@ -64,9 +66,9 @@ async function sendToBackend(
     return {
       reply: "✅ I've found the perfect match for you! Here's your booking proposal:",
       bookingProposal: {
-        service: history[0]?.text || 'Home Service',
+        service: history.find(m => m.text)?.text || 'Home Service',
         provider: 'Usman AC Repairs ⭐ 4.8',
-        time: history[history.length - 1]?.text?.toLowerCase().includes('morning') ? 'Today, 10:00 AM' : 'Today, 3:00 PM',
+        time: history.some(m => m.text?.toLowerCase().includes('morning')) ? 'Today, 10:00 AM' : 'Today, 3:00 PM',
         price: 'Rs 850 – Rs 1,200',
       },
     };
@@ -74,8 +76,87 @@ async function sendToBackend(
   return { reply: "Is there anything else you'd like to adjust before confirming?" };
 }
 
+// ─── Voice Player Component ──────────────────────────────────────────────────
+function VoiceMessagePlayer({ uri, isUser }: { uri: string; isUser: boolean }) {
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    return () => {
+      if (sound) sound.unloadAsync();
+    };
+  }, [sound]);
+
+  async function togglePlayback() {
+    if (sound) {
+      const status = await sound.getStatusAsync();
+      if (status.isLoaded) {
+        if (isPlaying) {
+          await sound.pauseAsync();
+          setIsPlaying(false);
+        } else {
+          // If it reached the end, restart it
+          if (status.didJustFinish || status.positionMillis >= (status.durationMillis || 0)) {
+            await sound.setPositionAsync(0);
+          }
+          await sound.playAsync();
+          setIsPlaying(true);
+        }
+      }
+    } else {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri },
+        { shouldPlay: true },
+        onPlaybackStatusUpdate
+      );
+      setSound(newSound);
+      setIsPlaying(true);
+    }
+  }
+
+  const onPlaybackStatusUpdate = (status: any) => {
+    if (status.isLoaded) {
+      setPosition(status.positionMillis);
+      setDuration(status.durationMillis || 0);
+      if (status.didJustFinish) {
+        setIsPlaying(false);
+        setPosition(0);
+      }
+    }
+  };
+
+  const formatAudioTime = (millis: number) => {
+    const totalSeconds = millis / 1000;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  return (
+    <View style={styles.voicePlayer}>
+      <TouchableOpacity onPress={togglePlayback} style={[styles.playBtn, isUser ? styles.userPlayBtn : styles.aiPlayBtn]}>
+        <MaterialIcons name={isPlaying ? "pause" : "play-arrow"} size={20} color={isUser ? "#00595c" : "#fff"} />
+      </TouchableOpacity>
+      <View style={[styles.waveformContainer, isUser ? styles.userWaveformBg : styles.aiWaveformBg]}>
+        <View 
+          style={[
+            styles.waveformProgress, 
+            { width: `${(position / (duration || 1)) * 100}%` },
+            isUser ? styles.userWaveform : styles.aiWaveform
+          ]} 
+        />
+      </View>
+      <Text style={[styles.audioDuration, isUser ? styles.userBubbleTime : styles.aiBubbleTime]}>
+        {formatAudioTime(isPlaying ? position : duration)}
+      </Text>
+    </View>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function ChatBottomSheet({ visible, initialQuery, onClose, userName }: Props) {
+export default function ChatBottomSheet({ visible, initialQuery, initialAudioUri, onClose, userName }: Props) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(600)).current;
   const keyboardAnim = useRef(new Animated.Value(0)).current;
@@ -97,8 +178,14 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
-      if (initialQuery) {
-        // Seed the first user message and get AI reply
+      
+      if (initialAudioUri) {
+        // Seed the first user audio message and get AI reply
+        const firstMsg: Message = { id: `u${Date.now()}`, role: 'user', audioUri: initialAudioUri, timestamp: new Date() };
+        setMessages([firstMsg]);
+        fetchReply("Voice message received", [firstMsg]);
+      } else if (initialQuery) {
+        // Seed the first user text message and get AI reply
         const firstMsg: Message = { id: 'u0', role: 'user', text: initialQuery, timestamp: new Date() };
         setMessages([firstMsg]);
         fetchReply(initialQuery, [firstMsg]);
@@ -205,19 +292,23 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
     setIsRecording(false);
     if (!recording) return;
     try {
+      const uri = recording.getURI();
       await recording.stopAndUnloadAsync();
       setRecording(undefined);
       
-      // Simulate AI Transcription
-      setIsTyping(true);
-      setTimeout(() => {
-        const transcribed = "Yes, please book the AC service for tomorrow morning.";
-        setIsTyping(false);
-        const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text: transcribed, timestamp: new Date() };
+      if (uri) {
+        const userMsg: Message = { 
+          id: `u${Date.now()}`, 
+          role: 'user', 
+          audioUri: uri, 
+          timestamp: new Date() 
+        };
         const updatedHistory = [...messages, userMsg];
         setMessages(updatedHistory);
-        fetchReply(transcribed, updatedHistory);
-      }, 1500);
+        
+        // Fetch AI reply based on a placeholder since we're not transcribing
+        fetchReply("Voice message received", updatedHistory);
+      }
     } catch (err) {
       console.error('Failed to stop recording', err);
     }
@@ -298,9 +389,13 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                   </View>
                 )}
                 <View style={[styles.bubbleContent, msg.role === 'user' ? styles.userBubbleContent : styles.aiBubbleContent]}>
-                  <Text style={[styles.bubbleText, msg.role === 'user' ? styles.userBubbleText : styles.aiBubbleText]}>
-                    {msg.text}
-                  </Text>
+                  {msg.audioUri ? (
+                    <VoiceMessagePlayer uri={msg.audioUri} isUser={msg.role === 'user'} />
+                  ) : (
+                    <Text style={[styles.bubbleText, msg.role === 'user' ? styles.userBubbleText : styles.aiBubbleText]}>
+                      {msg.text}
+                    </Text>
+                  )}
                   <Text style={[styles.bubbleTime, msg.role === 'user' ? styles.userBubbleTime : styles.aiBubbleTime]}>
                     {formatTime(msg.timestamp)}
                   </Text>
@@ -521,4 +616,15 @@ const styles = StyleSheet.create({
   voicePulseWrapper: { flex: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 12 },
   pulseCircle: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(0, 89, 92, 0.15)', alignItems: 'center', justifyContent: 'center' },
   listeningText: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#00595c' },
+  voicePlayer: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 160, paddingVertical: 4 },
+  playBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  userPlayBtn: { backgroundColor: '#fff' },
+  aiPlayBtn: { backgroundColor: '#00595c' },
+  waveformContainer: { flex: 1, height: 4, borderRadius: 2, position: 'relative', overflow: 'hidden' },
+  waveformProgress: { position: 'absolute', top: 0, left: 0, bottom: 0, borderRadius: 2 },
+  userWaveformBg: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  aiWaveformBg: { backgroundColor: 'rgba(0, 89, 92, 0.15)' },
+  userWaveform: { backgroundColor: '#fff' },
+  aiWaveform: { backgroundColor: '#00595c' },
+  audioDuration: { fontFamily: 'Inter_400Regular', fontSize: 10, minWidth: 28 },
 });

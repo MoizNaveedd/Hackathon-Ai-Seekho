@@ -16,6 +16,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   const [isRecording, setIsRecording] = useState(false);
   const [chatVisible, setChatVisible] = useState(false);
   const [chatInitialQuery, setChatInitialQuery] = useState("");
+  const [chatInitialAudioUri, setChatInitialAudioUri] = useState("");
   const [pulseAnim] = useState(new Animated.Value(1));
   const router = useRouter();
 
@@ -69,21 +70,15 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
     if (!recording) return;
 
     try {
+      const uri = recording.getURI();
       await recording.stopAndUnloadAsync();
       setRecording(undefined);
       
-      // Simulate AI Transcription
-      setSearchQuery("Transcribing...");
-      setTimeout(() => {
-        const transcribed = "AC unit making loud noise and not cooling properly.";
-        setSearchQuery(transcribed);
-        // Auto-open chat after transcription
-        setTimeout(() => {
-          setChatInitialQuery(transcribed);
-          setChatVisible(true);
-          setSearchQuery("");
-        }, 600);
-      }, 1500);
+      if (uri) {
+        setChatInitialAudioUri(uri);
+        setChatInitialQuery("");
+        setChatVisible(true);
+      }
     } catch (err) {
       console.error('Failed to stop recording', err);
     }
@@ -435,7 +430,12 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
     <ChatBottomSheet
       visible={chatVisible}
       initialQuery={chatInitialQuery}
-      onClose={() => setChatVisible(false)}
+      initialAudioUri={chatInitialAudioUri}
+      onClose={() => {
+        setChatVisible(false);
+        setChatInitialAudioUri("");
+        setChatInitialQuery("");
+      }}
       userName={userName}
     />
     </>
