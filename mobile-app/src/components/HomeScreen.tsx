@@ -30,6 +30,46 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   const [providerMessages, setProviderMessages] = useState<Message[]>([]);
   const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<any>(null);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "Booking Confirmed",
+      description: "Your technician, Ali Khan, has confirmed the appointment for tomorrow at 10:00 AM.",
+      time: "5 hours ago",
+      icon: "check-circle",
+      iconColor: "#005c3e",
+      bgColor: "rgba(0, 92, 62, 0.08)",
+      unread: false,
+    },
+    {
+      id: 2,
+      title: "Service Provider Arrived",
+      description: "Ali Khan has arrived at your location. Please guide him to the workspace.",
+      time: "1 hour ago",
+      icon: "room",
+      iconColor: "#00595c",
+      bgColor: "rgba(0, 89, 92, 0.08)",
+      unread: true,
+    },
+    {
+      id: 3,
+      title: "Service Completed",
+      description: "The AC Repair service has been marked completed by Ali Khan. Please review the invoice and rate the service.",
+      time: "10 mins ago",
+      icon: "verified",
+      iconColor: "#00595c",
+      bgColor: "rgba(0, 89, 92, 0.08)",
+      unread: true,
+    }
+  ]);
+
+  const handleMarkAsRead = (id: number) => {
+    setNotifications(prev => prev.map(item => item.id === id ? { ...item, unread: false } : item));
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications(prev => prev.map(item => ({ ...item, unread: false })));
+  };
 
   const getInvoiceDetails = (priceStr: string) => {
     const num = parseInt(priceStr.replace(/[^0-9]/g, '')) || 1200;
@@ -436,8 +476,13 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             </View>
           </View>
           <View style={styles.navActions}>
-            <TouchableOpacity style={styles.iconButton}>
-              <MaterialIcons name="notifications" size={24} color="#3e4949" />
+            <TouchableOpacity style={styles.iconButton} onPress={() => setActiveTab('notifications')}>
+              <View style={{ position: 'relative' }}>
+                <MaterialIcons name="notifications" size={24} color="#3e4949" />
+                {notifications.some(n => n.unread) && (
+                  <View style={styles.navBarBadge} />
+                )}
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={styles.profileAvatar} onPress={() => setActiveTab('profile')}>
               <Image 
@@ -1578,6 +1623,64 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             </View>
           );
         })()
+      : activeTab === 'notifications' ? (() => {
+          return (
+            <View style={styles.notifContainer}>
+              {/* Notifications Header */}
+              <View style={styles.notifHeaderBar}>
+                <TouchableOpacity onPress={() => setActiveTab('home')} style={styles.notifBackBtn}>
+                  <MaterialIcons name="arrow-back" size={24} color="#00595c" />
+                </TouchableOpacity>
+                <Text style={styles.notifHeaderTitle}>Notifications</Text>
+                <TouchableOpacity style={styles.notifMarkReadBtn} onPress={handleMarkAllAsRead}>
+                  <MaterialIcons name="done-all" size={20} color="#00595c" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView 
+                style={styles.notifScroll}
+                contentContainerStyle={styles.notifScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {notifications.map((item) => (
+                  <TouchableOpacity 
+                    key={item.id} 
+                    onPress={() => handleMarkAsRead(item.id)}
+                    activeOpacity={0.8}
+                    style={[styles.notifCard, item.unread && styles.notifCardUnread]}
+                  >
+                    <View style={[styles.notifIconWrapper, { backgroundColor: item.bgColor }]}>
+                      <MaterialIcons name={item.icon as any} size={22} color={item.iconColor} />
+                    </View>
+                    
+                    <View style={styles.notifContent}>
+                      <View style={styles.notifMetaRow}>
+                        <Text style={styles.notifTitle}>{item.title}</Text>
+                        <Text style={styles.notifTime}>{item.time}</Text>
+                      </View>
+                      <Text style={styles.notifDesc}>{item.description}</Text>
+                    </View>
+                    
+                    {item.unread && <View style={styles.notifUnreadBadge} />}
+                  </TouchableOpacity>
+                ))}
+
+                {/* All Caught Up Card */}
+                {!notifications.some(n => n.unread) && (
+                  <View style={styles.caughtUpCard}>
+                    <View style={styles.caughtUpIconWrapper}>
+                      <MaterialIcons name="done-all" size={32} color="#00595c" />
+                    </View>
+                    <Text style={styles.caughtUpTitle}>All Caught Up!</Text>
+                    <Text style={styles.caughtUpSubtitle}>
+                      No new notifications at the moment. We'll alert you when something important happens.
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+          );
+        })()
       : (
         <View style={styles.comingSoonContainer}>
           <MaterialIcons name="construction" size={64} color="#00595c" />
@@ -1607,7 +1710,12 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             {activeTab === 'bookings' && <View style={styles.navActiveIndicator} />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('notifications')}>
-            <MaterialIcons name="notifications" size={24} color={activeTab === 'notifications' ? '#00595c' : '#3e4949'} />
+            <View style={{ position: 'relative' }}>
+              <MaterialIcons name="notifications" size={24} color={activeTab === 'notifications' ? '#00595c' : '#3e4949'} />
+              {notifications.some(n => n.unread) && (
+                <View style={styles.navBarBadge} />
+              )}
+            </View>
             <Text style={[styles.navText, activeTab === 'notifications' && { color: '#00595c' }]}>Notifications</Text>
             {activeTab === 'notifications' && <View style={styles.navActiveIndicator} />}
           </TouchableOpacity>
@@ -3728,5 +3836,147 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 14,
     color: '#fff',
+  },
+  notifContainer: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  notifHeaderBar: {
+    height: 64,
+    backgroundColor: '#fcf8ff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#bec9c9',
+  },
+  notifBackBtn: {
+    padding: 8,
+  },
+  notifHeaderTitle: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 20,
+    color: '#1a1a2e',
+  },
+  notifMarkReadBtn: {
+    padding: 8,
+  },
+  notifScroll: {
+    flex: 1,
+  },
+  notifScrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  notifCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+    position: 'relative',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 0,
+    borderColor: '#efecff',
+  },
+  notifCardUnread: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#00595c',
+  },
+  notifIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  notifContent: {
+    flex: 1,
+  },
+  notifMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  notifTitle: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 15,
+    color: '#1a1a2e',
+    flex: 1,
+  },
+  notifTime: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#6e7979',
+    marginLeft: 8,
+  },
+  notifDesc: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: '#3e4949',
+    lineHeight: 18,
+  },
+  notifUnreadBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ae2f34',
+  },
+  caughtUpCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#bec9c9',
+    borderStyle: 'dashed',
+  },
+  caughtUpIconWrapper: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0, 89, 92, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  caughtUpTitle: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 16,
+    color: '#1a1a2e',
+    marginBottom: 4,
+  },
+  caughtUpSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#6e7979',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  navBarBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ae2f34',
+    borderWidth: 1.5,
+    borderColor: '#fff',
   }
 });
