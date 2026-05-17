@@ -300,14 +300,7 @@ export default function ProviderProfile() {
                   ))}
                 </View>
 
-                <Text style={styles.sectionHeading}>Certifications</Text>
-                <View style={styles.certCard}>
-                  <MaterialIcons name="card-membership" size={32} color="#00595c" />
-                  <View style={styles.certDetails}>
-                    <Text style={styles.certTitle}>HVAC Certified Master Technician</Text>
-                    <Text style={styles.certIssuer}>Government Technical Training Institute · 2015</Text>
-                  </View>
-                </View>
+               
               </View>
             )}
 

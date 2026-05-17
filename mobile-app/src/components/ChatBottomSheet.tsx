@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 import { transcribeVoiceLive } from '../services/transcriptionService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface Message {
+export interface Message {
   id: string;
   role: 'user' | 'assistant';
   text?: string;
@@ -30,6 +30,10 @@ interface Props {
   initialQuery?: string;
   onClose: () => void;
   userName: string;
+  providerMode?: boolean;
+  providerName?: string;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
 }
 
 // ─── Mock Backend ─────────────────────────────────────────────────────────────
@@ -157,14 +161,13 @@ function VoiceMessagePlayer({ uri, isUser }: { uri: string; isUser: boolean }) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function ChatBottomSheet({ visible, initialQuery, onClose, userName }: Props) {
+export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, providerMode = false, providerName = "Ahmed Khan", messages, setMessages }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const slideAnim = useRef(new Animated.Value(600)).current;
   const keyboardAnim = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);
 
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [bookingProposal, setBookingProposal] = useState<BookingProposal | null>(null);
@@ -183,7 +186,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
     if (visible) {
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
       
-      if (initialQuery) {
+      if (initialQuery && messages.length === 0) {
         // Seed the first user text message and get AI reply
         const firstMsg: Message = { id: 'u0', role: 'user', text: initialQuery, timestamp: new Date() };
         setMessages([firstMsg]);
@@ -191,8 +194,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       }
     } else {
       Animated.timing(slideAnim, { toValue: 600, duration: 250, useNativeDriver: true }).start();
-      // Reset state when closed
-      setMessages([]);
+      // Reset state when closed, keeping messages preserved
       setInputText('');
       setBookingProposal(null);
       setBookingConfirmed(false);
@@ -200,7 +202,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       setShowCloseConfirm(false);
       setIsRecording(false);
     }
-  }, [visible]);
+  }, [visible, messages.length]);
 
   useEffect(() => {
     if (isRecording) {
@@ -249,12 +251,41 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   async function fetchReply(text: string, currentHistory: Message[]) {
     setIsTyping(true);
     try {
-      const { reply, bookingProposal: proposal } = await sendToBackend(text, currentHistory);
+      let reply = "";
+      let proposal = null;
+
+      if (providerMode) {
+        // Mock provider responses
+        await new Promise(r => setTimeout(r, 1500)); // simulate typing latency
+        const lower = text.toLowerCase();
+        if (lower.includes('where') || lower.includes('reach') || lower.includes('kahan') || lower.includes('time') || lower.includes('status')) {
+          reply = `Ji, I am on my way! Currently near the main road, should be at your location in about 10 to 12 minutes.`;
+        } else if (lower.includes('tool') || lower.includes('gas') || lower.includes('part') || lower.includes('saman') || lower.includes('pipe') || lower.includes('wire')) {
+          reply = `Yes, I have all the required tools and replacement parts with me. Don't worry, we'll get it fixed perfectly.`;
+        } else if (lower.includes('gate') || lower.includes('address') || lower.includes('street') || lower.includes('gali') || lower.includes('ghar') || lower.includes('home') || lower.includes('location')) {
+          reply = `Ji, I have your address and location on my map. I will call you as soon as I arrive at your gate.`;
+        } else {
+          const providerResponses = [
+            "Assalam-o-Alaikum! Yes, I am heading to your location now.",
+            "Understood, ji. I will be there shortly.",
+            "Ji, don't worry. I will make sure the work is done perfectly.",
+            "Almost there! Just a couple of minutes away.",
+            "I'm riding my bike right now, will reach you very soon."
+          ];
+          const randomIndex = Math.floor(Math.random() * providerResponses.length);
+          reply = providerResponses[randomIndex];
+        }
+      } else {
+        const backendRes = await sendToBackend(text, currentHistory);
+        reply = backendRes.reply;
+        proposal = backendRes.bookingProposal;
+      }
+
       const aiMsg: Message = { id: `a${Date.now()}`, role: 'assistant', text: reply, timestamp: new Date() };
       setMessages(prev => [...prev, aiMsg]);
       if (proposal) setBookingProposal(proposal);
     } catch {
-      const errMsg: Message = { id: `e${Date.now()}`, role: 'assistant', text: "Sorry, I couldn't connect to the server. Please try again.", timestamp: new Date() };
+      const errMsg: Message = { id: `e${Date.now()}`, role: 'assistant', text: "Sorry, I couldn't connect. Please try again.", timestamp: new Date() };
       setMessages(prev => [...prev, errMsg]);
     } finally {
       setIsTyping(false);
@@ -336,15 +367,24 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <View style={styles.aiAvatar}>
-                <MaterialIcons name="smart-toy" size={20} color="#fff" />
+              <View style={[styles.aiAvatar, providerMode && { backgroundColor: '#005c3e' }]}>
+                <MaterialIcons name={providerMode ? "person" : "smart-toy"} size={20} color="#fff" />
               </View>
               <View>
-                <Text style={styles.headerTitle}>Karigar Assistant</Text>
-                <Text style={styles.headerSub}>Powered by AI</Text>
+                <Text style={styles.headerTitle}>{providerMode ? providerName : "Karigar Assistant"}</Text>
+                <Text style={styles.headerSub}>{providerMode ? "Service Provider (Active)" : "Powered by AI"}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={() => setShowCloseConfirm(true)} style={styles.closeBtn}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (providerMode) {
+                  onClose();
+                } else {
+                  setShowCloseConfirm(true);
+                }
+              }} 
+              style={styles.closeBtn}
+            >
               <MaterialIcons name="close" size={22} color="#3e4949" />
             </TouchableOpacity>
           </View>
@@ -364,8 +404,8 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
             {messages.map(msg => (
               <View key={msg.id} style={[styles.bubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
                 {msg.role === 'assistant' && (
-                  <View style={styles.aiBubbleAvatar}>
-                    <MaterialIcons name="smart-toy" size={14} color="#00595c" />
+                  <View style={[styles.aiBubbleAvatar, providerMode && { backgroundColor: '#e6f4fe', borderColor: '#b3dbf8' }]}>
+                    <MaterialIcons name={providerMode ? "person" : "smart-toy"} size={14} color={providerMode ? "#004B87" : "#00595c"} />
                   </View>
                 )}
                 <View style={[styles.bubbleContent, msg.role === 'user' ? styles.userBubbleContent : styles.aiBubbleContent]}>
@@ -386,12 +426,14 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
             {/* Typing indicator */}
             {isTyping && (
               <View style={[styles.bubble, styles.aiBubble]}>
-                <View style={styles.aiBubbleAvatar}>
-                  <MaterialIcons name="smart-toy" size={14} color="#00595c" />
+                <View style={[styles.aiBubbleAvatar, providerMode && { backgroundColor: '#e6f4fe', borderColor: '#b3dbf8' }]}>
+                  <MaterialIcons name={providerMode ? "person" : "smart-toy"} size={14} color={providerMode ? "#004B87" : "#00595c"} />
                 </View>
-                <View style={styles.typingIndicator}>
-                  <ActivityIndicator size="small" color="#00595c" />
-                  <Text style={styles.typingText}>Karigar AI is thinking...</Text>
+                <View style={[styles.typingIndicator, providerMode && { backgroundColor: '#f0f7fc' }]}>
+                  <ActivityIndicator size="small" color={providerMode ? "#004B87" : "#00595c"} />
+                  <Text style={[styles.typingText, providerMode && { color: '#004B87' }]}>
+                    {providerMode ? `${providerName} is typing...` : "Karigar AI is thinking..."}
+                  </Text>
                 </View>
               </View>
             )}

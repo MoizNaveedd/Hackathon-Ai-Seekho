@@ -6,8 +6,10 @@ import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import MapView, { Marker, Polyline } from 'react-native-maps';
-import ChatBottomSheet from './ChatBottomSheet';
+import ChatBottomSheet, { Message } from './ChatBottomSheet';
 import { transcribeVoiceLive } from '../services/transcriptionService';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '[GCP_API_KEY]';
 
@@ -22,6 +24,248 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [chatVisible, setChatVisible] = useState(false);
   const [chatInitialQuery, setChatInitialQuery] = useState("");
+  const [chatProviderMode, setChatProviderMode] = useState(false);
+  const [chatProviderName, setChatProviderName] = useState("");
+  const [assistantMessages, setAssistantMessages] = useState<Message[]>([]);
+  const [providerMessages, setProviderMessages] = useState<Message[]>([]);
+  const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<any>(null);
+
+  const getInvoiceDetails = (priceStr: string) => {
+    const num = parseInt(priceStr.replace(/[^0-9]/g, '')) || 1200;
+    return {
+      baseFee: `Rs ${num.toLocaleString()}`,
+      distanceFee: "Rs 200",
+      urgencyFee: "Rs 300",
+      discount: "-Rs 150",
+      walletCredit: `-Rs 350`,
+      totalPaid: `Rs ${num.toLocaleString()}`
+    };
+  };
+
+  const downloadInvoicePdf = async (booking: any) => {
+    if (!booking) return;
+    const details = getInvoiceDetails(booking.price);
+    const htmlContent = `
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+          <style>
+            body {
+              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+              padding: 24px;
+              color: #1a1a2e;
+              background-color: #FAFAFA;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 24px;
+              border-bottom: 2px solid #00595c;
+              padding-bottom: 16px;
+            }
+            .logo {
+              font-size: 28px;
+              font-weight: bold;
+              color: #00595c;
+              margin-bottom: 4px;
+            }
+            .tagline {
+              font-size: 12px;
+              color: #6e7979;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .status-container {
+              margin-top: 16px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+            }
+            .status {
+              color: #005c3e;
+              background-color: rgba(0, 92, 62, 0.1);
+              display: inline-block;
+              padding: 6px 16px;
+              border-radius: 12px;
+              font-weight: bold;
+              font-size: 14px;
+              margin-bottom: 8px;
+              letter-spacing: 1px;
+            }
+            .invoice-id {
+              font-size: 16px;
+              font-weight: bold;
+              color: #3e4949;
+            }
+            .invoice-date {
+              font-size: 12px;
+              color: #6e7979;
+            }
+            .card {
+              background-color: #fff;
+              border-radius: 12px;
+              padding: 20px;
+              margin-bottom: 20px;
+              border: 1px solid #bec9c9;
+            }
+            .card-title {
+              font-size: 12px;
+              font-weight: bold;
+              color: #6e7979;
+              letter-spacing: 1px;
+              margin-bottom: 16px;
+              text-transform: uppercase;
+              border-bottom: 1px dashed #bec9c9;
+              padding-bottom: 8px;
+            }
+            .row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 12px;
+              font-size: 14px;
+              color: #3e4949;
+            }
+            .row strong {
+              color: #1a1a2e;
+            }
+            .total-row {
+              border-top: 1px solid #bec9c9;
+              padding-top: 12px;
+              margin-top: 12px;
+              font-weight: bold;
+              font-size: 18px;
+              color: #1a1a2e;
+            }
+            .success-text {
+              color: #005c3e;
+              font-weight: 600;
+            }
+            .footer-info {
+              text-align: center;
+              font-size: 11px;
+              color: #6e7979;
+              margin-top: 40px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">Karigar.ai</div>
+            <div class="tagline">Your Trusted Service Assistant</div>
+            <div class="status-container">
+              <span class="status">PAID</span>
+              <span class="invoice-id">Invoice #INV-88291</span>
+              <span class="invoice-date">Date: ${booking.date}</span>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-title">Service Details</div>
+            <div class="row">
+              <strong>Service Rendered</strong>
+              <span>${booking.service}</span>
+            </div>
+            <div class="row">
+              <strong>Service Provider</strong>
+              <span>${booking.provider}</span>
+            </div>
+            <div class="row">
+              <strong>Date & Time</strong>
+              <span>${booking.date} | ${booking.time.split(" - ")[0]}</span>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-title">Billing Breakdown</div>
+            <div class="row">
+              <span>Base Service Fee</span>
+              <span>${details.baseFee}</span>
+            </div>
+            <div class="row">
+              <span>Distance Fee</span>
+              <span>${details.distanceFee}</span>
+            </div>
+            <div class="row">
+              <span>Urgency Fee</span>
+              <span>${details.urgencyFee}</span>
+            </div>
+            <div class="row success-text">
+              <span>Discount (Promo)</span>
+              <span>${details.discount}</span>
+            </div>
+            <div class="row success-text">
+              <span>Wallet Credit Used</span>
+              <span>${details.walletCredit}</span>
+            </div>
+            <div class="row total-row">
+              <span>Total Amount Paid</span>
+              <span>${details.totalPaid}</span>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-title">Payment Information</div>
+            <div class="row">
+              <strong>Payment Method</strong>
+              <span style="font-weight: bold; color: #005c3e;">Cash</span>
+            </div>
+            <div class="row">
+              <strong>Payment Status</strong>
+              <span class="success-text">Settled</span>
+            </div>
+          </div>
+
+          <div class="footer-info">
+            Thank you for choosing Karigar.ai! This is a system-generated invoice.
+          </div>
+        </body>
+      </html>
+    `;
+
+    try {
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `Download Invoice - ${booking.id}`,
+        UTI: 'com.adobe.pdf'
+      });
+    } catch (error: any) {
+      alert("Failed to download PDF invoice: " + error.message);
+    }
+  };
+
+  const requestLocation = async () => {
+    setLocationName("Finding location...");
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationName("Location denied");
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+      
+      let reverseGeocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+
+      if (reverseGeocode && reverseGeocode.length > 0) {
+        const { city, district, region, subregion } = reverseGeocode[0];
+        const area = district || subregion || city || 'Unknown Area';
+        const reg = region ? `, ${region}` : '';
+        setLocationName(`${area}${reg}`);
+      } else {
+        setLocationName("Location found");
+      }
+    } catch (error) {
+      setLocationName("Location error");
+    }
+  };
+
   const [pulseAnim] = useState(new Animated.Value(1));
   const router = useRouter();
 
@@ -98,6 +342,11 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
         setTrackingBooking(null);
         return true; // handled
       }
+      if (activeTab === 'invoice') {
+        setActiveTab('bookings');
+        setSelectedInvoiceBooking(null);
+        return true; // handled
+      }
       if (activeTab !== 'home') {
         setActiveTab('home');
         return true; // handled
@@ -157,36 +406,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   }
 
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationName("Location denied");
-        return;
-      }
-
-      try {
-        let location = await Location.getCurrentPositionAsync({});
-        setUserLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude
-        });
-        let reverseGeocode = await Location.reverseGeocodeAsync({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude
-        });
-
-        if (reverseGeocode && reverseGeocode.length > 0) {
-          const { city, district, region, subregion } = reverseGeocode[0];
-          const area = district || subregion || city || 'Unknown Area';
-          const reg = region ? `, ${region}` : '';
-          setLocationName(`${area}${reg}`);
-        } else {
-          setLocationName("Location found");
-        }
-      } catch (error) {
-        setLocationName("Location error");
-      }
-    })();
+    requestLocation();
   }, []);
   
   return (
@@ -199,7 +419,18 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             <MaterialIcons name="location-on" size={24} color="#00595c" />
             <View style={styles.locationTextContainer}>
               <Text style={styles.locationLabel}>CURRENT LOCATION</Text>
-              <Text style={styles.locationValue} numberOfLines={1}>{locationName}</Text>
+              {locationName === "Location denied" || locationName === "Location error" ? (
+                <TouchableOpacity 
+                  style={styles.locationRefreshBtn} 
+                  onPress={requestLocation}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.locationRefreshText}>Tap to Refresh</Text>
+                  <MaterialIcons name="refresh" size={14} color="#00595c" style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.locationValue} numberOfLines={1}>{locationName}</Text>
+              )}
             </View>
           </View>
           <View style={styles.navActions}>
@@ -303,6 +534,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                     onPress={() => {
                       const q = searchQuery.trim();
                       setChatInitialQuery(q);
+                      setChatProviderMode(false);
+                      setChatProviderName("");
                       setChatVisible(true);
                       setSearchQuery("");
                     }}
@@ -393,6 +626,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                 style={styles.gridItem}
                 onPress={() => {
                   setChatInitialQuery(`I want ${service.name}`);
+                  setChatProviderMode(false);
+                  setChatProviderName("");
                   setChatVisible(true);
                 }}
               >
@@ -643,9 +878,6 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                     <View style={styles.cardActionsRow}>
                       {booking.status === 'Upcoming' ? (
                         <>
-                          <TouchableOpacity style={styles.actionBtnSec}>
-                            <Text style={styles.actionBtnTextSec}>Invoice</Text>
-                          </TouchableOpacity>
                           <TouchableOpacity 
                             style={styles.actionBtnSec}
                             onPress={() => {
@@ -725,7 +957,13 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                         </>
                       ) : (
                         <>
-                          <TouchableOpacity style={styles.actionBtnSec}>
+                          <TouchableOpacity 
+                            style={styles.actionBtnSec}
+                            onPress={() => {
+                              setSelectedInvoiceBooking(booking);
+                              setActiveTab('invoice');
+                            }}
+                          >
                             <Text style={styles.actionBtnTextSec}>Invoice</Text>
                           </TouchableOpacity>
                           <TouchableOpacity 
@@ -1111,6 +1349,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                     style={styles.trackActionBtnPri} 
                     onPress={() => {
                       setChatInitialQuery("Where have you reached, Ahmed?");
+                      setChatProviderMode(true);
+                      setChatProviderName("Ahmed Khan");
                       setChatVisible(true);
                     }}
                   >
@@ -1191,6 +1431,151 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             </ScrollView>
           );
         })()
+      : activeTab === 'invoice' ? (() => {
+          if (!selectedInvoiceBooking) return null;
+          const invoiceDetails = getInvoiceDetails(selectedInvoiceBooking.price);
+          
+          return (
+            <View style={styles.invoiceScreenContainer}>
+              {/* Header Bar */}
+              <View style={styles.invoiceHeaderBar}>
+                <View style={styles.invoiceHeaderLeft}>
+                  <TouchableOpacity 
+                    onPress={() => setActiveTab('bookings')} 
+                    style={styles.invoiceBackBtn}
+                  >
+                    <MaterialIcons name="arrow-back" size={24} color="#00595c" />
+                  </TouchableOpacity>
+                  <Text style={styles.invoiceHeaderTitle}>Service Invoice</Text>
+                </View>
+                <TouchableOpacity style={styles.invoiceMoreBtn}>
+                  <MaterialIcons name="more-vert" size={24} color="#00595c" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView 
+                style={styles.invoiceScroll} 
+                contentContainerStyle={styles.invoiceContentContainer}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Status & Header Section */}
+                <View style={styles.invoiceStatusSection}>
+                  <View style={styles.invoiceCheckContainer}>
+                    <MaterialIcons name="check-circle" size={56} color="#005c3e" />
+                  </View>
+                  <View style={styles.invoicePaidBadge}>
+                    <Text style={styles.invoicePaidText}>PAID</Text>
+                  </View>
+                  <Text style={styles.invoiceNumberText}>Invoice #INV-88291</Text>
+                  <Text style={styles.invoiceDateText}>Date: {selectedInvoiceBooking.date}</Text>
+                </View>
+
+                {/* Service Details Card */}
+                <View style={styles.invoiceCard}>
+                  <View style={styles.invoiceServiceHeader}>
+                    <Image 
+                      source={require('../../assets/images/app-icon/icon.png')} 
+                      style={styles.invoiceAppLogo} 
+                    />
+                    <View style={styles.invoiceServiceMeta}>
+                      <Text style={styles.invoiceServiceName}>{selectedInvoiceBooking.service}</Text>
+                      <Text style={styles.invoiceProviderName}>{selectedInvoiceBooking.provider}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.invoiceDivider} />
+                  <View style={styles.invoiceScheduleRow}>
+                    <View style={styles.invoiceScheduleItem}>
+                      <MaterialIcons name="event" size={16} color="#6e7979" />
+                      <Text style={styles.invoiceScheduleText}>{selectedInvoiceBooking.date}</Text>
+                    </View>
+                    <View style={styles.invoiceScheduleItem}>
+                      <MaterialIcons name="access-time" size={16} color="#6e7979" />
+                      <Text style={styles.invoiceScheduleText}>{selectedInvoiceBooking.time.split(" - ")[0]}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Billing Breakdown */}
+                <View style={styles.invoiceCard}>
+                  <Text style={styles.invoiceBillingTitle}>BILLING DETAILS</Text>
+                  <View style={styles.invoiceBillingRow}>
+                    <Text style={styles.invoiceBillingLabel}>Base Service Fee</Text>
+                    <Text style={styles.invoiceBillingValue}>{invoiceDetails.baseFee}</Text>
+                  </View>
+                  <View style={styles.invoiceBillingRow}>
+                    <Text style={styles.invoiceBillingLabel}>Distance Fee</Text>
+                    <Text style={styles.invoiceBillingValue}>{invoiceDetails.distanceFee}</Text>
+                  </View>
+                  <View style={styles.invoiceBillingRow}>
+                    <Text style={styles.invoiceBillingLabel}>Urgency Fee</Text>
+                    <Text style={styles.invoiceBillingValue}>{invoiceDetails.urgencyFee}</Text>
+                  </View>
+                  
+                  {/* Promo & Credit */}
+                  <View style={styles.invoiceBillingRow}>
+                    <View style={styles.invoicePromoLabelContainer}>
+                      <MaterialIcons name="redeem" size={16} color="#005c3e" />
+                      <Text style={[styles.invoiceBillingLabel, { color: '#005c3e', marginLeft: 4 }]}>Discount (Promo)</Text>
+                    </View>
+                    <Text style={[styles.invoiceBillingValue, { color: '#005c3e' }]}>{invoiceDetails.discount}</Text>
+                  </View>
+                  
+                  <View style={styles.invoiceBillingRow}>
+                    <View style={styles.invoicePromoLabelContainer}>
+                      <MaterialIcons name="account-balance-wallet" size={16} color="#005c3e" />
+                      <Text style={[styles.invoiceBillingLabel, { color: '#005c3e', marginLeft: 4 }]}>Wallet Credit Used</Text>
+                    </View>
+                    <Text style={[styles.invoiceBillingValue, { color: '#005c3e' }]}>{invoiceDetails.walletCredit}</Text>
+                  </View>
+                  
+                  <View style={styles.invoiceDivider} />
+                  
+                  <View style={[styles.invoiceBillingRow, { marginTop: 8 }]}>
+                    <Text style={styles.invoiceTotalLabel}>Total Amount Paid</Text>
+                    <Text style={styles.invoiceTotalValue}>{invoiceDetails.totalPaid}</Text>
+                  </View>
+                </View>
+
+                {/* Payment Method */}
+                <View style={styles.invoiceCard}>
+                  <View style={styles.invoicePaymentRow}>
+                    <View style={styles.invoicePaymentLeft}>
+                      <View style={styles.invoiceCashLogoContainer}>
+                        <MaterialIcons name="payments" size={22} color="#005c3e" />
+                      </View>
+                      <View>
+                        <Text style={styles.invoicePaymentTitle}>PAYMENT METHOD</Text>
+                        <Text style={styles.invoicePaymentDetail}>Cash</Text>
+                      </View>
+                    </View>
+                    <MaterialIcons name="check-circle" size={18} color="#005c3e" />
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Bottom Actions Section */}
+              <View style={styles.invoiceFooter}>
+                <TouchableOpacity 
+                  style={styles.invoiceDownloadBtn}
+                  onPress={() => {
+                    downloadInvoicePdf(selectedInvoiceBooking);
+                  }}
+                >
+                  <MaterialIcons name="file-download" size={18} color="#00595c" />
+                  <Text style={styles.invoiceDownloadText}>Download PDF</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.invoiceHomeBtn}
+                  onPress={() => {
+                    setActiveTab('home');
+                  }}
+                >
+                  <Text style={styles.invoiceHomeText}>Back to Home</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })()
       : (
         <View style={styles.comingSoonContainer}>
           <MaterialIcons name="construction" size={64} color="#00595c" />
@@ -1200,14 +1585,14 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       )}
 
       {/* Floating Action Button */}
-      {activeTab !== 'rate-service' && activeTab !== 'track-service' && (
+      {activeTab !== 'rate-service' && activeTab !== 'track-service' && activeTab !== 'invoice' && (
         <TouchableOpacity style={styles.fab}>
           <MaterialIcons name="add" size={32} color="#fff" />
         </TouchableOpacity>
       )}
 
       {/* Bottom Navigation Shell */}
-      {activeTab !== 'rate-service' && activeTab !== 'track-service' && (
+      {activeTab !== 'rate-service' && activeTab !== 'track-service' && activeTab !== 'invoice' && (
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('home')}>
             <MaterialIcons name="home" size={24} color={activeTab === 'home' ? '#00595c' : '#3e4949'} />
@@ -1239,8 +1624,14 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       onClose={() => {
         setChatVisible(false);
         setChatInitialQuery("");
+        setChatProviderMode(false);
+        setChatProviderName("");
       }}
       userName={userName}
+      providerMode={chatProviderMode}
+      providerName={chatProviderName}
+      messages={chatProviderMode ? providerMessages : assistantMessages}
+      setMessages={chatProviderMode ? setProviderMessages : setAssistantMessages}
     />
 
 
@@ -1324,6 +1715,21 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 18,
     color: '#1a1a2e',
+  },
+  locationRefreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 89, 92, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 2,
+    alignSelf: 'flex-start',
+  },
+  locationRefreshText: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 12,
+    color: '#00595c',
   },
   navActions: {
     flexDirection: 'row',
@@ -2902,5 +3308,246 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: 'top',
     marginTop: 12,
+  },
+  invoiceScreenContainer: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  invoiceAppLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    marginRight: 16,
+  },
+  invoiceHeaderBar: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#bec9c9',
+  },
+  invoiceHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  invoiceBackBtn: {
+    padding: 8,
+    marginRight: 8,
+    borderRadius: 20,
+  },
+  invoiceHeaderTitle: {
+    fontSize: 18,
+    fontFamily: 'Plus Jakarta Sans',
+    fontWeight: 'bold',
+    color: '#1a1a2e',
+  },
+  invoiceMoreBtn: {
+    padding: 8,
+  },
+  invoiceScroll: {
+    flex: 1,
+  },
+  invoiceContentContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 160,
+  },
+  invoiceStatusSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  invoiceCheckContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(0,92,62,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  invoicePaidBadge: {
+    backgroundColor: 'rgba(0,92,62,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  invoicePaidText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#005c3e',
+    letterSpacing: 1,
+  },
+  invoiceNumberText: {
+    fontSize: 14,
+    color: '#3e4949',
+    marginBottom: 4,
+  },
+  invoiceDateText: {
+    fontSize: 12,
+    color: '#6e7979',
+  },
+  invoiceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  invoiceServiceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  invoiceServiceIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,89,92,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  invoiceServiceMeta: {
+    flex: 1,
+  },
+  invoiceServiceName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1a1a2e',
+    marginBottom: 4,
+  },
+  invoiceProviderName: {
+    fontSize: 14,
+    color: '#3e4949',
+  },
+  invoiceDivider: {
+    height: 1,
+    backgroundColor: '#bec9c9',
+    marginVertical: 16,
+  },
+  invoiceScheduleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  invoiceScheduleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  invoiceScheduleText: {
+    fontSize: 12,
+    color: '#6e7979',
+    marginLeft: 6,
+  },
+  invoiceBillingTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#6e7979',
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  invoiceBillingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  invoiceBillingLabel: {
+    fontSize: 14,
+    color: '#3e4949',
+  },
+  invoiceBillingValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a1a2e',
+  },
+  invoicePromoLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  invoiceTotalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1a1a2e',
+  },
+  invoiceTotalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a2e',
+  },
+  invoicePaymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  invoicePaymentLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  invoiceCashLogoContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,92,62,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  invoicePaymentTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#6e7979',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  invoicePaymentDetail: {
+    fontSize: 14,
+    color: '#1a1a2e',
+  },
+  invoiceFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#bec9c9',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+  },
+  invoiceDownloadBtn: {
+    height: 48,
+    borderWidth: 2,
+    borderColor: '#00595c',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  invoiceDownloadText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#00595c',
+    marginLeft: 8,
+  },
+  invoiceHomeBtn: {
+    height: 48,
+    backgroundColor: '#00595c',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  invoiceHomeText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
   }
 });

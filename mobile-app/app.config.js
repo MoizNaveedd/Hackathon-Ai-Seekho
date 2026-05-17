@@ -1,5 +1,5 @@
 module.exports = ({ config }) => {
-  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyChsEbappsA0uQ7lufsPv7QOEJ48-lDy6g";
+  const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "[GCP_API_KEY]";
   
   return {
     ...config,
