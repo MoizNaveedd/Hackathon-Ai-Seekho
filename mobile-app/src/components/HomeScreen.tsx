@@ -14,7 +14,8 @@ import * as Sharing from 'expo-sharing';
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '[GCP_API_KEY]';
 
 export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: () => void }) {
-  const userName = user?.user?.name || user?.data?.user?.name || user?.name || "Ali";
+  const userName = user?.data?.user?.name || user?.user?.name || user?.name || "Ali";
+  const userPhoto = user?.data?.user?.photo || user?.user?.photo || user?.photo || "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc";
   const [activeTab, setActiveTab] = useState('home');
   const [locationName, setLocationName] = useState("Finding location...");
   const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
@@ -486,7 +487,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             </TouchableOpacity>
             <TouchableOpacity style={styles.profileAvatar} onPress={() => setActiveTab('profile')}>
               <Image 
-                source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc" }} 
+                source={{ uri: userPhoto }} 
                 style={styles.avatarImage} 
               />
             </TouchableOpacity>
@@ -738,12 +739,10 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainerLarge}>
               <Image 
-                source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc" }} 
+                source={{ uri: userPhoto }} 
                 style={styles.avatarImageLarge} 
               />
-              <TouchableOpacity style={styles.editAvatarBtn}>
-                <MaterialIcons name="edit" size={20} color="#fff" />
-              </TouchableOpacity>
+              
             </View>
             <Text style={styles.profileName}>{userName}</Text>
             <Text style={styles.profileMember}>Premium Member</Text>
