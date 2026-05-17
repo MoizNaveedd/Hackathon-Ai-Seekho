@@ -684,7 +684,6 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
         <View style={styles.popularSection}>
           <View style={styles.popularHeader}>
             <Text style={styles.popularTitle}>Popular Services</Text>
-            <TouchableOpacity><Text style={styles.viewAllText}>VIEW ALL</Text></TouchableOpacity>
           </View>
           
           <View style={styles.gridContainer}>
@@ -1717,12 +1716,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
         </View>
       )}
 
-      {/* Floating Action Button */}
-      {activeTab !== 'rate-service' && activeTab !== 'track-service' && activeTab !== 'invoice' && (
-        <TouchableOpacity style={styles.fab}>
-          <MaterialIcons name="add" size={32} color="#fff" />
-        </TouchableOpacity>
-      )}
+
 
       {/* Bottom Navigation Shell */}
       {activeTab !== 'rate-service' && activeTab !== 'track-service' && activeTab !== 'invoice' && (
