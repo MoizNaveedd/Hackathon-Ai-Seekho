@@ -9,20 +9,19 @@
  */
 
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  MessageSquare, 
-  Search, 
-  CheckCircle2, 
-  Zap, 
-  ShieldCheck, 
-  Globe2, 
-  Timer, 
-  Users, 
-  Star, 
-  ChevronRight, 
+import {
+  MessageSquare,
+  Search,
+  CheckCircle2,
+  Zap,
+  ShieldCheck,
+  Globe2,
+  Timer,
+  Users,
+  Star,
+  ChevronRight,
   ChevronLeft,
   Smartphone,
-  Apple,
   PlayCircle,
   Menu,
   X,
@@ -43,11 +42,25 @@ import { useState, useEffect, useRef } from "react";
 
 // --- Components ---
 
+const AppleLogo = ({ size = 24, className = "" }: { size?: number; className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 384 512"
+    width={size}
+    height={size}
+    fill="currentColor"
+    className={className}
+  >
+    <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
+  </svg>
+);
+
+
 const Logo = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
   <div className={`relative flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
-    <img 
-      src="/logo.png" 
-      alt="Karigar.ai Logo" 
+    <img
+      src="/logo.png"
+      alt="Karigar.ai Logo"
       className="w-full h-full object-contain"
     />
   </div>
@@ -83,9 +96,9 @@ const Navbar = () => {
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
-            <a 
-              key={link.name} 
-              href={link.href} 
+            <a
+              key={link.name}
+              href={link.href}
               className="text-sm font-medium text-slate-600 hover:text-brand-primary transition-colors"
             >
               {link.name}
@@ -97,7 +110,7 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Toggle */}
-        <button 
+        <button
           className="md:hidden text-slate-900"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
@@ -108,16 +121,16 @@ const Navbar = () => {
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className="absolute top-full left-0 right-0 bg-white border-b border-slate-100 p-6 flex flex-col gap-4 md:hidden shadow-xl"
           >
             {navLinks.map((link) => (
-              <a 
-                key={link.name} 
-                href={link.href} 
+              <a
+                key={link.name}
+                href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="text-lg font-medium text-slate-600 border-b border-slate-50 pb-2"
               >
@@ -153,8 +166,8 @@ const Hero = () => {
       const i = loopNum % words.length;
       const fullText = words[i];
 
-      setDisplayText(isDeleting 
-        ? fullText.substring(0, displayText.length - 1) 
+      setDisplayText(isDeleting
+        ? fullText.substring(0, displayText.length - 1)
         : fullText.substring(0, displayText.length + 1)
       );
 
@@ -198,7 +211,7 @@ const Hero = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 mb-10">
             <button className="flex items-center justify-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-brand-primary transition-all hover:-translate-y-1 shadow-xl shadow-slate-900/20 group">
-              <Apple size={24} />
+              <AppleLogo size={24} />
               <div className="text-left">
                 <div className="text-[10px] uppercase font-bold opacity-70 leading-none">Download on</div>
                 <div className="text-lg leading-none mt-1">App Store</div>
@@ -330,34 +343,34 @@ const Hero = () => {
                       <Hammer className="absolute bottom-2 right-2 text-brand-primary opacity-20" size={48} />
                     </div>
                     <div className="relative z-10">
-                       <div className="text-[6px] font-bold text-white/50 uppercase tracking-widest mb-1">Summer Offer</div>
-                       <div className="text-[10px] font-bold text-white leading-tight mb-2">20% OFF on AC<br />Services</div>
-                       <button className="bg-white text-slate-900 px-3 py-1 rounded-md text-[8px] font-bold">BOOK NOW</button>
+                      <div className="text-[6px] font-bold text-white/50 uppercase tracking-widest mb-1">Summer Offer</div>
+                      <div className="text-[10px] font-bold text-white leading-tight mb-2">20% OFF on AC<br />Services</div>
+                      <button className="bg-white text-slate-900 px-3 py-1 rounded-md text-[8px] font-bold">BOOK NOW</button>
                     </div>
                   </div>
                 </div>
 
                 {/* Bottom Nav */}
                 <div className="bg-white border-t border-slate-100 p-2 px-6 flex items-center justify-between">
-                   <div className="flex flex-col items-center gap-0.5 text-brand-primary">
-                     <Smartphone size={14} />
-                     <span className="text-[6px] font-bold">Home</span>
-                   </div>
-                   <div className="flex flex-col items-center gap-0.5 text-slate-300">
-                     <BookOpen size={14} />
-                     <span className="text-[6px] font-bold">Bookings</span>
-                   </div>
-                   <div className="flex flex-col items-center gap-0.5 text-slate-300">
-                     <Users size={14} />
-                     <span className="text-[6px] font-bold">Profile</span>
-                   </div>
+                  <div className="flex flex-col items-center gap-0.5 text-brand-primary">
+                    <Smartphone size={14} />
+                    <span className="text-[6px] font-bold">Home</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5 text-slate-300">
+                    <BookOpen size={14} />
+                    <span className="text-[6px] font-bold">Bookings</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5 text-slate-300">
+                    <Users size={14} />
+                    <span className="text-[6px] font-bold">Profile</span>
+                  </div>
                 </div>
               </div>
             </div>
           </motion.div>
 
           {/* Floating cards */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -373,7 +386,7 @@ const Hero = () => {
             <p className="text-[10px] text-slate-500 font-medium leading-tight">Ahmed (Electrician) will arrive at 10:00 AM</p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -387,11 +400,11 @@ const Hero = () => {
               <span className="text-xs text-white font-medium">"I need an AC service today at 5pm"</span>
             </div>
             <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-              <motion.div 
+              <motion.div
                 initial={{ width: 0 }}
                 whileInView={{ width: "100%" }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="h-full bg-brand-secondary" 
+                className="h-full bg-brand-secondary"
               />
             </div>
           </motion.div>
@@ -438,7 +451,7 @@ const HowItWorks = () => {
         <div className="grid md:grid-cols-3 gap-8 relative">
           {/* Connector lines (Desktop) */}
           <div className="hidden md:block absolute top-[100px] left-[25%] right-[25%] h-0.5 bg-slate-100 -z-10" />
-          
+
           {steps.map((step, idx) => (
             <motion.div
               key={idx}
@@ -505,7 +518,7 @@ const Services = () => {
           </button>
         </div>
 
-        <motion.div 
+        <motion.div
           variants={container}
           initial="hidden"
           whileInView="show"
@@ -546,52 +559,52 @@ const Features = () => {
   return (
     <section id="features" className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
-         <motion.div
-           initial={{ opacity: 0, x: -30 }}
-           whileInView={{ opacity: 1, x: 0 }}
-           viewport={{ once: true }}
-         >
-           <h2 className="text-4xl md:text-5xl font-display font-bold mb-10 tracking-tight leading-tight">Built with the world's <br /> <span className="gradient-text">smartest technologies.</span></h2>
-           <div className="grid sm:grid-cols-2 gap-8">
-             {features.map((f, i) => (
-               <div key={i} className="flex gap-4">
-                 <div className="w-10 h-10 shrink-0 bg-brand-primary/5 text-brand-primary rounded-lg flex items-center justify-center">
-                   {f.icon}
-                 </div>
-                 <div>
-                   <h4 className="font-bold mb-1 text-slate-800">{f.title}</h4>
-                   <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
-                 </div>
-               </div>
-             ))}
-           </div>
-         </motion.div>
-
-         <motion.div
-           initial={{ opacity: 0, scale: 0.9 }}
-           whileInView={{ opacity: 1, scale: 1 }}
-           viewport={{ once: true }}
-           className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-brand-primary/20"
-         >
-           <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/20 rounded-full blur-3xl -mr-32 -mt-32" />
-           <div className="relative z-10">
-             <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-8">
-               <ShieldCheck size={32} className="text-brand-primary" />
-             </div>
-             <blockquote className="text-2xl font-display font-medium leading-relaxed mb-8 italic">
-               "We haven't just built an app; we've built a personal assistant that understands the heartbeat of your city."
-             </blockquote>
-             <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-800">
-                  <img src="/teampictures/Moiz Naveed.png" alt="Founder" />
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="text-4xl md:text-5xl font-display font-bold mb-10 tracking-tight leading-tight">Built with the world's <br /> <span className="gradient-text">smartest technologies.</span></h2>
+          <div className="grid sm:grid-cols-2 gap-8">
+            {features.map((f, i) => (
+              <div key={i} className="flex gap-4">
+                <div className="w-10 h-10 shrink-0 bg-brand-primary/5 text-brand-primary rounded-lg flex items-center justify-center">
+                  {f.icon}
                 </div>
                 <div>
-                  <div className="font-bold">Moiz Naveed</div>
-                  <div className="text-sm text-white/50">Founder, Karigar.ai</div>
+                  <h4 className="font-bold mb-1 text-slate-800">{f.title}</h4>
+                  <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
                 </div>
-             </div>
-           </div>
-         </motion.div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-brand-primary/20"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/20 rounded-full blur-3xl -mr-32 -mt-32" />
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-8">
+              <ShieldCheck size={32} className="text-brand-primary" />
+            </div>
+            <blockquote className="text-2xl font-display font-medium leading-relaxed mb-8 italic">
+              "We haven't just built an app; we've built a personal assistant that understands the heartbeat of your city."
+            </blockquote>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-800">
+                <img src="/teampictures/Moiz Naveed.png" alt="Founder" />
+              </div>
+              <div>
+                <div className="font-bold">Moiz Naveed</div>
+                <div className="text-sm text-white/50">Founder, Karigar.ai</div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -608,7 +621,7 @@ const Testimonials = () => {
     <section className="py-24 bg-slate-50 overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
         <h2 className="text-4xl font-display font-bold text-center mb-16 tracking-tight">Loved by common people.</h2>
-        
+
         <div className="flex flex-col md:flex-row gap-8 overflow-visible">
           {reviews.map((r, i) => (
             <motion.div
@@ -668,13 +681,13 @@ const Team = () => {
               className="group p-8 rounded-[2.5rem] bg-slate-50 border border-slate-100 text-center hover:bg-slate-900 transition-all duration-500 overflow-hidden relative"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 rounded-full -mr-16 -mt-16 transition-all duration-500 group-hover:bg-brand-primary/20" />
-         <div className="w-24 h-24 rounded-full mx-auto mb-6 p-1 border-2 border-brand-primary overflow-hidden transition-all duration-500 group-hover:scale-110 group-hover:border-white shadow-xl">
-  <img
-    src={m.img}
-    className="w-full h-full object-cover object-top rounded-full"
-    alt={m.name}
-  />
-</div>
+              <div className="w-24 h-24 rounded-full mx-auto mb-6 p-1 border-2 border-brand-primary overflow-hidden transition-all duration-500 group-hover:scale-110 group-hover:border-white shadow-xl">
+                <img
+                  src={m.img}
+                  className="w-full h-full object-cover object-top rounded-full"
+                  alt={m.name}
+                />
+              </div>
               <h3 className="text-2xl font-display font-bold mb-2 group-hover:text-white transition-colors">{m.name}</h3>
               <div className="text-brand-primary font-bold text-sm uppercase tracking-wider mb-4 group-hover:text-brand-secondary transition-colors underline decoration-2 underline-offset-4">{m.role}</div>
               <p className="text-slate-500 font-medium group-hover:text-slate-300 transition-colors leading-relaxed">{m.desc}</p>
@@ -705,10 +718,10 @@ const CTA = () => {
           <div className="relative z-10 max-w-3xl mx-auto">
             <h2 className="text-4xl md:text-6xl font-display font-extrabold mb-8 leading-tight tracking-tight">Ready to experience <br /> the future of service?</h2>
             <p className="text-white/80 text-xl mb-12 font-medium">Download Karigar.ai today and book your first service in seconds. Available on iOS and Android.</p>
-            
+
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <button className="flex items-center gap-4 bg-white text-brand-primary px-10 py-5 rounded-2xl font-black text-xl hover:bg-slate-50 transition-all hover:-translate-y-2 shadow-2xl group">
-                <Apple size={32} />
+                <AppleLogo size={32} />
                 <div className="text-left">
                   <div className="text-xs uppercase font-bold opacity-70 leading-none">Download on</div>
                   <div className="leading-none mt-1">App Store</div>
@@ -722,11 +735,11 @@ const CTA = () => {
                 </div>
               </button>
             </div>
-            
+
             <div className="mt-12 flex items-center justify-center gap-8 opacity-60 grayscale brightness-200">
-               <span className="font-bold text-lg">FAST COMPANY</span>
-               <span className="font-bold text-lg">TECHCRUNCH</span>
-               <span className="font-bold text-lg">FORBES</span>
+              <span className="font-bold text-lg">FAST COMPANY</span>
+              <span className="font-bold text-lg">TECHCRUNCH</span>
+              <span className="font-bold text-lg">FORBES</span>
             </div>
           </div>
         </motion.div>
@@ -742,7 +755,7 @@ const Footer = () => {
         <div className="grid md:grid-cols-4 gap-12 mb-20">
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center text-white">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white">
                 <Logo size={20} />
               </div>
               <span className="text-xl font-display font-bold">Karigar.ai</span>
@@ -773,8 +786,8 @@ const Footer = () => {
           </div>
 
           <div>
-             <h4 className="font-bold text-slate-900 mb-6">Resources</h4>
-             <ul className="space-y-4">
+            <h4 className="font-bold text-slate-900 mb-6">Resources</h4>
+            <ul className="space-y-4">
               {["Become a Partner", "Help Center", "Safe Service Guide", "App Status"].map((item) => (
                 <li key={item} className="text-slate-500 text-sm font-medium hover:text-brand-primary transition-colors cursor-pointer">{item}</li>
               ))}
@@ -788,8 +801,8 @@ const Footer = () => {
                 <MessageSquare size={16} /> support@karigar.ai
               </p>
               <div className="bg-slate-50 p-4 rounded-2xl">
-                 <p className="text-xs text-slate-400 mb-1 font-bold uppercase tracking-widest">Office</p>
-                 <p className="text-sm text-slate-600 font-bold">12A, Gulberg III, Lahore, PK 54000</p>
+                <p className="text-xs text-slate-400 mb-1 font-bold uppercase tracking-widest">Office</p>
+                <p className="text-sm text-slate-600 font-bold">12A, Gulberg III, Lahore, PK 54000</p>
               </div>
             </div>
           </div>
@@ -819,10 +832,10 @@ export default function App() {
       <Team />
       <CTA />
       <Footer />
-      
+
       {/* Visual noise/grain overlay for premium feel */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-[100]" 
-           style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }} />
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-[100]"
+        style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }} />
     </div>
   );
 }
