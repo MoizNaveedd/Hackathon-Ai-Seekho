@@ -619,7 +619,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
               <Text style={styles.aiCardSubtitle}>Verified professionals at your doorstep.</Text>
             </View>
           </View>
-          <MaterialIcons name="chevron-right" size={24} color="#00595c" />
+           
         </TouchableOpacity>
 
         {/* Recommended Pro Card */}
