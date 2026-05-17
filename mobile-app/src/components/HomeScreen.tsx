@@ -228,6 +228,34 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
           <MaterialIcons name="chevron-right" size={24} color="#00595c" />
         </TouchableOpacity>
 
+        {/* Recommended Pro Card */}
+        <View style={{ marginBottom: 32 }}>
+          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 18, color: '#1a1a2e', marginBottom: 12 }}>
+            Recommended Specialist Near You
+          </Text>
+          <TouchableOpacity 
+            style={[styles.aiCard, { backgroundColor: '#fff', borderColor: '#bec9c9', borderWidth: 1, marginBottom: 0 }]}
+            onPress={() => router.push('/provider-profile')}
+          >
+            <View style={styles.aiCardLeft}>
+              <Image 
+                source={require('../../assets/images/ali_profile.png')}
+                style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: '#00595c' }}
+              />
+              <View style={{ flexShrink: 1 }}>
+                <Text style={[styles.aiCardTitle, { fontSize: 15, color: '#1a1a2e' }]}>Ali AC Services</Text>
+                <Text style={[styles.aiCardSubtitle, { fontSize: 12, color: '#3e4949', marginTop: 2 }]} numberOfLines={1}>
+                  ⭐ 4.8 · Inverter AC Expert · 2.4km
+                </Text>
+              </View>
+            </View>
+            <View style={{ backgroundColor: '#e8fff5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#005c3e' }}>Profile</Text>
+              <MaterialIcons name="chevron-right" size={14} color="#005c3e" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Popular Services Grid */}
         <View style={styles.popularSection}>
           <View style={styles.popularHeader}>

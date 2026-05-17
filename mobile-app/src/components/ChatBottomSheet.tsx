@@ -6,6 +6,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
+import { useRouter } from 'expo-router';
 import { transcribeVoiceLive } from '../services/transcriptionService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -66,10 +67,10 @@ async function sendToBackend(
     return {
       reply: "✅ I've found the perfect match for you! Here's your booking proposal:",
       bookingProposal: {
-        service: history.find(m => m.text)?.text || 'Home Service',
-        provider: 'Usman AC Repairs ⭐ 4.8',
+        service: 'AC Inverter Repair & Service',
+        provider: 'Ali AC Services ⭐ 4.8',
         time: history.some(m => m.text?.toLowerCase().includes('morning')) ? 'Today, 10:00 AM' : 'Today, 3:00 PM',
-        price: 'Rs 850 – Rs 1,200',
+        price: 'Rs 1,500 Base Fee',
       },
     };
 
@@ -158,6 +159,7 @@ function VoiceMessagePlayer({ uri, isUser }: { uri: string; isUser: boolean }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ChatBottomSheet({ visible, initialQuery, onClose, userName }: Props) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const slideAnim = useRef(new Animated.Value(600)).current;
   const keyboardAnim = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);
@@ -405,10 +407,29 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                   <Text style={styles.bookingLabel}>Service</Text>
                   <Text style={styles.bookingValue}>{bookingProposal.service}</Text>
                 </View>
-                <View style={styles.bookingRow}>
+                <TouchableOpacity 
+                  style={styles.bookingRow}
+                  onPress={() => {
+                    onClose();
+                    router.push({
+                      pathname: '/provider-profile',
+                      params: {
+                        id: 'ali',
+                        name: 'Ali AC Services',
+                        service: bookingProposal.service,
+                        price: bookingProposal.price
+                      }
+                    });
+                  }}
+                >
                   <Text style={styles.bookingLabel}>Provider</Text>
-                  <Text style={styles.bookingValue}>{bookingProposal.provider}</Text>
-                </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <Text style={[styles.bookingValue, { color: '#00595c', textDecorationLine: 'underline', fontFamily: 'Inter_600SemiBold' }]}>
+                      {bookingProposal.provider}
+                    </Text>
+                    <MaterialIcons name="chevron-right" size={16} color="#00595c" />
+                  </View>
+                </TouchableOpacity>
                 <View style={styles.bookingRow}>
                   <Text style={styles.bookingLabel}>Time</Text>
                   <Text style={styles.bookingValue}>{bookingProposal.time}</Text>
