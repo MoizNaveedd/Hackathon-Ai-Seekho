@@ -110,7 +110,7 @@ export default function Index() {
 
   // ── User is signed in → show Home ────────────────────────────────────────
   if (authUser) {
-    return <HomeScreen user={authUser.googleData} onSignOut={signOut} />;
+    return <HomeScreen user={authUser} onSignOut={signOut} />;
   }
 
   // ── Not signed in → show Login screen ────────────────────────────────────

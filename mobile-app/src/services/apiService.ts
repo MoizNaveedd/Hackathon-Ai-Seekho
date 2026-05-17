@@ -55,6 +55,39 @@ export interface LocationUpdateRequest {
 }
 
 // ─────────────────────────────────────────────
+// /chat
+// ─────────────────────────────────────────────
+
+export type MessageRole = 'user' | 'assistant';
+
+export interface ChatMessage {
+  role: MessageRole;
+  content: string;
+}
+
+export interface ChatRequest {
+  messages: ChatMessage[];
+  user_id?: number | null;
+}
+
+export interface Provider {
+  id: number;
+  name: string;
+  location: string;
+  rating: number;
+  distance_km: number;
+  available_slots: string[];
+}
+
+export interface ChatResponse {
+  reply: string;
+  language: string;
+  is_complete: boolean;
+  selectable: boolean;
+  providers: Provider[] | null;
+}
+
+// ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
 
@@ -111,4 +144,18 @@ export async function updateUserLocation(
 ): Promise<void> {
   const body: LocationUpdateRequest = { user_id: userId, latitude, longitude };
   await post<unknown>("/update_user_location", body);
+}
+
+/**
+ * POST /chat
+ * Sends the full conversation history to the AI orchestrator.
+ * @param messages - array of { role, content } in chronological order
+ * @param userId   - backend user id (from /sso_login), nullable
+ */
+export async function chat(
+  messages: ChatMessage[],
+  userId?: number | null
+): Promise<ChatResponse> {
+  const body: ChatRequest = { messages, user_id: userId ?? null };
+  return post<ChatResponse>("/chat", body);
 }

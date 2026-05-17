@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
 import { transcribeVoiceLive } from '../services/transcriptionService';
+import { chat, type ChatResponse, type Provider } from '../services/apiService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface Message {
@@ -16,6 +17,8 @@ export interface Message {
   text?: string;
   audioUri?: string;
   timestamp: Date;
+  selectable?: boolean;
+  providers?: Provider[] | null;
 }
 
 interface BookingProposal {
@@ -30,55 +33,11 @@ interface Props {
   initialQuery?: string;
   onClose: () => void;
   userName: string;
+  userId?: number | null;
   providerMode?: boolean;
   providerName?: string;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-}
-
-// ─── Mock Backend ─────────────────────────────────────────────────────────────
-// Replace the body of this function with a real fetch() call to your API.
-// Expected API contract:
-//   POST /api/chat
-//   Body: { query: string, history: Message[] }
-//   Response: { reply: string, bookingProposal?: BookingProposal }
-async function sendToBackend(
-  query: string,
-  history: Message[]
-): Promise<{ reply: string; bookingProposal?: BookingProposal }> {
-  // --- MOCK: swap this block with your real API call ---
-  await new Promise(r => setTimeout(r, 1200)); // simulate network latency
-
-  const lower = query.toLowerCase();
-  const turnCount = history.filter(m => m.role === 'user').length;
-
-  if (turnCount === 0) {
-    // First message — understand the problem
-    if (lower.includes('ac') || lower.includes('air'))
-      return { reply: "Got it! I can see you're having AC trouble. Is the issue that it's not cooling, or is it making a noise as well?" };
-    if (lower.includes('plumb') || lower.includes('pipe') || lower.includes('leak'))
-      return { reply: "Understood. For plumbing issues, can you tell me the exact location — is it a leaking pipe, a blocked drain, or something else?" };
-    return { reply: `I understand you need help with: "${query}". Can you give me a bit more detail so I can match you with the right karigar?` };
-  }
-
-  if (turnCount === 1)
-    return { reply: "Perfect. What's the best time for the karigar to visit? Morning (9AM–12PM), Afternoon (1PM–5PM), or Evening (6PM–8PM)?" };
-
-  if (turnCount === 2)
-    return { reply: "Great choice! Should this be today or tomorrow?" };
-
-  if (turnCount === 3)
-    return {
-      reply: "✅ I've found the perfect match for you! Here's your booking proposal:",
-      bookingProposal: {
-        service: 'AC Inverter Repair & Service',
-        provider: 'Ali AC Services ⭐ 4.8',
-        time: history.some(m => m.text?.toLowerCase().includes('morning')) ? 'Today, 10:00 AM' : 'Today, 3:00 PM',
-        price: 'Rs 1,500 Base Fee',
-      },
-    };
-
-  return { reply: "Is there anything else you'd like to adjust before confirming?" };
 }
 
 // ─── Voice Player Component ──────────────────────────────────────────────────
@@ -161,7 +120,7 @@ function VoiceMessagePlayer({ uri, isUser }: { uri: string; isUser: boolean }) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, providerMode = false, providerName = "Ahmed Khan", messages, setMessages }: Props) {
+export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, userId, providerMode = false, providerName = "Ahmed Khan", messages, setMessages }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const slideAnim = useRef(new Animated.Value(600)).current;
@@ -173,6 +132,8 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   const [bookingProposal, setBookingProposal] = useState<BookingProposal | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  // Real API response state
+  const [lastChatResponse, setLastChatResponse] = useState<ChatResponse | null>(null);
   
   // Voice states
   const [isRecording, setIsRecording] = useState(false);
@@ -253,10 +214,12 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
     try {
       let reply = "";
       let proposal = null;
+      let selectable = false;
+      let providers = null;
 
       if (providerMode) {
-        // Mock provider responses
-        await new Promise(r => setTimeout(r, 1500)); // simulate typing latency
+        // Mock provider responses (provider-to-user chat, not AI)
+        await new Promise(r => setTimeout(r, 1500));
         const lower = text.toLowerCase();
         if (lower.includes('where') || lower.includes('reach') || lower.includes('kahan') || lower.includes('time') || lower.includes('status')) {
           reply = `Ji, I am on my way! Currently near the main road, should be at your location in about 10 to 12 minutes.`;
@@ -272,19 +235,38 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
             "Almost there! Just a couple of minutes away.",
             "I'm riding my bike right now, will reach you very soon."
           ];
-          const randomIndex = Math.floor(Math.random() * providerResponses.length);
-          reply = providerResponses[randomIndex];
+          reply = providerResponses[Math.floor(Math.random() * providerResponses.length)];
         }
       } else {
-        const backendRes = await sendToBackend(text, currentHistory);
-        reply = backendRes.reply;
-        proposal = backendRes.bookingProposal;
+        // ── Real /chat API call ──────────────────────────────────────────
+        // Convert local Message[] → ChatMessage[] (role + content)
+        const apiMessages = currentHistory
+          .filter(m => m.text)   // skip audio-only messages
+          .map(m => ({ role: m.role, content: m.text! }));
+
+        console.log('📤 Sending to /chat:', JSON.stringify(apiMessages));
+        const response = await chat(apiMessages, userId ?? null);
+        console.log('📥 /chat response:', JSON.stringify(response));
+
+        setLastChatResponse(response);
+        reply = response.reply;
+        selectable = response.selectable;
+        providers = response.providers;
+        // is_complete available on response for future use
       }
 
-      const aiMsg: Message = { id: `a${Date.now()}`, role: 'assistant', text: reply, timestamp: new Date() };
+      const aiMsg: Message = { 
+        id: `a${Date.now()}`, 
+        role: 'assistant', 
+        text: reply, 
+        timestamp: new Date(),
+        selectable,
+        providers
+      };
       setMessages(prev => [...prev, aiMsg]);
       if (proposal) setBookingProposal(proposal);
-    } catch {
+    } catch (err) {
+      console.error('❌ /chat error:', err);
       const errMsg: Message = { id: `e${Date.now()}`, role: 'assistant', text: "Sorry, I couldn't connect. Please try again.", timestamp: new Date() };
       setMessages(prev => [...prev, errMsg]);
     } finally {
@@ -421,6 +403,48 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                   </Text>
                 </View>
               </View>
+            ))}
+
+            {messages.map(msg => (
+              msg.selectable && msg.providers && msg.providers.length > 0 && (
+                <View key={`providers-${msg.id}`} style={styles.providersContainer}>
+                  <Text style={styles.providersHeader}>Available Providers</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providersScroll}>
+                    {msg.providers.map(p => (
+                      <View key={p.id} style={styles.providerCard}>
+                        <View style={styles.providerCardHeader}>
+                          <Text style={styles.providerName} numberOfLines={1}>{p.name}</Text>
+                          <View style={styles.providerRating}>
+                            <MaterialIcons name="star" size={14} color="#f59e0b" />
+                            <Text style={styles.providerRatingText}>{p.rating}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.providerLocation}>
+                          <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.distance_km} km)
+                        </Text>
+                        <Text style={styles.providerSlotsTitle}>Available Slots:</Text>
+                        <View style={styles.slotsContainer}>
+                          {p.available_slots.map(slot => (
+                            <TouchableOpacity 
+                              key={slot} 
+                              style={styles.slotBtn}
+                              onPress={() => {
+                                const selectionText = `I want to book ${p.name} at ${slot}`;
+                                const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text: selectionText, timestamp: new Date() };
+                                const updatedHistory = [...messages, userMsg];
+                                setMessages(updatedHistory);
+                                fetchReply(selectionText, updatedHistory);
+                              }}
+                            >
+                              <Text style={styles.slotBtnText}>{slot}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              )
             ))}
 
             {/* Typing indicator */}
@@ -591,8 +615,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '88%',
-    minHeight: '60%',
+    height: '70%',
   },
   handle: { width: 40, height: 4, backgroundColor: '#d0d7d7', borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 4 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f0f2f2' },
@@ -674,4 +697,17 @@ const styles = StyleSheet.create({
   userWaveform: { backgroundColor: '#fff' },
   aiWaveform: { backgroundColor: '#00595c' },
   audioDuration: { fontFamily: 'Inter_400Regular', fontSize: 10, minWidth: 28 },
+  providersContainer: { marginTop: 12, marginBottom: 8 },
+  providersHeader: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#00595c', marginLeft: 4, marginBottom: 8 },
+  providersScroll: { paddingHorizontal: 4, paddingBottom: 8, gap: 12 },
+  providerCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, width: 240, borderWidth: 1, borderColor: '#d0d7d7', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  providerCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  providerName: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#1a1a2e', flex: 1, marginRight: 8 },
+  providerRating: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fffbec', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  providerRatingText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#b45309', marginLeft: 2 },
+  providerLocation: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#6e7979', marginBottom: 12 },
+  providerSlotsTitle: { fontFamily: 'Inter_500Medium', fontSize: 11, color: '#3e4949', marginBottom: 8 },
+  slotsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  slotBtn: { backgroundColor: '#f0fdfa', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#b3e8d8' },
+  slotBtnText: { fontFamily: 'Inter_500Medium', fontSize: 11, color: '#00595c' },
 });
