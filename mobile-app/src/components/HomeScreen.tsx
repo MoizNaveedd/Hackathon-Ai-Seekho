@@ -29,6 +29,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   const [assistantMessages, setAssistantMessages] = useState<Message[]>([]);
   const [providerMessages, setProviderMessages] = useState<Message[]>([]);
   const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<any>(null);
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
 
   const getInvoiceDetails = (priceStr: string) => {
     const num = parseInt(priceStr.replace(/[^0-9]/g, '')) || 1200;
@@ -239,6 +240,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setLocationName("Location denied");
+        setLocationModalVisible(true);
         return;
       }
 
@@ -1678,6 +1680,67 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
         </View>
       </Modal>
     )}
+
+    {/* Location Permission Instruction Modal */}
+    <Modal
+      visible={locationModalVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setLocationModalVisible(false)}
+    >
+      <View style={styles.locModalOverlay}>
+        <View style={styles.locModalContent}>
+          <View style={styles.locModalHeader}>
+            <View style={styles.locModalIconContainer}>
+              <MaterialIcons name="location-off" size={32} color="#cc3300" />
+            </View>
+            <Text style={styles.locModalTitle}>Enable Location Access</Text>
+            <Text style={styles.locModalDescription}>
+              Karigar.ai needs your location to search for active specialists and technicians nearest to you.
+            </Text>
+          </View>
+
+          <View style={styles.locInstructionsContainer}>
+            <Text style={styles.locInstructionTitle}>How to enable permissions:</Text>
+            
+            <View style={styles.locStepRow}>
+              <View style={styles.locStepNumber}><Text style={styles.locStepNumberText}>1</Text></View>
+              <Text style={styles.locStepText}>Tap the <Text style={{fontWeight: 'bold'}}>Open Settings</Text> button below.</Text>
+            </View>
+            
+            <View style={styles.locStepRow}>
+              <View style={styles.locStepNumber}><Text style={styles.locStepNumberText}>2</Text></View>
+              <Text style={styles.locStepText}>Select <Text style={{fontWeight: 'bold'}}>Permissions</Text> in App settings.</Text>
+            </View>
+
+            <View style={styles.locStepRow}>
+              <View style={styles.locStepNumber}><Text style={styles.locStepNumberText}>3</Text></View>
+              <Text style={styles.locStepText}>Tap <Text style={{fontWeight: 'bold'}}>Location</Text> and choose <Text style={{fontWeight: 'bold'}}>Allow while using app</Text>.</Text>
+            </View>
+          </View>
+
+          <View style={styles.locModalActions}>
+            <TouchableOpacity 
+              style={styles.locModalCancelBtn}
+              onPress={() => setLocationModalVisible(false)}
+            >
+              <Text style={styles.locModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.locModalSettingsBtn}
+              onPress={() => {
+                setLocationModalVisible(false);
+                Linking.openSettings();
+              }}
+            >
+              <Text style={styles.locModalSettingsText}>Open Settings</Text>
+              <MaterialIcons name="open-in-new" size={16} color="#fff" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
     </>
   );
 }
@@ -3548,6 +3611,122 @@ const styles = StyleSheet.create({
   invoiceHomeText: {
     fontSize: 15,
     fontWeight: '600',
+    color: '#fff',
+  },
+  locModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  locModalContent: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  locModalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  locModalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(204, 51, 0, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  locModalTitle: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 20,
+    color: '#1a1a2e',
+    marginBottom: 8,
+  },
+  locModalDescription: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    color: '#6e7979',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  locInstructionsContainer: {
+    backgroundColor: '#fcf8ff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#bec9c9',
+    marginBottom: 24,
+  },
+  locInstructionTitle: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 14,
+    color: '#1a1a2e',
+    marginBottom: 12,
+  },
+  locStepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  locStepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#00595c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  locStepNumberText: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 12,
+    color: '#fff',
+  },
+  locStepText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    color: '#3e4949',
+    flex: 1,
+  },
+  locModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  locModalCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#00595c',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locModalCancelText: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 14,
+    color: '#00595c',
+  },
+  locModalSettingsBtn: {
+    flex: 1.5,
+    backgroundColor: '#00595c',
+    paddingVertical: 12,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locModalSettingsText: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 14,
     color: '#fff',
   }
 });
