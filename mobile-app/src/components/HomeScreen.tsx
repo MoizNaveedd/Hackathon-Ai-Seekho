@@ -500,9 +500,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             <MaterialIcons name="arrow-back" size={24} color="#00595c" />
           </TouchableOpacity>
           <Text style={styles.profileNavTitle}>Karigar.ai</Text>
-          <TouchableOpacity style={{ padding: 8 }}>
-            <MaterialIcons name="more-vert" size={24} color="#00595c" />
-          </TouchableOpacity>
+          {/* Symmetrical spacer to keep title perfectly centered */}
+          <View style={{ width: 40 }} />
         </View>
       )}
       {activeTab === 'rate-service' && (
