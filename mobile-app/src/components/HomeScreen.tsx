@@ -737,21 +737,10 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                             <Text style={styles.actionBtnTextSec}>Book Again</Text>
                           </TouchableOpacity>
                           
-                          {booking.rated ? (
+                          {booking.rated && (
                             <View style={[styles.actionBtnSec, { backgroundColor: '#fcf8ff', borderColor: '#00595c' }]}>
                               <Text style={[styles.actionBtnTextSec, { color: '#00595c', fontWeight: 'bold' }]}>★ Rated</Text>
                             </View>
-                          ) : (
-                            <TouchableOpacity 
-                              style={styles.actionBtnPri}
-                              onPress={() => {
-                                // Open Rate Service directly as a full-screen screen!
-                                setRatingBooking(booking);
-                                setActiveTab('rate-service');
-                              }}
-                            >
-                              <Text style={styles.actionBtnTextPri}>Rate</Text>
-                            </TouchableOpacity>
                           )}
                         </>
                       )}
