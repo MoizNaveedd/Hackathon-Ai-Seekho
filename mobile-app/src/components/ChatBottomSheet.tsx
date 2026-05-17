@@ -509,9 +509,8 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                     <Text style={styles.listeningText}>Listening...</Text>
                   </View>
 
-                  <View style={[styles.voiceActionBtn, { opacity: 0.3 }]}>
-                    <MaterialIcons name="check-circle" size={32} color="#005c3e" />
-                  </View>
+                  {/* Symmetrical spacer to keep the mic perfectly centered */}
+                  <View style={{ width: 48 }} />
                 </View>
               ) : isTranscribing ? (
                 <View style={styles.recordingRow}>

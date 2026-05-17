@@ -553,10 +553,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                   <Text style={styles.listeningText}>Listening...</Text>
                 </View>
 
-                <View style={[styles.voiceActionBtn, { opacity: 0.3 }]}>
-                  <MaterialIcons name="check-circle" size={28} color="#005c3e" />
-                  <Text style={[styles.voiceActionLabel, { color: '#005c3e' }]}>Done</Text>
-                </View>
+                {/* Symmetrical spacer to keep the pulse circle perfectly centered */}
+                <View style={{ width: 60 }} />
               </View>
             ) : isTranscribing ? (
               <View style={styles.transcribingWrapper}>
@@ -602,9 +600,41 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
           </View>
           
           <View style={styles.suggestionsContainer}>
-            <TouchableOpacity style={styles.suggestionBadge}><Text style={styles.suggestionText}>AC not cooling</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.suggestionBadge}><Text style={styles.suggestionText}>Plumber needed</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.suggestionBadge}><Text style={styles.suggestionText}>Fan making noise</Text></TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.suggestionBadge}
+              onPress={() => {
+                setChatInitialQuery("AC not cooling");
+                setChatProviderMode(false);
+                setChatProviderName("");
+                setChatVisible(true);
+              }}
+            >
+              <Text style={styles.suggestionText}>AC not cooling</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.suggestionBadge}
+              onPress={() => {
+                setChatInitialQuery("Plumber needed");
+                setChatProviderMode(false);
+                setChatProviderName("");
+                setChatVisible(true);
+              }}
+            >
+              <Text style={styles.suggestionText}>Plumber needed</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.suggestionBadge}
+              onPress={() => {
+                setChatInitialQuery("Fan making noise");
+                setChatProviderMode(false);
+                setChatProviderName("");
+                setChatVisible(true);
+              }}
+            >
+              <Text style={styles.suggestionText}>Fan making noise</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
