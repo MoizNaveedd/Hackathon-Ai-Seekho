@@ -638,6 +638,29 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
           </View>
         </View>
 
+        {/* Promotional Banner */}
+        <View style={styles.promoBanner}>
+          <Image 
+            source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuBxn-ETJ6ap8Y5aCGIpVxin02ibsfixike5E-t6F81lsIi_3usgIx_kYtIyqIuL8Lk6Pj_liOrn93QtHIQeg76pK1DdWORaA48LXo4QfJoqxd3bP3plAHn0OnLT7PAu5SngaZ7HJucHf2CnuHhRgki90IcQItz4vppqtqRXiI0okaCwiZqYUOnJI2wZ3Ub6Y6t83kk8NCIYWV596ZQPxK9UE9WVPlVRpxfPrBFovuc46H8qNZoeT1hVSRk9sczwkJIgiRcKAjcMaas" }}
+            style={styles.promoImage}
+          />
+          <View style={styles.promoOverlay}>
+            <Text style={styles.promoLabel}>SUMMER OFFER</Text>
+            <Text style={styles.promoTitle}>20% OFF on AC Services</Text>
+            <TouchableOpacity 
+              style={styles.promoButton}
+              onPress={() => {
+                setChatInitialQuery("Book AC service summer offer");
+                setChatProviderMode(false);
+                setChatProviderName("");
+                setChatVisible(true);
+              }}
+            >
+              <Text style={styles.promoButtonText}>BOOK NOW</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* AI Smart Match Card */}
         <TouchableOpacity style={styles.aiCard}>
           <View style={styles.aiCardLeft}>
@@ -713,21 +736,6 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                 <Text style={styles.gridItemText}>{service.name}</Text>
               </TouchableOpacity>
             ))}
-          </View>
-        </View>
-
-        {/* Promotional Banner */}
-        <View style={styles.promoBanner}>
-          <Image 
-            source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuBxn-ETJ6ap8Y5aCGIpVxin02ibsfixike5E-t6F81lsIi_3usgIx_kYtIyqIuL8Lk6Pj_liOrn93QtHIQeg76pK1DdWORaA48LXo4QfJoqxd3bP3plAHn0OnLT7PAu5SngaZ7HJucHf2CnuHhRgki90IcQItz4vppqtqRXiI0okaCwiZqYUOnJI2wZ3Ub6Y6t83kk8NCIYWV596ZQPxK9UE9WVPlVRpxfPrBFovuc46H8qNZoeT1hVSRk9sczwkJIgiRcKAjcMaas" }}
-            style={styles.promoImage}
-          />
-          <View style={styles.promoOverlay}>
-            <Text style={styles.promoLabel}>SUMMER OFFER</Text>
-            <Text style={styles.promoTitle}>20% OFF on AC Services</Text>
-            <TouchableOpacity style={styles.promoButton}>
-              <Text style={styles.promoButtonText}>BOOK NOW</Text>
-            </TouchableOpacity>
           </View>
         </View>
         </ScrollView>
