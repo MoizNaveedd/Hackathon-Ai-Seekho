@@ -64,6 +64,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   ]);
 
   const [ratingBooking, setRatingBooking] = useState<any>(null);
+  const [trackingBooking, setTrackingBooking] = useState<any>(null);
   const [ratingStars, setRatingStars] = useState(5);
   const [ratingComment, setRatingComment] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -85,6 +86,11 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       if (activeTab === 'rate-service') {
         setActiveTab('bookings');
         setRatingBooking(null);
+        return true; // handled
+      }
+      if (activeTab === 'track-service') {
+        setActiveTab('bookings');
+        setTrackingBooking(null);
         return true; // handled
       }
       if (activeTab !== 'home') {
@@ -220,6 +226,18 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             <MaterialIcons name="arrow-back" size={24} color="#00595c" />
           </TouchableOpacity>
           <Text style={styles.profileNavTitle}>Rate Service</Text>
+          <View style={{ width: 40 }} />
+        </View>
+      )}
+      {activeTab === 'track-service' && (
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => {
+            setActiveTab('bookings');
+            setTrackingBooking(null);
+          }} style={{ padding: 8 }}>
+            <MaterialIcons name="arrow-back" size={24} color="#00595c" />
+          </TouchableOpacity>
+          <Text style={styles.profileNavTitle}>Track Service</Text>
           <View style={{ width: 40 }} />
         </View>
       )}
@@ -664,9 +682,15 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                         </>
                       ) : booking.status === 'Active' ? (
                         <>
-                          <TouchableOpacity style={styles.actionBtnSec}>
-                            <Text style={styles.actionBtnTextSec}>Track</Text>
-                          </TouchableOpacity>
+                           <TouchableOpacity 
+                             style={styles.actionBtnSec}
+                             onPress={() => {
+                               setTrackingBooking(booking);
+                               setActiveTab('track-service');
+                             }}
+                           >
+                             <Text style={styles.actionBtnTextSec}>Track</Text>
+                           </TouchableOpacity>
                           <TouchableOpacity 
                             style={styles.actionBtnPri}
                             onPress={() => {
@@ -867,6 +891,157 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+      ) : activeTab === 'track-service' ? (
+        <ScrollView style={styles.trackScreenContainer} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          {/* Immersive Map Mockup */}
+          <View style={styles.trackMapContainer}>
+            {/* Grid Pattern/Background */}
+            <View style={styles.trackMapBackground}>
+              <View style={styles.trackMapGridLineH1} />
+              <View style={styles.trackMapGridLineH2} />
+              <View style={styles.trackMapGridLineV1} />
+              <View style={styles.trackMapGridLineV2} />
+              
+              {/* Dashed Route Path */}
+              <View style={styles.trackMapRoutePath} />
+
+              {/* Pulsating Sonar Marker (Driver) */}
+              <View style={[styles.trackMapDriverMarker, { left: '30%', top: '65%' }]}>
+                <View style={styles.trackMapPulseRing} />
+                <View style={styles.trackMapDriverIconBg}>
+                  <MaterialIcons name="directions-bike" size={20} color="#ffffff" />
+                </View>
+              </View>
+
+              {/* Destination Marker (Home) */}
+              <View style={[styles.trackMapHomeMarker, { left: '70%', top: '25%' }]}>
+                <View style={styles.trackMapHomeIconBg}>
+                  <MaterialIcons name="home" size={20} color="#ffffff" />
+                </View>
+              </View>
+            </View>
+
+            {/* Floating ETA Badge */}
+            <View style={styles.trackEtaBadge}>
+              <View style={styles.trackEtaIconBg}>
+                <MaterialIcons name="navigation" size={16} color="#00595c" style={{ transform: [{ rotate: '45deg' }] }} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.trackEtaTitle}>Ahmed Khan is en route</Text>
+                <Text style={styles.trackEtaSubtitle}>ETA: 12 mins • 2.4 km away</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Technician Profile Card */}
+          <View style={styles.trackTechnicianCard}>
+            <View style={styles.trackTechHeader}>
+              <Image 
+                source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc" }} 
+                style={styles.trackTechAvatar} 
+              />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.trackTechName}>Ahmed Khan</Text>
+                  <MaterialIcons name="verified" size={16} color="#005c3e" style={{ marginLeft: 4 }} />
+                </View>
+                <Text style={styles.trackTechSub}>
+                  {trackingBooking ? `Order ID: ${trackingBooking.id}` : 'Order ID: #KG-482910'}
+                </Text>
+                <Text style={styles.trackTechService}>
+                  {trackingBooking ? trackingBooking.service : 'AC Repair & Service'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Quick Actions Row */}
+            <View style={styles.trackActionsRow}>
+              <TouchableOpacity style={styles.trackActionBtnSec} onPress={() => {}}>
+                <MaterialIcons name="phone" size={18} color="#00595c" />
+                <Text style={styles.trackActionTextSec}>Call Technician</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.trackActionBtnPri} 
+                onPress={() => {
+                  setChatInitialQuery("Where have you reached, Ahmed?");
+                  setChatVisible(true);
+                }}
+              >
+                <MaterialIcons name="chat" size={18} color="#ffffff" />
+                <Text style={styles.trackActionTextPri}>Chat</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Stepper Timeline Progress */}
+          <View style={styles.trackTimelineCard}>
+            <Text style={styles.trackTimelineHeaderTitle}>SERVICE PROGRESS</Text>
+            
+            {/* Timeline Stepper */}
+            <View style={styles.trackTimelineWrapper}>
+              
+              {/* Item 1: Confirmed */}
+              <View style={styles.trackTimelineItem}>
+                <View style={styles.trackTimelineIndicatorContainer}>
+                  <View style={styles.trackTimelineBulletDone}>
+                    <MaterialIcons name="check" size={12} color="#ffffff" />
+                  </View>
+                  <View style={styles.trackTimelineLineDone} />
+                </View>
+                <View style={styles.trackTimelineContent}>
+                  <Text style={styles.trackTimelineTitleDone}>Confirmed</Text>
+                  <Text style={styles.trackTimelineSubtitleDone}>Technician assigned at 10:30 AM</Text>
+                </View>
+              </View>
+
+              {/* Item 2: En Route */}
+              <View style={styles.trackTimelineItem}>
+                <View style={styles.trackTimelineIndicatorContainer}>
+                  <View style={styles.trackTimelineBulletActive}>
+                    <View style={styles.trackTimelineBulletActiveInner} />
+                  </View>
+                  <View style={styles.trackTimelineLinePending} />
+                </View>
+                <View style={styles.trackTimelineContent}>
+                  <Text style={styles.trackTimelineTitleActive}>En Route</Text>
+                  <Text style={styles.trackTimelineSubtitleActive}>Technician is heading to your location</Text>
+                </View>
+              </View>
+
+              {/* Item 3: In Progress */}
+              <View style={styles.trackTimelineItem}>
+                <View style={styles.trackTimelineIndicatorContainer}>
+                  <View style={styles.trackTimelineBulletPending} />
+                  <View style={styles.trackTimelineLinePending} />
+                </View>
+                <View style={styles.trackTimelineContent}>
+                  <Text style={styles.trackTimelineTitlePending}>In Progress</Text>
+                  <Text style={styles.trackTimelineSubtitlePending}>Work will start upon arrival</Text>
+                </View>
+              </View>
+
+              {/* Item 4: Completed */}
+              <View style={[styles.trackTimelineItem, { marginBottom: 0 }]}>
+                <View style={styles.trackTimelineIndicatorContainer}>
+                  <View style={styles.trackTimelineBulletPending} />
+                </View>
+                <View style={styles.trackTimelineContent}>
+                  <Text style={styles.trackTimelineTitlePending}>Completed</Text>
+                  <Text style={styles.trackTimelineSubtitlePending}>Awaiting completion signal</Text>
+                </View>
+              </View>
+
+            </View>
+          </View>
+
+          {/* Support CTA Info Row */}
+          <View style={styles.trackSupportCard}>
+            <MaterialIcons name="help-outline" size={20} color="#005c3e" />
+            <Text style={styles.trackSupportText}>
+              Need help? <Text style={styles.trackSupportLink} onPress={() => {}}>Contact Support</Text> available 24/7 for active service bookings.
+            </Text>
+          </View>
+        </ScrollView>
       ) : (
         <View style={styles.comingSoonContainer}>
           <MaterialIcons name="construction" size={64} color="#00595c" />
@@ -876,14 +1051,14 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       )}
 
       {/* Floating Action Button */}
-      {activeTab !== 'rate-service' && (
+      {activeTab !== 'rate-service' && activeTab !== 'track-service' && (
         <TouchableOpacity style={styles.fab}>
           <MaterialIcons name="add" size={32} color="#fff" />
         </TouchableOpacity>
       )}
 
       {/* Bottom Navigation Shell */}
-      {activeTab !== 'rate-service' && (
+      {activeTab !== 'rate-service' && activeTab !== 'track-service' && (
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('home')}>
             <MaterialIcons name="home" size={24} color={activeTab === 'home' ? '#00595c' : '#3e4949'} />
@@ -1718,6 +1893,372 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6e7979',
     textAlign: 'center',
+  },
+  trackScreenContainer: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  trackMapContainer: {
+    height: 250,
+    backgroundColor: '#efecff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#e2e0fc',
+  },
+  trackMapBackground: {
+    flex: 1,
+    backgroundColor: '#f5f5f9',
+    position: 'relative',
+  },
+  trackMapGridLineH1: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '33%',
+    height: 4,
+    backgroundColor: '#ffffff',
+  },
+  trackMapGridLineH2: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '66%',
+    height: 4,
+    backgroundColor: '#ffffff',
+  },
+  trackMapGridLineV1: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '33%',
+    width: 4,
+    backgroundColor: '#ffffff',
+  },
+  trackMapGridLineV2: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '66%',
+    width: 4,
+    backgroundColor: '#ffffff',
+  },
+  trackMapRoutePath: {
+    position: 'absolute',
+    left: '30%',
+    top: '25%',
+    width: '40%',
+    height: '40%',
+    borderColor: '#00595c',
+    borderWidth: 3,
+    borderStyle: 'dashed',
+    borderRadius: 100,
+  },
+  trackMapDriverMarker: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -16,
+    marginTop: -16,
+  },
+  trackMapPulseRing: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 89, 92, 0.2)',
+    borderWidth: 1.5,
+    borderColor: '#00595c',
+  },
+  trackMapDriverIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#00595c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+  },
+  trackMapHomeMarker: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -16,
+    marginTop: -16,
+  },
+  trackMapHomeIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ae2f34',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+  },
+  trackEtaBadge: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    right: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  trackEtaIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#e0f2f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  trackEtaTitle: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 14,
+    color: '#1a1a2e',
+  },
+  trackEtaSubtitle: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: '#3e4949',
+    marginTop: 2,
+  },
+  trackTechnicianCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  trackTechHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trackTechAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  trackTechName: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 16,
+    color: '#1a1a2e',
+  },
+  trackTechSub: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: '#6e7979',
+    marginTop: 2,
+  },
+  trackTechService: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: '#00595c',
+    marginTop: 4,
+  },
+  trackActionsRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 12,
+  },
+  trackActionBtnSec: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#00595c',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  trackActionTextSec: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 14,
+    color: '#00595c',
+  },
+  trackActionBtnPri: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#00595c',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  trackActionTextPri: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 14,
+    color: '#ffffff',
+  },
+  trackTimelineCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  trackTimelineHeaderTitle: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 12,
+    letterSpacing: 1.2,
+    color: '#6e7979',
+    marginBottom: 16,
+  },
+  trackTimelineWrapper: {
+    paddingLeft: 4,
+  },
+  trackTimelineItem: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  trackTimelineIndicatorContainer: {
+    alignItems: 'center',
+    width: 24,
+  },
+  trackTimelineBulletDone: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#005c3e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  trackTimelineBulletActive: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#e0f2f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+    borderWidth: 1.5,
+    borderColor: '#00595c',
+  },
+  trackTimelineBulletActiveInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#00595c',
+  },
+  trackTimelineBulletPending: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#bec9c9',
+    zIndex: 2,
+    marginTop: 2,
+  },
+  trackTimelineLineDone: {
+    width: 2,
+    position: 'absolute',
+    top: 20,
+    bottom: -20,
+    backgroundColor: '#005c3e',
+    zIndex: 1,
+  },
+  trackTimelineLinePending: {
+    width: 2,
+    position: 'absolute',
+    top: 20,
+    bottom: -20,
+    backgroundColor: '#bec9c9',
+    zIndex: 1,
+  },
+  trackTimelineContent: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: 'center',
+  },
+  trackTimelineTitleDone: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 14,
+    color: '#005c3e',
+  },
+  trackTimelineSubtitleDone: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: '#6e7979',
+    marginTop: 2,
+  },
+  trackTimelineTitleActive: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 14,
+    color: '#00595c',
+  },
+  trackTimelineSubtitleActive: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#3e4949',
+    marginTop: 2,
+  },
+  trackTimelineTitlePending: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 14,
+    color: '#6e7979',
+  },
+  trackTimelineSubtitlePending: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#bec9c9',
+    marginTop: 2,
+  },
+  trackSupportCard: {
+    backgroundColor: '#e8fff5',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    flexDirection: 'row',
+    gap: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#005c3e',
+  },
+  trackSupportText: {
+    flex: 1,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: '#005c3e',
+    lineHeight: 18,
+  },
+  trackSupportLink: {
+    textDecorationLine: 'underline',
+    fontFamily: 'PlusJakartaSans_700Bold',
   },
   ratingScreenContainer: {
     flex: 1,
