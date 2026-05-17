@@ -9,6 +9,7 @@ import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
 import { transcribeVoiceLive } from '../services/transcriptionService';
 import { chat, type ChatResponse, type Provider } from '../services/apiService';
+import { scheduleHeadsUpNotification } from '../services/notificationService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface Message {
@@ -333,6 +334,13 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
     };
     setMessages(prev => [...prev, confirmMsg, aiConfirmMsg]);
     setBookingProposal(null);
+    
+    // Trigger local heads-up notification
+    scheduleHeadsUpNotification(
+      'Booking Confirmed!',
+      `${bookingProposal?.provider} is scheduled to arrive at ${bookingProposal?.time}.`,
+      { service: bookingProposal?.service }
+    );
   }
 
   const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

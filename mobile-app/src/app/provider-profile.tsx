@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { scheduleHeadsUpNotification } from '../services/notificationService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -106,6 +107,13 @@ export default function ProviderProfile() {
     setTimeout(() => {
       setIsBookingSubmitting(false);
       setBookingSuccess(true);
+      
+      // Trigger notification
+      scheduleHeadsUpNotification(
+        'Booking Confirmed!',
+        `${providerName} is scheduled for ${selectedDate === 'today' ? 'Today' : 'Tomorrow'} at ${selectedSlot}.`,
+        { service: providerService }
+      );
       
       // Animate success modal elements
       Animated.parallel([

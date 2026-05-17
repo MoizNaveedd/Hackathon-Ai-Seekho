@@ -7,6 +7,15 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-goog
 import { View, Text, StyleSheet, Image } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { AuthProvider } from "../context/AuthContext";
+import * as Notifications from 'expo-notifications';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 // Prevent auto hide so we can wait for fonts to load
 SplashScreen.preventAutoHideAsync();
