@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Animated, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Animated, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, BackHandler, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import ChatBottomSheet from './ChatBottomSheet';
 import { transcribeVoiceLive } from '../services/transcriptionService';
+
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '[GCP_API_KEY]';
 
 export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: () => void }) {
   const userName = user?.user?.name || user?.data?.user?.name || user?.name || "Ali";
   const [activeTab, setActiveTab] = useState('home');
   const [locationName, setLocationName] = useState("Finding location...");
+  const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+  const [isFullscreenMap, setIsFullscreenMap] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -161,6 +166,10 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
 
       try {
         let location = await Location.getCurrentPositionAsync({});
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        });
         let reverseGeocode = await Location.reverseGeocodeAsync({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude
@@ -891,158 +900,309 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      ) : activeTab === 'track-service' ? (
-        <ScrollView style={styles.trackScreenContainer} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          {/* Immersive Map Mockup */}
-          <View style={styles.trackMapContainer}>
-            {/* Grid Pattern/Background */}
-            <View style={styles.trackMapBackground}>
-              <View style={styles.trackMapGridLineH1} />
-              <View style={styles.trackMapGridLineH2} />
-              <View style={styles.trackMapGridLineV1} />
-              <View style={styles.trackMapGridLineV2} />
-              
-              {/* Dashed Route Path */}
-              <View style={styles.trackMapRoutePath} />
-
-              {/* Pulsating Sonar Marker (Driver) */}
-              <View style={[styles.trackMapDriverMarker, { left: '30%', top: '65%' }]}>
-                <View style={styles.trackMapPulseRing} />
-                <View style={styles.trackMapDriverIconBg}>
-                  <MaterialIcons name="directions-bike" size={20} color="#ffffff" />
-                </View>
-              </View>
-
-              {/* Destination Marker (Home) */}
-              <View style={[styles.trackMapHomeMarker, { left: '70%', top: '25%' }]}>
-                <View style={styles.trackMapHomeIconBg}>
-                  <MaterialIcons name="home" size={20} color="#ffffff" />
-                </View>
-              </View>
-            </View>
-
-            {/* Floating ETA Badge */}
-            <View style={styles.trackEtaBadge}>
-              <View style={styles.trackEtaIconBg}>
-                <MaterialIcons name="navigation" size={16} color="#00595c" style={{ transform: [{ rotate: '45deg' }] }} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.trackEtaTitle}>Ahmed Khan is en route</Text>
-                <Text style={styles.trackEtaSubtitle}>ETA: 12 mins • 2.4 km away</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Technician Profile Card */}
-          <View style={styles.trackTechnicianCard}>
-            <View style={styles.trackTechHeader}>
-              <Image 
-                source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc" }} 
-                style={styles.trackTechAvatar} 
-              />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.trackTechName}>Ahmed Khan</Text>
-                  <MaterialIcons name="verified" size={16} color="#005c3e" style={{ marginLeft: 4 }} />
-                </View>
-                <Text style={styles.trackTechSub}>
-                  {trackingBooking ? `Order ID: ${trackingBooking.id}` : 'Order ID: #KG-482910'}
-                </Text>
-                <Text style={styles.trackTechService}>
-                  {trackingBooking ? trackingBooking.service : 'AC Repair & Service'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Quick Actions Row */}
-            <View style={styles.trackActionsRow}>
-              <TouchableOpacity style={styles.trackActionBtnSec} onPress={() => {}}>
-                <MaterialIcons name="phone" size={18} color="#00595c" />
-                <Text style={styles.trackActionTextSec}>Call Technician</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.trackActionBtnPri} 
-                onPress={() => {
-                  setChatInitialQuery("Where have you reached, Ahmed?");
-                  setChatVisible(true);
-                }}
+      ) : activeTab === 'track-service' ? (() => {
+          const userLat = userLocation?.latitude || 24.8922;
+          const userLng = userLocation?.longitude || 67.0747;
+          const providerLat = userLat + 0.005;
+          const providerLng = userLng - 0.006;
+          
+          return (
+            <ScrollView style={styles.trackScreenContainer} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+              {/* Fullscreen Map Modal */}
+              <Modal
+                visible={isFullscreenMap}
+                animationType="slide"
+                onRequestClose={() => setIsFullscreenMap(false)}
               >
-                <MaterialIcons name="chat" size={18} color="#ffffff" />
-                <Text style={styles.trackActionTextPri}>Chat</Text>
+                <View style={styles.fullscreenMapContainer}>
+                  {Platform.OS === 'web' ? (
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen
+                      src={`https://www.google.com/maps/embed/v1/directions?key=${GOOGLE_MAPS_API_KEY}&origin=${providerLat},${providerLng}&destination=${userLat},${userLng}&mode=driving`}
+                    />
+                  ) : (
+                    <MapView
+                      style={{ width: '100%', height: '100%' }}
+                      initialRegion={{
+                        latitude: (userLat + providerLat) / 2,
+                        longitude: (userLng + providerLng) / 2,
+                        latitudeDelta: 0.015,
+                        longitudeDelta: 0.015,
+                      }}
+                    >
+                      {/* User Marker */}
+                      <Marker
+                        coordinate={{ latitude: userLat, longitude: userLng }}
+                        title="You"
+                        description="Your current location"
+                      >
+                        <View style={styles.trackMapHomeIconBg}>
+                          <MaterialIcons name="home" size={20} color="#ffffff" />
+                        </View>
+                      </Marker>
+
+                      {/* Service Provider Marker */}
+                      <Marker
+                        coordinate={{ latitude: providerLat, longitude: providerLng }}
+                        title="Ahmed Khan"
+                        description="Technician is en route"
+                      >
+                        <View style={styles.trackMapDriverIconBg}>
+                          <MaterialIcons name="directions-bike" size={20} color="#ffffff" />
+                        </View>
+                      </Marker>
+
+                      {/* Polyline Route */}
+                      <Polyline
+                        coordinates={[
+                          { latitude: providerLat, longitude: providerLng },
+                          { latitude: userLat, longitude: userLng }
+                        ]}
+                        strokeColor="#00595c"
+                        strokeWidth={5}
+                        lineDashPattern={[5, 5]}
+                      />
+                    </MapView>
+                  )}
+
+                  {/* Floating Back Button */}
+                  <TouchableOpacity 
+                    style={styles.fullscreenMapCloseBtn} 
+                    onPress={() => setIsFullscreenMap(false)}
+                  >
+                    <MaterialIcons name="arrow-back" size={24} color="#00595c" />
+                  </TouchableOpacity>
+
+                  {/* Floating Info Card */}
+                  <View style={styles.fullscreenMapEtaCard}>
+                    <View style={styles.fullscreenMapEtaHeader}>
+                      <MaterialIcons name="navigation" size={20} color="#00595c" style={{ transform: [{ rotate: '45deg' }] }} />
+                      <Text style={styles.fullscreenMapEtaTitle}>Technician Live Tracking</Text>
+                    </View>
+                    <Text style={styles.fullscreenMapEtaText}>
+                      Ahmed Khan is en route to Gulshan-e-Iqbal.
+                    </Text>
+                    <View style={styles.fullscreenMapEtaSubRow}>
+                      <Text style={styles.fullscreenMapEtaValue}>ETA: 12 minutes</Text>
+                      <Text style={styles.fullscreenMapEtaDist}>• 2.4 km remaining</Text>
+                    </View>
+                  </View>
+                </View>
+              </Modal>
+
+              {/* Immersive Map Preview (Expands on Press) */}
+              <TouchableOpacity 
+                activeOpacity={0.9} 
+                onPress={() => setIsFullscreenMap(true)} 
+                style={styles.trackMapContainer}
+              >
+                {Platform.OS === 'web' ? (
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    allowFullScreen
+                    src={`https://www.google.com/maps/embed/v1/directions?key=${GOOGLE_MAPS_API_KEY}&origin=${providerLat},${providerLng}&destination=${userLat},${userLng}&mode=driving`}
+                  />
+                ) : (
+                  <MapView
+                    style={{ width: '100%', height: '100%' }}
+                    initialRegion={{
+                      latitude: (userLat + providerLat) / 2,
+                      longitude: (userLng + providerLng) / 2,
+                      latitudeDelta: 0.015,
+                      longitudeDelta: 0.015,
+                    }}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                  >
+                    {/* User Marker */}
+                    <Marker
+                      coordinate={{ latitude: userLat, longitude: userLng }}
+                    >
+                      <View style={styles.trackMapHomeIconBg}>
+                        <MaterialIcons name="home" size={20} color="#ffffff" />
+                      </View>
+                    </Marker>
+
+                    {/* Service Provider Marker */}
+                    <Marker
+                      coordinate={{ latitude: providerLat, longitude: providerLng }}
+                    >
+                      <View style={styles.trackMapDriverIconBg}>
+                        <MaterialIcons name="directions-bike" size={20} color="#ffffff" />
+                      </View>
+                    </Marker>
+
+                    {/* Polyline Route */}
+                    <Polyline
+                      coordinates={[
+                        { latitude: providerLat, longitude: providerLng },
+                        { latitude: userLat, longitude: userLng }
+                      ]}
+                      strokeColor="#00595c"
+                      strokeWidth={4}
+                      lineDashPattern={[5, 5]}
+                    />
+                  </MapView>
+                )}
+
+                {/* Fullscreen Expand Action Floating overlay tag */}
+                <View style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  elevation: 3,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.1,
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowRadius: 2,
+                }}>
+                  <MaterialIcons name="zoom-out-map" size={14} color="#00595c" />
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: '#00595c' }}>EXPAND</Text>
+                </View>
+
+                {/* Floating ETA Badge */}
+                <View style={styles.trackEtaBadge}>
+                  <View style={styles.trackEtaIconBg}>
+                    <MaterialIcons name="navigation" size={16} color="#00595c" style={{ transform: [{ rotate: '45deg' }] }} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.trackEtaTitle}>Ahmed Khan is en route</Text>
+                    <Text style={styles.trackEtaSubtitle}>ETA: 12 mins • 2.4 km away</Text>
+                  </View>
+                </View>
               </TouchableOpacity>
-            </View>
-          </View>
 
-          {/* Stepper Timeline Progress */}
-          <View style={styles.trackTimelineCard}>
-            <Text style={styles.trackTimelineHeaderTitle}>SERVICE PROGRESS</Text>
-            
-            {/* Timeline Stepper */}
-            <View style={styles.trackTimelineWrapper}>
-              
-              {/* Item 1: Confirmed */}
-              <View style={styles.trackTimelineItem}>
-                <View style={styles.trackTimelineIndicatorContainer}>
-                  <View style={styles.trackTimelineBulletDone}>
-                    <MaterialIcons name="check" size={12} color="#ffffff" />
+              {/* Technician Profile Card */}
+              <View style={styles.trackTechnicianCard}>
+                <View style={styles.trackTechHeader}>
+                  <Image 
+                    source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc" }} 
+                    style={styles.trackTechAvatar} 
+                  />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={styles.trackTechName}>Ahmed Khan</Text>
+                      <MaterialIcons name="verified" size={16} color="#005c3e" style={{ marginLeft: 4 }} />
+                    </View>
+                    <Text style={styles.trackTechSub}>
+                      {trackingBooking ? `Order ID: ${trackingBooking.id}` : 'Order ID: #KG-482910'}
+                    </Text>
+                    <Text style={styles.trackTechService}>
+                      {trackingBooking ? trackingBooking.service : 'AC Repair & Service'}
+                    </Text>
                   </View>
-                  <View style={styles.trackTimelineLineDone} />
                 </View>
-                <View style={styles.trackTimelineContent}>
-                  <Text style={styles.trackTimelineTitleDone}>Confirmed</Text>
-                  <Text style={styles.trackTimelineSubtitleDone}>Technician assigned at 10:30 AM</Text>
+
+                {/* Quick Actions Row */}
+                <View style={styles.trackActionsRow}>
+                  <TouchableOpacity 
+                    style={styles.trackActionBtnSec} 
+                    onPress={() => Linking.openURL('tel:+923018206192')}
+                  >
+                    <MaterialIcons name="phone" size={18} color="#00595c" />
+                    <Text style={styles.trackActionTextSec}>Call Technician</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.trackActionBtnPri} 
+                    onPress={() => {
+                      setChatInitialQuery("Where have you reached, Ahmed?");
+                      setChatVisible(true);
+                    }}
+                  >
+                    <MaterialIcons name="chat" size={18} color="#ffffff" />
+                    <Text style={styles.trackActionTextPri}>Chat</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Item 2: En Route */}
-              <View style={styles.trackTimelineItem}>
-                <View style={styles.trackTimelineIndicatorContainer}>
-                  <View style={styles.trackTimelineBulletActive}>
-                    <View style={styles.trackTimelineBulletActiveInner} />
+              {/* Stepper Timeline Progress */}
+              <View style={styles.trackTimelineCard}>
+                <Text style={styles.trackTimelineHeaderTitle}>SERVICE PROGRESS</Text>
+                
+                {/* Timeline Stepper */}
+                <View style={styles.trackTimelineWrapper}>
+                  
+                  {/* Item 1: Confirmed */}
+                  <View style={styles.trackTimelineItem}>
+                    <View style={styles.trackTimelineIndicatorContainer}>
+                      <View style={styles.trackTimelineBulletDone}>
+                        <MaterialIcons name="check" size={12} color="#ffffff" />
+                      </View>
+                      <View style={styles.trackTimelineLineDone} />
+                    </View>
+                    <View style={styles.trackTimelineContent}>
+                      <Text style={styles.trackTimelineTitleDone}>Confirmed</Text>
+                      <Text style={styles.trackTimelineSubtitleDone}>Technician assigned at 10:30 AM</Text>
+                    </View>
                   </View>
-                  <View style={styles.trackTimelineLinePending} />
-                </View>
-                <View style={styles.trackTimelineContent}>
-                  <Text style={styles.trackTimelineTitleActive}>En Route</Text>
-                  <Text style={styles.trackTimelineSubtitleActive}>Technician is heading to your location</Text>
+
+                  {/* Item 2: En Route */}
+                  <View style={styles.trackTimelineItem}>
+                    <View style={styles.trackTimelineIndicatorContainer}>
+                      <View style={styles.trackTimelineBulletActive}>
+                        <View style={styles.trackTimelineBulletActiveInner} />
+                      </View>
+                      <View style={styles.trackTimelineLinePending} />
+                    </View>
+                    <View style={styles.trackTimelineContent}>
+                      <Text style={styles.trackTimelineTitleActive}>En Route</Text>
+                      <Text style={styles.trackTimelineSubtitleActive}>Technician is heading to your location</Text>
+                    </View>
+                  </View>
+
+                  {/* Item 3: In Progress */}
+                  <View style={styles.trackTimelineItem}>
+                    <View style={styles.trackTimelineIndicatorContainer}>
+                      <View style={styles.trackTimelineBulletPending} />
+                      <View style={styles.trackTimelineLinePending} />
+                    </View>
+                    <View style={styles.trackTimelineContent}>
+                      <Text style={styles.trackTimelineTitlePending}>In Progress</Text>
+                      <Text style={styles.trackTimelineSubtitlePending}>Work will start upon arrival</Text>
+                    </View>
+                  </View>
+
+                  {/* Item 4: Completed */}
+                  <View style={[styles.trackTimelineItem, { marginBottom: 0 }]}>
+                    <View style={styles.trackTimelineIndicatorContainer}>
+                      <View style={styles.trackTimelineBulletPending} />
+                    </View>
+                    <View style={styles.trackTimelineContent}>
+                      <Text style={styles.trackTimelineTitlePending}>Completed</Text>
+                      <Text style={styles.trackTimelineSubtitlePending}>Awaiting completion signal</Text>
+                    </View>
+                  </View>
+
                 </View>
               </View>
 
-              {/* Item 3: In Progress */}
-              <View style={styles.trackTimelineItem}>
-                <View style={styles.trackTimelineIndicatorContainer}>
-                  <View style={styles.trackTimelineBulletPending} />
-                  <View style={styles.trackTimelineLinePending} />
-                </View>
-                <View style={styles.trackTimelineContent}>
-                  <Text style={styles.trackTimelineTitlePending}>In Progress</Text>
-                  <Text style={styles.trackTimelineSubtitlePending}>Work will start upon arrival</Text>
-                </View>
+              {/* Support CTA Info Row */}
+              <View style={styles.trackSupportCard}>
+                <MaterialIcons name="help-outline" size={20} color="#005c3e" />
+                <Text style={styles.trackSupportText}>
+                  Need help? <Text style={styles.trackSupportLink} onPress={() => {}}>Contact Support</Text> available 24/7 for active service bookings.
+                </Text>
               </View>
-
-              {/* Item 4: Completed */}
-              <View style={[styles.trackTimelineItem, { marginBottom: 0 }]}>
-                <View style={styles.trackTimelineIndicatorContainer}>
-                  <View style={styles.trackTimelineBulletPending} />
-                </View>
-                <View style={styles.trackTimelineContent}>
-                  <Text style={styles.trackTimelineTitlePending}>Completed</Text>
-                  <Text style={styles.trackTimelineSubtitlePending}>Awaiting completion signal</Text>
-                </View>
-              </View>
-
-            </View>
-          </View>
-
-          {/* Support CTA Info Row */}
-          <View style={styles.trackSupportCard}>
-            <MaterialIcons name="help-outline" size={20} color="#005c3e" />
-            <Text style={styles.trackSupportText}>
-              Need help? <Text style={styles.trackSupportLink} onPress={() => {}}>Contact Support</Text> available 24/7 for active service bookings.
-            </Text>
-          </View>
-        </ScrollView>
-      ) : (
+            </ScrollView>
+          );
+        })()
+      : (
         <View style={styles.comingSoonContainer}>
           <MaterialIcons name="construction" size={64} color="#00595c" />
           <Text style={styles.comingSoonTitle}>Coming Soon</Text>
@@ -1893,6 +2053,78 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6e7979',
     textAlign: 'center',
+  },
+  fullscreenMapContainer: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+    position: 'relative',
+  },
+  fullscreenMapCloseBtn: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    zIndex: 10,
+  },
+  fullscreenMapEtaCard: {
+    position: 'absolute',
+    bottom: 30,
+    left: 20,
+    right: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 5,
+    zIndex: 10,
+  },
+  fullscreenMapEtaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  fullscreenMapEtaTitle: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 15,
+    color: '#1a1a2e',
+  },
+  fullscreenMapEtaText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#6e7979',
+    marginTop: 8,
+  },
+  fullscreenMapEtaSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f3f3',
+  },
+  fullscreenMapEtaValue: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 14,
+    color: '#00595c',
+  },
+  fullscreenMapEtaDist: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: '#3e4949',
+    marginLeft: 4,
   },
   trackScreenContainer: {
     flex: 1,
