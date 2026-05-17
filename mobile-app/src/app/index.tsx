@@ -1,67 +1,128 @@
 import { useEffect, useState } from "react";
-import { Text, View, StyleSheet, TouchableOpacity, Alert, Image, Dimensions } from "react-native";
+import {
+  Text,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Image,
+  ActivityIndicator,
+  Dimensions,
+} from "react-native";
 import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import { MaterialIcons } from "@expo/vector-icons";
-import HomeScreen from "../components/HomeScreen";
+import * as Location from "expo-location";
 import { Link } from "expo-router";
+import HomeScreen from "../components/HomeScreen";
+import { useAuth } from "../context/AuthContext";
+import { updateUserLocation } from "../services/apiService";
 
 const { width } = Dimensions.get("window");
 
-export default function Index() {
-  const [userInfo, setUserInfo] = useState<any>(null);
+// ─────────────────────────────────────────────
+// Google Sign-In web client ID
+// ─────────────────────────────────────────────
+const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
 
+export default function Index() {
+  const { authUser, isLoading, handleGoogleSignIn, signOut } = useAuth();
+  const [signingIn, setSigningIn] = useState(false);
+
+  // ── Configure Google Sign-In once ──────────────────────────────────────
   useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: "795466151653-hieiocfpjk4uvfms1omvfm855n5v30bm.apps.googleusercontent.com",
-    });
+    GoogleSignin.configure({ webClientId: WEB_CLIENT_ID });
   }, []);
 
+  // ── Update location whenever a logged-in session is active ─────────────
+  useEffect(() => {
+    if (!authUser?.backendUser?.user?.id || authUser.backendUser.user.id === -1) return;
+
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          console.warn("📍 Location permission denied – skipping /update_user_location");
+          return;
+        }
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const { latitude, longitude } = loc.coords;
+        console.log(`📍 Got location: ${latitude}, ${longitude}`);
+        await updateUserLocation(authUser.backendUser.user.id, latitude, longitude);
+        console.log("✅ /update_user_location success");
+      } catch (err) {
+        // Non-fatal – don't block the user experience
+        console.warn("⚠️ Could not update user location:", err);
+      }
+    })();
+  }, [authUser?.backendUser?.user?.id]);
+
+  // ── Google Sign-In handler ──────────────────────────────────────────────
   const signIn = async () => {
     try {
+      setSigningIn(true);
       await GoogleSignin.hasPlayServices();
-      const user = await GoogleSignin.signIn();
-      console.log("✨ Google Sign-In Success! User Data:", JSON.stringify(user, null, 2));
-      setUserInfo(user);
+      const result = await GoogleSignin.signIn();
+      console.log("✨ Google Sign-In success:", JSON.stringify(result, null, 2));
+
+      // Build the GoogleUserData shape expected by /sso_login
+      const googleData = {
+        user: {
+          id: result.data?.user?.id ?? "",
+          email: result.data?.user?.email ?? "",
+          name: result.data?.user?.name ?? "",
+          givenName: result.data?.user?.givenName ?? null,
+          familyName: result.data?.user?.familyName ?? null,
+          photo: result.data?.user?.photo ?? null,
+        },
+        scopes: result.data?.scopes ?? null,
+        serverAuthCode: result.data?.serverAuthCode ?? null,
+        idToken: result.data?.idToken ?? null,
+      };
+
+      // Delegates to AuthContext: calls /sso_login and persists session
+      await handleGoogleSignIn(googleData);
     } catch (error: any) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        console.log("User cancelled the login flow");
+        // User dismissed — no alert needed
       } else if (error.code === statusCodes.IN_PROGRESS) {
         Alert.alert("Hold on", "Sign in is already in progress.");
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         Alert.alert("Error", "Google Play Services are not available or outdated.");
       } else {
-        Alert.alert("Sign In Failed", error.message || "An unknown error occurred during sign in.");
-        console.error("Sign in error:", error);
+        Alert.alert("Sign In Failed", error.message || "An unknown error occurred.");
+        console.error("Sign-in error:", error);
       }
+    } finally {
+      setSigningIn(false);
     }
   };
 
-  const signOut = async () => {
-    try {
-      await GoogleSignin.signOut();
-      setUserInfo(null);
-    } catch (error: any) {
-      Alert.alert("Sign Out Failed", error.message || "Could not sign out completely.");
-      console.error("Sign out error:", error);
-    }
-  };
-
-  if (userInfo) {
-    return <HomeScreen user={userInfo} onSignOut={signOut} />;
+  // ── Loading state (restoring session from AsyncStorage) ─────────────────
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00595c" />
+      </View>
+    );
   }
 
+  // ── User is signed in → show Home ────────────────────────────────────────
+  if (authUser) {
+    return <HomeScreen user={authUser.googleData} onSignOut={signOut} />;
+  }
+
+  // ── Not signed in → show Login screen ────────────────────────────────────
   return (
     <View style={styles.container}>
       {/* Top 40%: Branding Canvas */}
       <View style={styles.heroSection}>
-        {/* Decorative Teal Circle */}
         <View style={styles.decorativeCircle} />
-        {/* Massive Primary Circle */}
         <View style={styles.primaryCircle}>
           <View style={styles.dashedRing} />
         </View>
 
-        {/* Identity Anchor */}
         <View style={styles.identityAnchor}>
           <View style={styles.logoBox}>
             <MaterialIcons name="construction" size={40} color="#00595c" />
@@ -78,18 +139,25 @@ export default function Index() {
 
       {/* Bottom: Action Buttons */}
       <View style={styles.actionSection}>
-        <TouchableOpacity style={styles.googleButton} onPress={signIn} activeOpacity={0.8}>
-          <Image 
-            source={{ uri: "https://developers.google.com/identity/images/g-logo.png" }}
-            style={styles.googleIcon}
-            resizeMode="contain"
-          />
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
+        <TouchableOpacity
+          style={[styles.googleButton, signingIn && styles.googleButtonDisabled]}
+          onPress={signIn}
+          activeOpacity={0.8}
+          disabled={signingIn}
+        >
+          {signingIn ? (
+            <ActivityIndicator size="small" color="#00595c" style={{ marginRight: 12 }} />
+          ) : (
+            <Image
+              source={{ uri: "https://developers.google.com/identity/images/g-logo.png" }}
+              style={styles.googleIcon}
+              resizeMode="contain"
+            />
+          )}
+          <Text style={styles.googleButtonText}>
+            {signingIn ? "Signing in…" : "Continue with Google"}
+          </Text>
         </TouchableOpacity>
-
-
-
-
       </View>
 
       {/* Footer Terms */}
@@ -98,9 +166,12 @@ export default function Index() {
           By continuing, you agree to Karigar.ai's{"\n"}
           <Link href="/terms" asChild>
             <Text style={styles.linkText}>Terms of Service</Text>
-          </Link> and <Link href="/terms" asChild>
+          </Link>{" "}
+          and{" "}
+          <Link href="/terms" asChild>
             <Text style={styles.linkText}>Privacy Policy</Text>
-          </Link>.
+          </Link>
+          .
         </Text>
       </View>
     </View>
@@ -108,6 +179,12 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#FAFAFA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   container: {
     flex: 1,
     backgroundColor: "#FAFAFA",
@@ -216,6 +293,9 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 16,
   },
+  googleButtonDisabled: {
+    opacity: 0.7,
+  },
   googleIcon: {
     width: 20,
     height: 20,
@@ -225,37 +305,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     fontSize: 16,
     color: "#1a1a2e",
-  },
-  phoneButton: {
-    width: "100%",
-    height: 56,
-    backgroundColor: "transparent",
-    borderWidth: 2,
-    borderColor: "#00595c",
-    borderRadius: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  phoneButtonText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 16,
-    color: "#00595c",
-    marginLeft: 8,
-  },
-  loginHint: {
-    alignItems: "center",
-    marginTop: 8,
-  },
-  hintText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 12,
-    color: "#3e4949",
-  },
-  loginLink: {
-    color: "#00595c",
-    fontWeight: "bold",
   },
   footer: {
     paddingHorizontal: 20,

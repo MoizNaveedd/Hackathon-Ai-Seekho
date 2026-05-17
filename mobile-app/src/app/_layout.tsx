@@ -6,6 +6,7 @@ import { PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold } from "@expo-goog
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
 import { View, Text, StyleSheet, Image } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { AuthProvider } from "../context/AuthContext";
 
 // Prevent auto hide so we can wait for fonts to load
 SplashScreen.preventAutoHideAsync();
@@ -72,7 +73,11 @@ export default function RootLayout() {
     );
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </AuthProvider>
+  );
 }
 
 const styles = StyleSheet.create({
