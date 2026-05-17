@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Animated, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Animated, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -79,6 +79,24 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
 
   const isCancelledRef = useRef(false);
   const activeSessionRef = useRef(0);
+
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (activeTab === 'rate-service') {
+        setActiveTab('bookings');
+        setRatingBooking(null);
+        return true; // handled
+      }
+      if (activeTab !== 'home') {
+        setActiveTab('home');
+        return true; // handled
+      }
+      return false; // let default back action close the app
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => subscription.remove();
+  }, [activeTab]);
 
   useEffect(() => {
     if (isRecording) {
@@ -191,6 +209,18 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
           <TouchableOpacity style={{ padding: 8 }}>
             <MaterialIcons name="more-vert" size={24} color="#00595c" />
           </TouchableOpacity>
+        </View>
+      )}
+      {activeTab === 'rate-service' && (
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => {
+            setActiveTab('bookings');
+            setRatingBooking(null);
+          }} style={{ padding: 8 }}>
+            <MaterialIcons name="arrow-back" size={24} color="#00595c" />
+          </TouchableOpacity>
+          <Text style={styles.profileNavTitle}>Rate Service</Text>
+          <View style={{ width: 40 }} />
         </View>
       )}
       {activeTab === 'home' ? (
@@ -651,7 +681,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                                 iconColor: "#005c3e",
                                 onConfirm: () => {
                                   setConfirmDialog(null);
-                                  setRatingBooking(booking); // triggers rating overlay!
+                                  setRatingBooking(booking);
+                                  setActiveTab('rate-service');
                                 }
                               });
                             }}
@@ -681,8 +712,9 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                             <TouchableOpacity 
                               style={styles.actionBtnPri}
                               onPress={() => {
-                                // Open Rate Service directly!
+                                // Open Rate Service directly as a full-screen screen!
                                 setRatingBooking(booking);
+                                setActiveTab('rate-service');
                               }}
                             >
                               <Text style={styles.actionBtnTextPri}>Rate</Text>
@@ -706,158 +738,98 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             )}
           </ScrollView>
         </View>
-      ) : (
-        <View style={styles.comingSoonContainer}>
-          <MaterialIcons name="construction" size={64} color="#00595c" />
-          <Text style={styles.comingSoonTitle}>Coming Soon</Text>
-          <Text style={styles.comingSoonSubtitle}>We're working hard on this feature.</Text>
-        </View>
-      )}
-
-      {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab}>
-        <MaterialIcons name="add" size={32} color="#fff" />
-      </TouchableOpacity>
-
-      {/* Bottom Navigation Shell */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('home')}>
-          <MaterialIcons name="home" size={24} color={activeTab === 'home' ? '#00595c' : '#3e4949'} />
-          <Text style={[styles.navText, activeTab === 'home' && { color: '#00595c' }]}>Home</Text>
-          {activeTab === 'home' && <View style={styles.navActiveIndicator} />}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('bookings')}>
-          <MaterialIcons name="event-note" size={24} color={activeTab === 'bookings' ? '#00595c' : '#3e4949'} />
-          <Text style={[styles.navText, activeTab === 'bookings' && { color: '#00595c' }]}>My Bookings</Text>
-          {activeTab === 'bookings' && <View style={styles.navActiveIndicator} />}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('notifications')}>
-          <MaterialIcons name="notifications" size={24} color={activeTab === 'notifications' ? '#00595c' : '#3e4949'} />
-          <Text style={[styles.navText, activeTab === 'notifications' && { color: '#00595c' }]}>Notifications</Text>
-          {activeTab === 'notifications' && <View style={styles.navActiveIndicator} />}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('profile')}>
-          <MaterialIcons name="person" size={24} color={activeTab === 'profile' ? '#00595c' : '#3e4949'} />
-          <Text style={[styles.navText, activeTab === 'profile' && { color: '#00595c' }]}>Profile</Text>
-          {activeTab === 'profile' && <View style={styles.navActiveIndicator} />}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-
-    <ChatBottomSheet
-      visible={chatVisible}
-      initialQuery={chatInitialQuery}
-      onClose={() => {
-        setChatVisible(false);
-        setChatInitialQuery("");
-      }}
-      userName={userName}
-    />
-
-    {ratingBooking && (
-      <Modal
-        visible={!!ratingBooking}
-        animationType="slide"
-        presentationStyle="overFullScreen"
-        transparent={false}
-        onRequestClose={() => setRatingBooking(null)}
-      >
-        <SafeAreaView style={styles.ratingModalContainer}>
-          {/* Header bar */}
-          <View style={styles.ratingModalHeader}>
-            <TouchableOpacity onPress={() => setRatingBooking(null)} style={styles.ratingCloseBtn}>
-              <MaterialIcons name="close" size={24} color="#1a1a2e" />
-            </TouchableOpacity>
-            <Text style={styles.ratingHeaderTitle}>Rate Service</Text>
-            <View style={{ width: 40 }} />
-          </View>
-
+      ) : activeTab === 'rate-service' ? (
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.ratingScreenContainer}
+        >
           <ScrollView contentContainerStyle={styles.ratingScrollContent} showsVerticalScrollIndicator={false}>
-            {/* Expert Profile Header */}
-            <View style={styles.ratingExpertCard}>
-              <View style={styles.ratingExpertAvatar}>
-                <MaterialIcons name="person" size={48} color="#fff" />
-              </View>
-              <Text style={styles.ratingExpertName}>
-                {ratingBooking.provider === 'Assigning Provider...' ? 'Ahmed Hassan' : ratingBooking.provider}
-              </Text>
-              <Text style={styles.ratingExpertSubtitle}>
-                {ratingBooking.provider === 'Assigning Provider...' ? 'Expert AC Technician • Service ID #4829' : (ratingBooking.providerDetail || 'Expert Specialist')}
-              </Text>
-            </View>
+            {ratingBooking && (
+              <>
+                {/* Hero Provider Panel */}
+                <View style={styles.ratingProviderCard}>
+                  <Image source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuA_MXCjwGeq0GUiyK3WW6t6yqZ7TxAls0iXWQo8vCl7kmNU4HlRa0WceleGvbd1HJOROkvw5ow3lgtyXVGfS75uzsj4d-AyEoRN4SJLRiPDktmx2t1xPDrYq_q539mk4c9cYjpY4ljvJ5U03Ge1HUsRfQ6a0L3KmtJtJPCVDURdK4qJ9naUuM7h5YWxkAmGOTqN2nlM-qWh-x2H-_QR-9Dk_JBlTSSw3hUmA7D072attkBMp282axpaR5KyYW0DTyXZVsYO9JAkpmc" }} style={styles.ratingAvatar} />
+                  <Text style={styles.ratingProviderName}>
+                    {ratingBooking.provider === 'Assigning Provider...' ? 'Ahmed Hassan' : ratingBooking.provider}
+                  </Text>
+                  <Text style={styles.ratingProviderSub}>
+                    {ratingBooking.providerDetail === 'Assigning AC Technician' ? 'Expert AC Technician • Service ID #4829' : ratingBooking.providerDetail}
+                  </Text>
+                  <View style={styles.ratingBadge}>
+                    <MaterialIcons name="verified" size={16} color="#005c3e" />
+                    <Text style={styles.ratingBadgeText}>Certified Professional</Text>
+                  </View>
+                </View>
 
-            {/* How was your experience question */}
-            <View style={styles.ratingQuestionCard}>
-              <Text style={styles.ratingQuestionTitle}>How was your experience?</Text>
-              
-              {/* Large Interactive Star Row */}
-              <View style={styles.ratingStarRow}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity 
-                    key={star} 
-                    onPress={() => setRatingStars(star)}
-                    style={{ marginHorizontal: 8 }}
-                  >
-                    <MaterialIcons 
-                      name={star <= ratingStars ? "star" : "star-border"} 
-                      size={48} 
-                      color={star <= ratingStars ? "#FFB300" : "#bec9c9"} 
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
+                {/* Interactive Stars Row */}
+                <View style={styles.ratingInteractiveSection}>
+                  <Text style={styles.ratingLabelText}>How was your experience?</Text>
+                  <View style={styles.ratingStarsContainer}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <TouchableOpacity 
+                        key={star} 
+                        onPress={() => setRatingStars(star)}
+                        style={styles.ratingStarBtn}
+                      >
+                        <MaterialIcons 
+                          name={star <= ratingStars ? "star" : "star-outline"} 
+                          size={40} 
+                          color={star <= ratingStars ? "#ffa000" : "#bec9c9"} 
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={styles.ratingStarsFeedback}>
+                    {ratingStars === 1 ? 'Very Poor 😞' :
+                     ratingStars === 2 ? 'Poor 😕' :
+                     ratingStars === 3 ? 'Fair 😐' :
+                     ratingStars === 4 ? 'Good 🙂' : 'Excellent! 😍'}
+                  </Text>
+                </View>
 
-              {/* Dynamic Rating Score Text */}
-              <Text style={styles.ratingScoreLabel}>
-                {ratingStars === 5 ? "Excellent!" : 
-                 ratingStars === 4 ? "Very Good!" : 
-                 ratingStars === 3 ? "Good" : 
-                 ratingStars === 2 ? "Fair" : "Poor"}
-              </Text>
-            </View>
+                {/* AI Karigar Insight */}
+                <View style={[styles.ratingInsightCard, { marginHorizontal: 16, marginTop: 16 }]}>
+                  <View style={styles.ratingInsightHeader}>
+                    <MaterialIcons name="auto-awesome" size={20} color="#00595c" />
+                    <Text style={styles.ratingInsightTitle}>KARIGAR INSIGHT</Text>
+                  </View>
+                  <Text style={styles.ratingInsightBody}>
+                    Ahmed completed the service in <Text style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>45 minutes</Text> (15 mins faster than estimated), saving you <Text style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>PKR 250</Text> in additional labor overhead. High efficiency observed!
+                  </Text>
+                </View>
 
-            {/* KARIGAR INSIGHT AI card */}
-            <View style={styles.ratingInsightCard}>
-              <View style={styles.ratingInsightHeader}>
-                <MaterialIcons name="auto-awesome" size={20} color="#005c3e" style={{ marginRight: 6 }} />
-                <Text style={styles.ratingInsightTitle}>KARIGAR INSIGHT</Text>
-              </View>
-              <Text style={styles.ratingInsightText}>
-                Your positive feedback helps {ratingBooking.provider === 'Assigning Provider...' ? 'Ahmed' : ratingBooking.provider.split(' ')[0]} rank higher for {ratingBooking.service.toLowerCase().includes('ac') ? 'AC maintenance' : 'home services'} in Lahore. Great choice!
-              </Text>
-            </View>
+                {/* Detailed Invoice Summary */}
+                <View style={styles.ratingInvoiceCard}>
+                  <Text style={styles.ratingInvoiceTitle}>Service Receipt Summary</Text>
+                  <View style={styles.ratingInvoiceRow}>
+                    <Text style={styles.ratingInvoiceLabel}>{ratingBooking.serviceName}</Text>
+                    <Text style={styles.ratingInvoiceValue}>{ratingBooking.price}</Text>
+                  </View>
+                  <View style={styles.ratingInvoiceRow}>
+                    <Text style={styles.ratingInvoiceLabel}>Agentic Matching Fee</Text>
+                    <Text style={styles.ratingInvoiceValue}>PKR 0 (Promo)</Text>
+                  </View>
+                  <View style={[styles.ratingInvoiceRow, styles.ratingInvoiceTotalRow]}>
+                    <Text style={styles.ratingInvoiceTotalLabel}>Total Paid</Text>
+                    <Text style={styles.ratingInvoiceTotalValue}>{ratingBooking.price}</Text>
+                  </View>
+                </View>
 
-            {/* Order breakdown card */}
-            <View style={styles.ratingOrderCard}>
-              <View style={styles.ratingOrderRow}>
-                <Text style={styles.ratingOrderLabel}>Order ID</Text>
-                <Text style={styles.ratingOrderVal}>{ratingBooking.id}</Text>
-              </View>
-              <View style={styles.ratingOrderRow}>
-                <Text style={styles.ratingOrderLabel}>Service</Text>
-                <Text style={styles.ratingOrderVal}>{ratingBooking.service}</Text>
-              </View>
-              <View style={styles.ratingOrderRow}>
-                <Text style={styles.ratingOrderLabel}>Price Paid</Text>
-                <Text style={[styles.ratingOrderVal, { color: '#00595c', fontWeight: 'bold' }]}>
-                  {ratingBooking.price.includes('Est') ? ratingBooking.price.replace('(Est)', '').trim() : ratingBooking.price}
-                </Text>
-              </View>
-            </View>
-
-            {/* Review input card */}
-            <View style={styles.ratingInputCard}>
-              <Text style={styles.ratingInputLabel}>Write a review (Optional)</Text>
-              <TextInput
-                style={styles.ratingTextInput}
-                placeholder="Share details of your experience to help others..."
-                placeholderTextColor="#bec9c9"
-                value={ratingComment}
-                onChangeText={setRatingComment}
-                multiline={true}
-                numberOfLines={4}
-              />
-            </View>
+                {/* Custom Review Comments Form */}
+                <View style={styles.ratingCommentsContainer}>
+                  <Text style={styles.ratingLabelText}>Write a review (Optional)</Text>
+                  <TextInput
+                    style={styles.ratingCommentsInput}
+                    placeholder="Tell us about the technician's professionalism, behavior, or quality of work..."
+                    placeholderTextColor="#bec9c9"
+                    multiline={true}
+                    numberOfLines={4}
+                    value={ratingComment}
+                    onChangeText={setRatingComment}
+                  />
+                </View>
+              </>
+            )}
           </ScrollView>
 
           {/* Bottom Actions button */}
@@ -865,8 +837,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             <TouchableOpacity 
               style={styles.ratingSubmitBtn}
               onPress={() => {
-                // Submit Feedback simulation:
-                // 1. Shift target booking to Completed state and set rated to true!
+                if (!ratingBooking) return;
+                // Submit Feedback:
                 setBookings(prev => prev.map(b => 
                   b.id === ratingBooking.id 
                     ? { 
@@ -881,11 +853,11 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                     : b
                 ));
                 
-                // 2. Transition tab selections
+                // Transition tab selections
                 setSelectedFilter('Completed');
                 setActiveTab('bookings');
                 
-                // 3. Clear ratings states
+                // Clear ratings states
                 setRatingBooking(null);
                 setRatingStars(5);
                 setRatingComment("");
@@ -894,9 +866,60 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
               <Text style={styles.ratingSubmitText}>Submit Feedback</Text>
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
-      </Modal>
-    )}
+        </KeyboardAvoidingView>
+      ) : (
+        <View style={styles.comingSoonContainer}>
+          <MaterialIcons name="construction" size={64} color="#00595c" />
+          <Text style={styles.comingSoonTitle}>Coming Soon</Text>
+          <Text style={styles.comingSoonSubtitle}>We're working hard on this feature.</Text>
+        </View>
+      )}
+
+      {/* Floating Action Button */}
+      {activeTab !== 'rate-service' && (
+        <TouchableOpacity style={styles.fab}>
+          <MaterialIcons name="add" size={32} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Bottom Navigation Shell */}
+      {activeTab !== 'rate-service' && (
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('home')}>
+            <MaterialIcons name="home" size={24} color={activeTab === 'home' ? '#00595c' : '#3e4949'} />
+            <Text style={[styles.navText, activeTab === 'home' && { color: '#00595c' }]}>Home</Text>
+            {activeTab === 'home' && <View style={styles.navActiveIndicator} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('bookings')}>
+            <MaterialIcons name="event-note" size={24} color={activeTab === 'bookings' ? '#00595c' : '#3e4949'} />
+            <Text style={[styles.navText, activeTab === 'bookings' && { color: '#00595c' }]}>My Bookings</Text>
+            {activeTab === 'bookings' && <View style={styles.navActiveIndicator} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('notifications')}>
+            <MaterialIcons name="notifications" size={24} color={activeTab === 'notifications' ? '#00595c' : '#3e4949'} />
+            <Text style={[styles.navText, activeTab === 'notifications' && { color: '#00595c' }]}>Notifications</Text>
+            {activeTab === 'notifications' && <View style={styles.navActiveIndicator} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('profile')}>
+            <MaterialIcons name="person" size={24} color={activeTab === 'profile' ? '#00595c' : '#3e4949'} />
+            <Text style={[styles.navText, activeTab === 'profile' && { color: '#00595c' }]}>Profile</Text>
+            {activeTab === 'profile' && <View style={styles.navActiveIndicator} />}
+          </TouchableOpacity>
+        </View>
+      )}
+    </SafeAreaView>
+
+    <ChatBottomSheet
+      visible={chatVisible}
+      initialQuery={chatInitialQuery}
+      onClose={() => {
+        setChatVisible(false);
+        setChatInitialQuery("");
+      }}
+      userName={userName}
+    />
+
+
 
     {confirmDialog && (
       <Modal
@@ -1696,9 +1719,30 @@ const styles = StyleSheet.create({
     color: '#6e7979',
     textAlign: 'center',
   },
-  ratingModalContainer: {
+  ratingScreenContainer: {
     flex: 1,
     backgroundColor: '#FAFAFA',
+  },
+  ratingModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(26, 26, 46, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  ratingBottomSheet: {
+    backgroundColor: '#FAFAFA',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '95%',
+    overflow: 'hidden',
+  },
+  ratingSheetHandle: {
+    width: 48,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#bec9c9',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
   },
   ratingModalHeader: {
     flexDirection: 'row',
@@ -1803,6 +1847,64 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#00331e',
     lineHeight: 18,
+  },
+  ratingInsightBody: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#00331e',
+    lineHeight: 18,
+  },
+  ratingLabelText: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 15,
+    color: '#1a1a2e',
+  },
+  ratingInvoiceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#eef2f2',
+    gap: 12,
+  },
+  ratingInvoiceTitle: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 15,
+    color: '#1a1a2e',
+    marginBottom: 4,
+  },
+  ratingInvoiceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  ratingInvoiceLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    color: '#6e7979',
+  },
+  ratingInvoiceValue: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 14,
+    color: '#1a1a2e',
+  },
+  ratingInvoiceTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#eef2f2',
+    paddingTop: 12,
+    marginTop: 4,
+  },
+  ratingInvoiceTotalLabel: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 14,
+    color: '#1a1a2e',
+  },
+  ratingInvoiceTotalValue: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 16,
+    color: '#00595c',
   },
   ratingOrderCard: {
     backgroundColor: '#fff',
@@ -1945,5 +2047,98 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_700Bold',
     fontSize: 14,
     color: '#fff',
+  },
+  ratingProviderCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 16,
+    marginTop: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#eef2f2',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  ratingAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 12,
+  },
+  ratingProviderName: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 20,
+    color: '#1a1a2e',
+    marginBottom: 4,
+  },
+  ratingProviderSub: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: '#6e7979',
+    marginBottom: 12,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8fff5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  ratingBadgeText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#005c3e',
+  },
+  ratingInteractiveSection: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 16,
+    marginTop: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#eef2f2',
+  },
+  ratingStarsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginVertical: 16,
+  },
+  ratingStarBtn: {
+    padding: 4,
+  },
+  ratingStarsFeedback: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 16,
+    color: '#00595c',
+  },
+  ratingCommentsContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: '#eef2f2',
+  },
+  ratingCommentsInput: {
+    borderWidth: 1,
+    borderColor: '#bec9c9',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    color: '#1a1a2e',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginTop: 12,
   }
 });
