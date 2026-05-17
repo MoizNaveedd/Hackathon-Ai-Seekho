@@ -6,6 +6,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
+import { transcribeVoiceLive } from '../services/transcriptionService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
@@ -26,7 +27,6 @@ interface BookingProposal {
 interface Props {
   visible: boolean;
   initialQuery?: string;
-  initialAudioUri?: string;
   onClose: () => void;
   userName: string;
 }
@@ -156,7 +156,7 @@ function VoiceMessagePlayer({ uri, isUser }: { uri: string; isUser: boolean }) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function ChatBottomSheet({ visible, initialQuery, initialAudioUri, onClose, userName }: Props) {
+export default function ChatBottomSheet({ visible, initialQuery, onClose, userName }: Props) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(600)).current;
   const keyboardAnim = useRef(new Animated.Value(0)).current;
@@ -170,21 +170,18 @@ export default function ChatBottomSheet({ visible, initialQuery, initialAudioUri
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   
   // Voice states
-  const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [pulseAnim] = useState(new Animated.Value(1));
+  const isCancelledRef = useRef(false);
+  const activeSessionRef = useRef(0);
 
   // Slide up when visible
   useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
       
-      if (initialAudioUri) {
-        // Seed the first user audio message and get AI reply
-        const firstMsg: Message = { id: `u${Date.now()}`, role: 'user', audioUri: initialAudioUri, timestamp: new Date() };
-        setMessages([firstMsg]);
-        fetchReply("Voice message received", [firstMsg]);
-      } else if (initialQuery) {
+      if (initialQuery) {
         // Seed the first user text message and get AI reply
         const firstMsg: Message = { id: 'u0', role: 'user', text: initialQuery, timestamp: new Date() };
         setMessages([firstMsg]);
@@ -200,11 +197,9 @@ export default function ChatBottomSheet({ visible, initialQuery, initialAudioUri
       setIsTyping(false);
       setShowCloseConfirm(false);
       setIsRecording(false);
-      setRecording(undefined);
     }
   }, [visible]);
 
-  // Voice Pulse Animation
   useEffect(() => {
     if (isRecording) {
       Animated.loop(
@@ -264,53 +259,36 @@ export default function ChatBottomSheet({ visible, initialQuery, initialAudioUri
     }
   }
 
-  async function startRecording() {
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') return;
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      setRecording(recording);
-      setIsRecording(true);
-    } catch (err) {
-      console.error('Failed to start recording', err);
-    }
-  }
-
   async function cancelRecording() {
+    isCancelledRef.current = true;
+    activeSessionRef.current++;
     setIsRecording(false);
-    if (!recording) return;
-    try {
-      await recording.stopAndUnloadAsync();
-      setRecording(undefined);
-    } catch (err) {
-      console.error('Failed to cancel recording', err);
-    }
+    setIsTranscribing(false);
+
+    // intentional 
+    transcribeVoiceLive();
   }
 
-  async function stopRecording() {
-    setIsRecording(false);
-    if (!recording) return;
+  async function startSpeechRecognition() {
+    const sessionId = ++activeSessionRef.current;
+    isCancelledRef.current = false;
+    setIsRecording(true);
+    setIsTranscribing(true);
+
     try {
-      const uri = recording.getURI();
-      await recording.stopAndUnloadAsync();
-      setRecording(undefined);
-      
-      if (uri) {
-        const userMsg: Message = { 
-          id: `u${Date.now()}`, 
-          role: 'user', 
-          audioUri: uri, 
-          timestamp: new Date() 
-        };
-        const updatedHistory = [...messages, userMsg];
-        setMessages(updatedHistory);
-        
-        // Fetch AI reply based on a placeholder since we're not transcribing
-        fetchReply("Voice message received", updatedHistory);
+       if (sessionId !== activeSessionRef.current || isCancelledRef.current) return;
+
+      const text = await transcribeVoiceLive();
+      if (sessionId === activeSessionRef.current && !isCancelledRef.current && text && text.trim() !== '') {
+        setInputText(text);
       }
     } catch (err) {
-      console.error('Failed to stop recording', err);
+      console.error('Failed speech recognition:', err);
+    } finally {
+      if (sessionId === activeSessionRef.current) {
+        setIsRecording(false);
+        setIsTranscribing(false);
+      }
     }
   }
 
@@ -468,9 +446,16 @@ export default function ChatBottomSheet({ visible, initialQuery, initialAudioUri
                     <Text style={styles.listeningText}>Listening...</Text>
                   </View>
 
-                  <TouchableOpacity onPress={stopRecording} style={styles.voiceActionBtn}>
+                  <View style={[styles.voiceActionBtn, { opacity: 0.3 }]}>
                     <MaterialIcons name="check-circle" size={32} color="#005c3e" />
-                  </TouchableOpacity>
+                  </View>
+                </View>
+              ) : isTranscribing ? (
+                <View style={styles.recordingRow}>
+                  <View style={styles.voicePulseWrapper}>
+                    <ActivityIndicator size="small" color="#00595c" />
+                    <Text style={styles.listeningText}>Transcribing voice to text...</Text>
+                  </View>
                 </View>
               ) : (
                 <View style={styles.inputRow}>
@@ -494,7 +479,7 @@ export default function ChatBottomSheet({ visible, initialQuery, initialAudioUri
                   ) : (
                     <TouchableOpacity
                       style={styles.chatMicBtn}
-                      onPress={startRecording}
+                      onPress={startSpeechRecognition}
                       disabled={isTyping}
                     >
                       <MaterialIcons name="mic" size={24} color="#00595c" />

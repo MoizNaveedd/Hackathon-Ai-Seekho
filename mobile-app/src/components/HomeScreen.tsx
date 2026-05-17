@@ -1,24 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Animated } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import ChatBottomSheet from './ChatBottomSheet';
+import { transcribeVoiceLive } from '../services/transcriptionService';
 
 export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: () => void }) {
   const userName = user?.user?.name || user?.data?.user?.name || user?.name || "Ali";
   const [activeTab, setActiveTab] = useState('home');
   const [locationName, setLocationName] = useState("Finding location...");
   const [searchQuery, setSearchQuery] = useState("");
-  const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [chatVisible, setChatVisible] = useState(false);
   const [chatInitialQuery, setChatInitialQuery] = useState("");
-  const [chatInitialAudioUri, setChatInitialAudioUri] = useState("");
   const [pulseAnim] = useState(new Animated.Value(1));
   const router = useRouter();
+
+  const isCancelledRef = useRef(false);
+  const activeSessionRef = useRef(0);
 
   useEffect(() => {
     if (isRecording) {
@@ -35,52 +38,35 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   }, [isRecording]);
 
   async function cancelRecording() {
+    isCancelledRef.current = true;
+    activeSessionRef.current++;
     setIsRecording(false);
-    if (!recording) return;
-    try {
-      await recording.stopAndUnloadAsync();
-      setRecording(undefined);
-    } catch (err) {
-      console.error('Failed to cancel recording', err);
-    }
+    setIsTranscribing(false);
+    // intentional 
+    transcribeVoiceLive();
   }
 
-  async function startRecording() {
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') return;
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(recording);
-      setIsRecording(true);
-    } catch (err) {
-      console.error('Failed to start recording', err);
-    }
-  }
-
-  async function stopRecording() {
-    setIsRecording(false);
-    if (!recording) return;
+  async function startSpeechRecognition() {
+    const sessionId = ++activeSessionRef.current;
+    isCancelledRef.current = false;
+    setIsRecording(true);
+    setIsTranscribing(true);
 
     try {
-      const uri = recording.getURI();
-      await recording.stopAndUnloadAsync();
-      setRecording(undefined);
+        if (sessionId !== activeSessionRef.current || isCancelledRef.current) return;
+
+      const text = await transcribeVoiceLive();
       
-      if (uri) {
-        setChatInitialAudioUri(uri);
-        setChatInitialQuery("");
-        setChatVisible(true);
+      if (sessionId === activeSessionRef.current && !isCancelledRef.current && text && text.trim() !== '') {
+        setSearchQuery(text);
       }
     } catch (err) {
-      console.error('Failed to stop recording', err);
+      console.error('Failed speech recognition:', err);
+    } finally {
+      if (sessionId === activeSessionRef.current) {
+        setIsRecording(false);
+        setIsTranscribing(false);
+      }
     }
   }
 
@@ -175,10 +161,15 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                   <Text style={styles.listeningText}>Listening...</Text>
                 </View>
 
-                <TouchableOpacity onPress={stopRecording} style={styles.voiceActionBtn}>
+                <View style={[styles.voiceActionBtn, { opacity: 0.3 }]}>
                   <MaterialIcons name="check-circle" size={28} color="#005c3e" />
                   <Text style={[styles.voiceActionLabel, { color: '#005c3e' }]}>Done</Text>
-                </TouchableOpacity>
+                </View>
+              </View>
+            ) : isTranscribing ? (
+              <View style={styles.transcribingWrapper}>
+                <ActivityIndicator size="small" color="#00595c" />
+                <Text style={styles.transcribingText}>Transcribing voice to text...</Text>
               </View>
             ) : (
               <>
@@ -207,7 +198,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                 ) : (
                   <TouchableOpacity 
                     style={styles.searchIconRight}
-                    onPress={startRecording}
+                    onPress={startSpeechRecognition}
                   >
                     <MaterialIcons name="mic" size={24} color="#00595c" />
                   </TouchableOpacity>
@@ -437,10 +428,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
     <ChatBottomSheet
       visible={chatVisible}
       initialQuery={chatInitialQuery}
-      initialAudioUri={chatInitialAudioUri}
       onClose={() => {
         setChatVisible(false);
-        setChatInitialAudioUri("");
         setChatInitialQuery("");
       }}
       userName={userName}
@@ -529,6 +518,19 @@ const styles = StyleSheet.create({
   },
   searchSection: {
     marginBottom: 32,
+  },
+  transcribingWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    height: 40,
+  },
+  transcribingText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: '#00595c',
   },
   searchInputContainer: {
     flexDirection: 'row',
