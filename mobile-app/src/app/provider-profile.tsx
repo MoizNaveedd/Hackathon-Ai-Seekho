@@ -413,10 +413,8 @@ export default function ProviderProfile() {
                     setShowBookingModal(false);
                     setBookingSuccess(false);
                     setSelectedSlot(null);
-                    // Navigate to Home or bookings tab if wanted, here we close
-                    router.push({
-                      pathname: '/'
-                    });
+                    // Navigate back to the Home screen
+                    router.back();
                   }}
                 >
                   <Text style={styles.successDoneText}>Done</Text>
