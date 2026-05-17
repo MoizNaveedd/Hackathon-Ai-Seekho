@@ -625,7 +625,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
         {/* Recommended Pro Card */}
         <View style={{ marginBottom: 32 }}>
           <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 18, color: '#1a1a2e', marginBottom: 12 }}>
-            Recommended Specialist Near You
+             Specialist Near You
           </Text>
           <TouchableOpacity 
             style={[styles.aiCard, { backgroundColor: '#fff', borderColor: '#bec9c9', borderWidth: 1, marginBottom: 0 }]}
