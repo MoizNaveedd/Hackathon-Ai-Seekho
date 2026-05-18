@@ -1,0 +1,1880 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Karigar AI Service Orchestrator API",
+        "version": "0.1.0"
+    },
+    "paths": {
+        "/bookings": {
+            "get": {
+                "tags": [
+                    "Bookings"
+                ],
+                "summary": "List Bookings",
+                "description": "Get a list of bookings with optional filtering by User ID and/or Provider ID,\ncomplete with pagination support.",
+                "operationId": "list_bookings_bookings_get",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter bookings by User ID",
+                            "title": "User Id"
+                        },
+                        "description": "Filter bookings by User ID"
+                    },
+                    {
+                        "name": "provider_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter bookings by Provider ID",
+                            "title": "Provider Id"
+                        },
+                        "description": "Filter bookings by Provider ID"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Page number for pagination",
+                            "default": 1,
+                            "title": "Page"
+                        },
+                        "description": "Page number for pagination"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "description": "Items per page",
+                            "default": 10,
+                            "title": "Limit"
+                        },
+                        "description": "Items per page"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/send": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Send Notification",
+                "description": "Manually send a notification to a user and/or provider.\nThis saves a notification record in the database and also triggers a real/mock push notification.",
+                "operationId": "send_notification_notifications_send_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotificationSendRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Send Notification Notifications Send Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "List Notifications",
+                "description": "Get all notifications with optional filtering by recipient User ID or Provider ID,\ncomplete with pagination support.",
+                "operationId": "list_notifications_notifications_get",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter notifications by recipient User ID",
+                            "title": "User Id"
+                        },
+                        "description": "Filter notifications by recipient User ID"
+                    },
+                    {
+                        "name": "provider_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter notifications by recipient Provider ID",
+                            "title": "Provider Id"
+                        },
+                        "description": "Filter notifications by recipient Provider ID"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Page number for pagination",
+                            "default": 1,
+                            "title": "Page"
+                        },
+                        "description": "Page number for pagination"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "description": "Items per page",
+                            "default": 10,
+                            "title": "Limit"
+                        },
+                        "description": "Items per page"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotificationListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/register_token": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Register Device Token",
+                "description": "Registers a device's push notification token for a user or provider.\nThis allows push notifications to be correctly delivered to their respective devices.",
+                "operationId": "register_device_token_notifications_register_token_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenRegisterRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Register Device Token Notifications Register Token Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/{notification_id}/mark_read": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark Notification As Read",
+                "description": "Marks a specific notification as read.",
+                "operationId": "mark_notification_as_read_notifications__notification_id__mark_read_post",
+                "parameters": [
+                    {
+                        "name": "notification_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Notification Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Mark Notification As Read Notifications  Notification Id  Mark Read Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/providers": {
+            "get": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "List Providers",
+                "description": "List, search, filter, and sort home service providers with pagination.\nSupports geolocation (distance calculation and sorting) and availability filters.",
+                "operationId": "list_providers_providers_get",
+                "parameters": [
+                    {
+                        "name": "service_type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter by service type (partial, case-insensitive)",
+                            "title": "Service Type"
+                        },
+                        "description": "Filter by service type (partial, case-insensitive)"
+                    },
+                    {
+                        "name": "location",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter by location/area (partial, case-insensitive)",
+                            "title": "Location"
+                        },
+                        "description": "Filter by location/area (partial, case-insensitive)"
+                    },
+                    {
+                        "name": "min_rating",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "maximum": 5.0,
+                                    "minimum": 0.0
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter by minimum provider rating",
+                            "default": 0.0,
+                            "title": "Min Rating"
+                        },
+                        "description": "Filter by minimum provider rating"
+                    },
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "User current latitude for distance sorting/filtering",
+                            "title": "Latitude"
+                        },
+                        "description": "User current latitude for distance sorting/filtering"
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "User current longitude for distance sorting/filtering",
+                            "title": "Longitude"
+                        },
+                        "description": "User current longitude for distance sorting/filtering"
+                    },
+                    {
+                        "name": "max_distance_km",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "minimum": 0.0
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter providers within this distance (km)",
+                            "title": "Max Distance Km"
+                        },
+                        "description": "Filter providers within this distance (km)"
+                    },
+                    {
+                        "name": "booking_date",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Filter to providers available on this date (YYYY-MM-DD)",
+                            "title": "Booking Date"
+                        },
+                        "description": "Filter to providers available on this date (YYYY-MM-DD)"
+                    },
+                    {
+                        "name": "sort_by",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "description": "Sort by field: 'rating' (descending), 'distance' (ascending), 'name' (ascending)",
+                            "default": "rating",
+                            "title": "Sort By"
+                        },
+                        "description": "Sort by field: 'rating' (descending), 'distance' (ascending), 'name' (ascending)"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Page number for pagination",
+                            "default": 1,
+                            "title": "Page"
+                        },
+                        "description": "Page number for pagination"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "description": "Number of items per page",
+                            "default": 10,
+                            "title": "Limit"
+                        },
+                        "description": "Number of items per page"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Create Provider",
+                "description": "Register a new provider. Administrative or provider registration endpoint.",
+                "operationId": "create_provider_providers_post",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProviderCreateRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderDetailResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/providers/services": {
+            "get": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Get Service Summaries",
+                "description": "Get a list of all unique service types and counts of active providers for each type.",
+                "operationId": "get_service_summaries_providers_services_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/ServiceTypeSummary"
+                                    },
+                                    "type": "array",
+                                    "title": "Response Get Service Summaries Providers Services Get"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/providers/{provider_id}": {
+            "get": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Get Provider Details",
+                "description": "Retrieve details of a single provider by ID, with optional distance calculation.",
+                "operationId": "get_provider_details_providers__provider_id__get",
+                "parameters": [
+                    {
+                        "name": "provider_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Provider Id"
+                        }
+                    },
+                    {
+                        "name": "latitude",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "User current latitude to calculate distance",
+                            "title": "Latitude"
+                        },
+                        "description": "User current latitude to calculate distance"
+                    },
+                    {
+                        "name": "longitude",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "User current longitude to calculate distance",
+                            "title": "Longitude"
+                        },
+                        "description": "User current longitude to calculate distance"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderDetailResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/providers/{provider_id}/slots": {
+            "put": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Update Provider Slots",
+                "description": "Directly update the slots mapping for an existing provider.",
+                "operationId": "update_provider_slots_providers__provider_id__slots_put",
+                "parameters": [
+                    {
+                        "name": "provider_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Provider Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SlotsUpdateRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderDetailResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/v2": {
+            "post": {
+                "summary": "Chat",
+                "description": "Conversational endpoint: handles all phases of the booking flow.\n\n- Phase 1 (gathering_intent): send message only\n- Phase 2 (selecting_provider): send selected_provider_id + selected_slot + selected_date\n- Phase 3 (confirming_booking): send message (yes/no/change time/change provider)",
+                "operationId": "chat_chat_v2_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChatRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Chat Chat V2 Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/book": {
+            "post": {
+                "summary": "Book",
+                "description": "Booking endpoint: called after user selects a provider + slot + date from FE.",
+                "operationId": "book_book_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BookingRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Book Book Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/{session_id}/history": {
+            "get": {
+                "summary": "Get Chat History",
+                "description": "Get full chat history for a session.",
+                "operationId": "get_chat_history_chat__session_id__history_get",
+                "parameters": [
+                    {
+                        "name": "session_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Session Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/update_user_location": {
+            "post": {
+                "summary": "Update User Location",
+                "operationId": "update_user_location_update_user_location_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LocationUpdateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/sso_login": {
+            "post": {
+                "summary": "Sso Login",
+                "description": "SSO Login & Registration Endpoint",
+                "operationId": "sso_login_sso_login_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SSOLoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/": {
+            "get": {
+                "summary": "Read Root",
+                "operationId": "read_root__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BookingDetailResponse": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id"
+                    },
+                    "user_intent": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "User Intent"
+                    },
+                    "user_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "User Id"
+                    },
+                    "provider_id": {
+                        "type": "integer",
+                        "title": "Provider Id"
+                    },
+                    "time_slot": {
+                        "type": "string",
+                        "title": "Time Slot"
+                    },
+                    "booking_date": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Booking Date"
+                    },
+                    "status": {
+                        "type": "string",
+                        "title": "Status"
+                    },
+                    "provider": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ProviderSummary"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "user": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/UserSummary"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "provider_id",
+                    "time_slot",
+                    "status"
+                ],
+                "title": "BookingDetailResponse"
+            },
+            "BookingListResponse": {
+                "properties": {
+                    "bookings": {
+                        "items": {
+                            "$ref": "#/components/schemas/BookingDetailResponse"
+                        },
+                        "type": "array",
+                        "title": "Bookings"
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "title": "Total Count"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit"
+                    },
+                    "total_pages": {
+                        "type": "integer",
+                        "title": "Total Pages"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "bookings",
+                    "total_count",
+                    "page",
+                    "limit",
+                    "total_pages"
+                ],
+                "title": "BookingListResponse"
+            },
+            "BookingRequest": {
+                "properties": {
+                    "user_id": {
+                        "type": "integer",
+                        "title": "User Id"
+                    },
+                    "provider_id": {
+                        "type": "integer",
+                        "title": "Provider Id"
+                    },
+                    "slot": {
+                        "type": "string",
+                        "title": "Slot"
+                    },
+                    "booking_date": {
+                        "type": "string",
+                        "title": "Booking Date"
+                    },
+                    "language": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Language",
+                        "default": "english"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "user_id",
+                    "provider_id",
+                    "slot",
+                    "booking_date"
+                ],
+                "title": "BookingRequest"
+            },
+            "ChatRequest": {
+                "properties": {
+                    "message": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Message"
+                    },
+                    "user_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "User Id"
+                    },
+                    "session_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Session Id"
+                    },
+                    "selected_provider_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Selected Provider Id"
+                    },
+                    "selected_slot": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Selected Slot"
+                    },
+                    "selected_date": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Selected Date"
+                    }
+                },
+                "type": "object",
+                "title": "ChatRequest"
+            },
+            "GoogleUser": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "title": "Id"
+                    },
+                    "email": {
+                        "type": "string",
+                        "title": "Email"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "givenName": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Givenname"
+                    },
+                    "familyName": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Familyname"
+                    },
+                    "photo": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Photo"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "email",
+                    "name"
+                ],
+                "title": "GoogleUser"
+            },
+            "GoogleUserData": {
+                "properties": {
+                    "user": {
+                        "$ref": "#/components/schemas/GoogleUser"
+                    },
+                    "scopes": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Scopes"
+                    },
+                    "serverAuthCode": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Serverauthcode"
+                    },
+                    "idToken": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Idtoken"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "user"
+                ],
+                "title": "GoogleUserData"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "LocationUpdateRequest": {
+                "properties": {
+                    "user_id": {
+                        "type": "integer",
+                        "title": "User Id"
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "title": "Latitude"
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "title": "Longitude"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "user_id",
+                    "latitude",
+                    "longitude"
+                ],
+                "title": "LocationUpdateRequest"
+            },
+            "NotificationListResponse": {
+                "properties": {
+                    "notifications": {
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationResponse"
+                        },
+                        "type": "array",
+                        "title": "Notifications"
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "title": "Total Count"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit"
+                    },
+                    "total_pages": {
+                        "type": "integer",
+                        "title": "Total Pages"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "notifications",
+                    "total_count",
+                    "page",
+                    "limit",
+                    "total_pages"
+                ],
+                "title": "NotificationListResponse"
+            },
+            "NotificationResponse": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id"
+                    },
+                    "title": {
+                        "type": "string",
+                        "title": "Title"
+                    },
+                    "message": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Type"
+                    },
+                    "is_read": {
+                        "type": "boolean",
+                        "title": "Is Read"
+                    },
+                    "created_at": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Created At"
+                    },
+                    "user_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "User Id"
+                    },
+                    "provider_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Provider Id"
+                    },
+                    "booking_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Booking Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "title",
+                    "message",
+                    "type",
+                    "is_read"
+                ],
+                "title": "NotificationResponse"
+            },
+            "NotificationSendRequest": {
+                "properties": {
+                    "user_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "User Id",
+                        "description": "Recipient User ID (optional)"
+                    },
+                    "provider_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Provider Id",
+                        "description": "Recipient Provider ID (optional)"
+                    },
+                    "booking_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Booking Id",
+                        "description": "Associated Booking ID (optional)"
+                    },
+                    "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Title",
+                        "description": "Notification Title"
+                    },
+                    "message": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Message",
+                        "description": "Notification Message Body"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Type",
+                        "description": "Type of notification (booking_confirmation, reminder, etc.)",
+                        "default": "general"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "title",
+                    "message"
+                ],
+                "title": "NotificationSendRequest"
+            },
+            "ProviderCreateRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Name",
+                        "description": "Name of the service provider"
+                    },
+                    "service_type": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Service Type",
+                        "description": "Type of service (e.g. Plumber, Electrician)"
+                    },
+                    "location": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Location",
+                        "description": "General neighborhood or region (e.g. G-13)"
+                    },
+                    "rating": {
+                        "type": "number",
+                        "maximum": 5.0,
+                        "minimum": 0.0,
+                        "title": "Rating",
+                        "description": "Initial rating (out of 5.0)",
+                        "default": 5.0
+                    },
+                    "latitude": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Latitude",
+                        "description": "GPS Latitude coordinate"
+                    },
+                    "longitude": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Longitude",
+                        "description": "GPS Longitude coordinate"
+                    },
+                    "available_slots": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Available Slots",
+                        "description": "Initial available slots dictionary, e.g. {\"2026-05-19\": [\"10:00 AM\", \"02:00 PM\"]}"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "service_type",
+                    "location"
+                ],
+                "title": "ProviderCreateRequest"
+            },
+            "ProviderDetailResponse": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "service_type": {
+                        "type": "string",
+                        "title": "Service Type"
+                    },
+                    "location": {
+                        "type": "string",
+                        "title": "Location"
+                    },
+                    "rating": {
+                        "type": "number",
+                        "title": "Rating"
+                    },
+                    "latitude": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Latitude"
+                    },
+                    "longitude": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Longitude"
+                    },
+                    "distance_km": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Distance Km"
+                    },
+                    "available_slots": {
+                        "additionalProperties": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object",
+                        "title": "Available Slots"
+                    },
+                    "available_dates": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Available Dates"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "name",
+                    "service_type",
+                    "location",
+                    "rating"
+                ],
+                "title": "ProviderDetailResponse"
+            },
+            "ProviderListResponse": {
+                "properties": {
+                    "providers": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProviderDetailResponse"
+                        },
+                        "type": "array",
+                        "title": "Providers"
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "title": "Total Count"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit"
+                    },
+                    "total_pages": {
+                        "type": "integer",
+                        "title": "Total Pages"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "providers",
+                    "total_count",
+                    "page",
+                    "limit",
+                    "total_pages"
+                ],
+                "title": "ProviderListResponse"
+            },
+            "ProviderSummary": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "service_type": {
+                        "type": "string",
+                        "title": "Service Type"
+                    },
+                    "location": {
+                        "type": "string",
+                        "title": "Location"
+                    },
+                    "rating": {
+                        "type": "number",
+                        "title": "Rating"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "name",
+                    "service_type",
+                    "location",
+                    "rating"
+                ],
+                "title": "ProviderSummary"
+            },
+            "SSOLoginRequest": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "title": "Type"
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/GoogleUserData"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "data"
+                ],
+                "title": "SSOLoginRequest"
+            },
+            "ServiceTypeSummary": {
+                "properties": {
+                    "service_type": {
+                        "type": "string",
+                        "title": "Service Type"
+                    },
+                    "provider_count": {
+                        "type": "integer",
+                        "title": "Provider Count"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "service_type",
+                    "provider_count"
+                ],
+                "title": "ServiceTypeSummary"
+            },
+            "SlotsUpdateRequest": {
+                "properties": {
+                    "available_slots": {
+                        "additionalProperties": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object",
+                        "title": "Available Slots",
+                        "description": "Updated available slots dictionary, e.g. {\"2026-05-19\": [\"10:00 AM\", \"02:00 PM\"]}"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "available_slots"
+                ],
+                "title": "SlotsUpdateRequest"
+            },
+            "TokenRegisterRequest": {
+                "properties": {
+                    "user_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "User Id"
+                    },
+                    "provider_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Provider Id"
+                    },
+                    "device_token": {
+                        "type": "string",
+                        "title": "Device Token",
+                        "description": "FCM, APNs or Expo push token"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "device_token"
+                ],
+                "title": "TokenRegisterRequest"
+            },
+            "UserSummary": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "email": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Email"
+                    },
+                    "location": {
+                        "type": "string",
+                        "title": "Location"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "name",
+                    "location"
+                ],
+                "title": "UserSummary"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    }
+}

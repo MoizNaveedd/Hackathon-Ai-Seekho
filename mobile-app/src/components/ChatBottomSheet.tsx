@@ -27,6 +27,7 @@ interface BookingProposal {
   provider: string;
   time: string;
   price: string;
+  provider_id?: number;
 }
 
 interface Props {
@@ -142,6 +143,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   const [pulseAnim] = useState(new Animated.Value(1));
   const isCancelledRef = useRef(false);
   const activeSessionRef = useRef(0);
+  const sessionIdRef = useRef<number | null>(null);
 
   // Slide up when visible
   useEffect(() => {
@@ -163,8 +165,16 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       setIsTyping(false);
       setShowCloseConfirm(false);
       setIsRecording(false);
+      // Removed resetting sessionId here so we can keep the session alive if we reopen
     }
   }, [visible, messages.length]);
+
+  // Reset session when messages are cleared (new chat)
+  useEffect(() => {
+    if (messages.length === 0) {
+      sessionIdRef.current = null;
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     if (isRecording) {
@@ -210,7 +220,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages, isTyping, bookingProposal]);
 
-  async function fetchReply(text: string, currentHistory: Message[]) {
+  async function fetchReply(text: string, currentHistory: Message[], selection?: { provider_id: number; slot: string; date: string }) {
     setIsTyping(true);
     try {
       let reply = "";
@@ -240,19 +250,40 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
         }
       } else {
         // ── Real /chat API call ──────────────────────────────────────────
-        // Convert local Message[] → ChatMessage[] (role + content)
-        const apiMessages = currentHistory
-          .filter(m => m.text)   // skip audio-only messages
-          .map(m => ({ role: m.role, content: m.text! }));
+        const request: import('../services/apiService').ChatRequest = {
+          message: text,
+          user_id: userId ?? null,
+          session_id: sessionIdRef.current,
+        };
 
-        console.log('📤 Sending to /chat:', JSON.stringify(apiMessages));
-        const response = await chat(apiMessages, userId ?? null);
-        console.log('📥 /chat response:', JSON.stringify(response));
+        if (selection) {
+          request.selected_provider_id = selection.provider_id;
+          request.selected_slot = selection.slot;
+          request.selected_date = selection.date;
+        }
+
+        console.log('📤 Sending to /chat/v2:', JSON.stringify(request));
+        const response = await chat(request);
+        console.log('📥 /chat/v2 response:', JSON.stringify(response));
+
+        if (response.session_id) {
+          sessionIdRef.current = response.session_id;
+        }
 
         setLastChatResponse(response);
         reply = response.reply;
-        selectable = response.selectable;
+        selectable = !!(response.providers && response.providers.length > 0);
         providers = response.providers;
+
+        if (response.phase === 'confirming_booking' && response.booking_summary) {
+          proposal = {
+            service: response.state?.service_type || 'Selected Service',
+            provider: response.booking_summary.provider_name,
+            time: `${response.booking_summary.date} at ${response.booking_summary.slot}`,
+            price: `Rs. ${response.booking_summary.hourly_rate}/hr`,
+            provider_id: response.booking_summary.provider_id
+          };
+        }
         // is_complete available on response for future use
       }
 
@@ -392,67 +423,74 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
             </View>
 
             {messages.map(msg => (
-              <View key={msg.id} style={[styles.bubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
-                {msg.role === 'assistant' && (
-                  <View style={[styles.aiBubbleAvatar, providerMode && { backgroundColor: '#e6f4fe', borderColor: '#b3dbf8' }]}>
-                    <MaterialIcons name={providerMode ? "person" : "smart-toy"} size={14} color={providerMode ? "#004B87" : "#00595c"} />
-                  </View>
-                )}
-                <View style={[styles.bubbleContent, msg.role === 'user' ? styles.userBubbleContent : styles.aiBubbleContent]}>
-                  {msg.audioUri ? (
-                    <VoiceMessagePlayer uri={msg.audioUri} isUser={msg.role === 'user'} />
-                  ) : (
-                    <Text style={[styles.bubbleText, msg.role === 'user' ? styles.userBubbleText : styles.aiBubbleText]}>
-                      {msg.text}
-                    </Text>
+              <React.Fragment key={`fragment-${msg.id}`}>
+                <View style={[styles.bubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+                  {msg.role === 'assistant' && (
+                    <View style={[styles.aiBubbleAvatar, providerMode && { backgroundColor: '#e6f4fe', borderColor: '#b3dbf8' }]}>
+                      <MaterialIcons name={providerMode ? "person" : "smart-toy"} size={14} color={providerMode ? "#004B87" : "#00595c"} />
+                    </View>
                   )}
-                  <Text style={[styles.bubbleTime, msg.role === 'user' ? styles.userBubbleTime : styles.aiBubbleTime]}>
-                    {formatTime(msg.timestamp)}
-                  </Text>
+                  <View style={[styles.bubbleContent, msg.role === 'user' ? styles.userBubbleContent : styles.aiBubbleContent]}>
+                    {msg.audioUri ? (
+                      <VoiceMessagePlayer uri={msg.audioUri} isUser={msg.role === 'user'} />
+                    ) : (
+                      <Text style={[styles.bubbleText, msg.role === 'user' ? styles.userBubbleText : styles.aiBubbleText]}>
+                        {msg.text}
+                      </Text>
+                    )}
+                    <Text style={[styles.bubbleTime, msg.role === 'user' ? styles.userBubbleTime : styles.aiBubbleTime]}>
+                      {formatTime(msg.timestamp)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ))}
 
-            {messages.map(msg => (
-              msg.selectable && msg.providers && msg.providers.length > 0 && (
-                <View key={`providers-${msg.id}`} style={styles.providersContainer}>
-                  <Text style={styles.providersHeader}>Available Providers</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providersScroll}>
-                    {msg.providers.map(p => (
-                      <View key={p.id} style={styles.providerCard}>
-                        <View style={styles.providerCardHeader}>
-                          <Text style={styles.providerName} numberOfLines={1}>{p.name}</Text>
-                          <View style={styles.providerRating}>
-                            <MaterialIcons name="star" size={14} color="#f59e0b" />
-                            <Text style={styles.providerRatingText}>{p.rating}</Text>
+                {msg.selectable && msg.providers && msg.providers.length > 0 && (
+                  <View style={styles.providersContainer}>
+                    <Text style={styles.providersHeader}>Available Providers</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providersScroll}>
+                      {msg.providers.map(p => (
+                        <View key={p.id} style={styles.providerCard}>
+                          <View style={styles.providerCardHeader}>
+                            <Text style={styles.providerName} numberOfLines={1}>{p.name}</Text>
+                            <View style={styles.providerRating}>
+                              <MaterialIcons name="star" size={14} color="#f59e0b" />
+                              <Text style={styles.providerRatingText}>{p.rating}</Text>
+                            </View>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <Text style={[styles.providerLocation, { marginBottom: 0 }]}>
+                              <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.distance_km} km)
+                            </Text>
+                            {p.hourly_rate !== undefined && (
+                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#00595c' }}>
+                                Rs. {p.hourly_rate}/hr
+                              </Text>
+                            )}
+                          </View>
+                          <Text style={styles.providerSlotsTitle}>Available Slots:</Text>
+                          <View style={styles.slotsContainer}>
+                            {p.available_slots.map(slot => (
+                              <TouchableOpacity 
+                                key={slot} 
+                                style={styles.slotBtn}
+                                onPress={() => {
+                                  const selectionText = `I want to book ${p.name} at ${slot}`;
+                                  const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text: selectionText, timestamp: new Date() };
+                                  const updatedHistory = [...messages, userMsg];
+                                  setMessages(updatedHistory);
+                                  fetchReply(selectionText, updatedHistory, { provider_id: p.id, slot, date: p.booking_date || new Date().toISOString().split('T')[0] });
+                                }}
+                              >
+                                <Text style={styles.slotBtnText}>{slot}</Text>
+                              </TouchableOpacity>
+                            ))}
                           </View>
                         </View>
-                        <Text style={styles.providerLocation}>
-                          <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.distance_km} km)
-                        </Text>
-                        <Text style={styles.providerSlotsTitle}>Available Slots:</Text>
-                        <View style={styles.slotsContainer}>
-                          {p.available_slots.map(slot => (
-                            <TouchableOpacity 
-                              key={slot} 
-                              style={styles.slotBtn}
-                              onPress={() => {
-                                const selectionText = `I want to book ${p.name} at ${slot}`;
-                                const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text: selectionText, timestamp: new Date() };
-                                const updatedHistory = [...messages, userMsg];
-                                setMessages(updatedHistory);
-                                fetchReply(selectionText, updatedHistory);
-                              }}
-                            >
-                              <Text style={styles.slotBtnText}>{slot}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
-              )
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </React.Fragment>
             ))}
 
             {/* Typing indicator */}
@@ -488,8 +526,8 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                     router.push({
                       pathname: '/provider-profile',
                       params: {
-                        id: 'ali',
-                        name: 'Ali AC Services',
+                        id: bookingProposal.provider_id?.toString() || 'unknown',
+                        name: bookingProposal.provider,
                         service: bookingProposal.service,
                         price: bookingProposal.price
                       }

@@ -66,8 +66,12 @@ export interface ChatMessage {
 }
 
 export interface ChatRequest {
-  messages: ChatMessage[];
+  message?: string | null;
   user_id?: number | null;
+  session_id?: number | null;
+  selected_provider_id?: number | null;
+  selected_slot?: string | null;
+  selected_date?: string | null;
 }
 
 export interface Provider {
@@ -76,15 +80,30 @@ export interface Provider {
   location: string;
   rating: number;
   distance_km: number;
+  hourly_rate?: number;
+  booking_date?: string;
   available_slots: string[];
+}
+
+export interface ChatState {
+  service_type: string;
+  location: string;
+  location_overridden: boolean;
+  booking_type: string | null;
+  booking_date: string | null;
+  language: string;
+  phase: string;
 }
 
 export interface ChatResponse {
   reply: string;
   language: string;
-  is_complete: boolean;
-  selectable: boolean;
+  phase: string;
+  session_id: number;
+  state: ChatState;
   providers: Provider[] | null;
+  booking_summary: any | null;
+  booking_id: number | null;
 }
 
 // ─────────────────────────────────────────────
@@ -147,15 +166,12 @@ export async function updateUserLocation(
 }
 
 /**
- * POST /chat
- * Sends the full conversation history to the AI orchestrator.
- * @param messages - array of { role, content } in chronological order
- * @param userId   - backend user id (from /sso_login), nullable
+ * POST /chat/v2
+ * Sends the message to the AI orchestrator.
+ * @param request - ChatRequest for v2 endpoint
  */
 export async function chat(
-  messages: ChatMessage[],
-  userId?: number | null
+  request: ChatRequest
 ): Promise<ChatResponse> {
-  const body: ChatRequest = { messages, user_id: userId ?? null };
-  return post<ChatResponse>("/chat", body);
+  return post<ChatResponse>("/chat/v2", request);
 }
