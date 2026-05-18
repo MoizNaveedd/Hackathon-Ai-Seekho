@@ -1,0 +1,7 @@
+.git
+.gitignore
+venv/
+__pycache__/
+*.pyc
+*.db
+google-cloud-cli-linux-x86_64.tar.gz
