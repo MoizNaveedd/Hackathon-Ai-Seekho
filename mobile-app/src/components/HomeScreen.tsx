@@ -713,14 +713,18 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
           
           <View style={styles.gridContainer}>
             {[
-              { name: 'AC Service', icon: 'ac-unit' },
-              { name: 'Plumbing', icon: 'plumbing' },
-              { name: 'Electrical', icon: 'electrical-services' },
-              { name: 'Cleaning', icon: 'cleaning-services' },
-              { name: 'Painting', icon: 'format-paint' },
-              { name: 'Carpentry', icon: 'carpenter' },
+              { name: 'AC Technician', icon: 'ac-unit' },
+              { name: 'Plumber', icon: 'plumbing' },
+              { name: 'Electrician', icon: 'electrical-services' },
+              { name: 'Home Cleaning', icon: 'cleaning-services' },
+              { name: 'Appliance Repair', icon: 'kitchen' },
+              { name: 'Carpenter', icon: 'carpenter' },
+              { name: 'Painter', icon: 'format-paint' },
               { name: 'Pest Control', icon: 'pest-control' },
-              { name: 'Appliances', icon: 'kitchen' },
+              { name: 'Locksmith', icon: 'vpn-key' },
+              { name: 'Beautician', icon: 'face' },
+              { name: 'Plumbing', icon: 'plumbing' },
+              { name: 'Electrical', icon: 'electrical-services' }
             ].map((service, index) => (
               <TouchableOpacity 
                 key={index} 
