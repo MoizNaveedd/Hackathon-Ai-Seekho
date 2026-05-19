@@ -22,6 +22,7 @@ export interface Message {
   providers?: Provider[] | null;
   bookingProposal?: BookingProposal | null;
   proposalStatus?: 'pending' | 'confirmed' | 'declined';
+  isCompleted?: boolean;
 }
 
 interface BookingProposal {
@@ -39,9 +40,9 @@ interface Props {
   userName: string;
   userId?: number | null;
   providerMode?: boolean;
-  providerName?: string;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  onNavigateToBookings?: () => void;
 }
 
 // ─── Voice Player Component ──────────────────────────────────────────────────
@@ -124,7 +125,7 @@ function VoiceMessagePlayer({ uri, isUser }: { uri: string; isUser: boolean }) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, userId, providerMode = false, providerName = "Ahmed Khan", messages, setMessages }: Props) {
+export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, userId, providerMode = false, providerName = "Ahmed Khan", messages, setMessages, onNavigateToBookings }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const slideAnim = useRef(new Animated.Value(600)).current;
@@ -134,8 +135,8 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [bookingProposal, setBookingProposal] = useState<BookingProposal | null>(null);
-  const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showNavigateConfirm, setShowNavigateConfirm] = useState(false);
   // Real API response state
   const [lastChatResponse, setLastChatResponse] = useState<ChatResponse | null>(null);
   
@@ -163,9 +164,9 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       // Reset state when closed, keeping messages preserved
       setInputText('');
       setBookingProposal(null);
-      setBookingConfirmed(false);
       setIsTyping(false);
       setShowCloseConfirm(false);
+      setShowNavigateConfirm(false);
       setIsRecording(false);
       // Removed resetting sessionId here so we can keep the session alive if we reopen
     }
@@ -229,6 +230,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       let proposal = null;
       let selectable = false;
       let providers = null;
+      let isCompleted = false;
 
       if (providerMode) {
         // Mock provider responses (provider-to-user chat, not AI)
@@ -276,6 +278,16 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
         reply = response.reply;
         selectable = !!(response.providers && response.providers.length > 0);
         providers = response.providers;
+        isCompleted = response.phase === 'completed';
+
+        if (isCompleted) {
+          const service = response.state?.service_type || 'Selected Service';
+          scheduleHeadsUpNotification(
+            'Booking Confirmed!',
+            response.reply,
+            { service }
+          );
+        }
 
         if (response.phase === 'confirming_booking' && response.booking_summary) {
           proposal = {
@@ -297,7 +309,8 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
         selectable,
         providers,
         bookingProposal: proposal,
-        proposalStatus: proposal ? 'pending' : undefined
+        proposalStatus: proposal ? 'pending' : undefined,
+        isCompleted
       };
       setMessages(prev => [...prev, aiMsg]);
       if (proposal) setBookingProposal(proposal);
@@ -354,36 +367,21 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   }
 
   function handleDeclineBooking(msgId: string) {
-    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, proposalStatus: 'declined' } : m));
     setBookingProposal(null);
+    const text = "Changes needed in booking details.";
+    const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text, timestamp: new Date() };
+    const updatedHistory = [...messages.map(m => m.id === msgId ? { ...m, proposalStatus: 'declined' as const } : m), userMsg];
+    setMessages(updatedHistory);
+    fetchReply(text, updatedHistory);
   }
 
   function handleConfirmBooking(msgId: string, proposal: BookingProposal) {
-    setBookingConfirmed(true);
-    const confirmMsg: Message = {
-      id: `u${Date.now()}`,
-      role: 'user',
-      text: '✅ Confirmed! Please proceed.',
-      timestamp: new Date(),
-    };
-    const aiConfirmMsg: Message = {
-      id: `a${Date.now()}`,
-      role: 'assistant',
-      text: `🎉 Your booking is confirmed! ${proposal.provider} will arrive at ${proposal.time}. You'll receive a notification 30 mins before arrival.`,
-      timestamp: new Date(),
-    };
-    setMessages(prev => {
-      const updated = prev.map(m => m.id === msgId ? { ...m, proposalStatus: 'confirmed' } : m);
-      return [...updated, confirmMsg, aiConfirmMsg];
-    });
     setBookingProposal(null);
-    
-    // Trigger local heads-up notification
-    scheduleHeadsUpNotification(
-      'Booking Confirmed!',
-      `${proposal.provider} is scheduled to arrive at ${proposal.time}.`,
-      { service: proposal.service }
-    );
+    const text = "Booking details look fine, kindly book it.";
+    const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text, timestamp: new Date() };
+    const updatedHistory = [...messages.map(m => m.id === msgId ? { ...m, proposalStatus: 'confirmed' as const } : m), userMsg];
+    setMessages(updatedHistory);
+    fetchReply(text, updatedHistory);
   }
 
   const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -449,6 +447,14 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                       <Text style={[styles.bubbleText, msg.role === 'user' ? styles.userBubbleText : styles.aiBubbleText]}>
                         {msg.text}
                       </Text>
+                    )}
+                    {msg.isCompleted && (
+                      <TouchableOpacity 
+                        style={{ marginTop: 12, backgroundColor: '#00595c', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, alignSelf: 'flex-start' }}
+                        onPress={() => setShowNavigateConfirm(true)}
+                      >
+                        <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13 }}>View Bookings</Text>
+                      </TouchableOpacity>
                     )}
                     <Text style={[styles.bubbleTime, msg.role === 'user' ? styles.userBubbleTime : styles.aiBubbleTime]}>
                       {formatTime(msg.timestamp)}
@@ -575,9 +581,8 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
           </ScrollView>
 
           {/* Input */}
-          {!bookingConfirmed && (
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-              {isRecording ? (
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            {isRecording ? (
                 <View style={styles.recordingRow}>
                   <TouchableOpacity onPress={cancelRecording} style={styles.voiceActionBtn}>
                     <MaterialIcons name="close" size={24} color="#ba1a1a" />
@@ -629,15 +634,32 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                     </TouchableOpacity>
                   )}
                 </View>
-              )}
-            </KeyboardAvoidingView>
-          )}
+            )}
+          </KeyboardAvoidingView>
 
-          {/* Post-confirmation CTA */}
-          {bookingConfirmed && (
-            <TouchableOpacity style={styles.doneBtn} onPress={onClose}>
-              <Text style={styles.doneBtnText}>Done — View My Bookings</Text>
-            </TouchableOpacity>
+          {/* View Bookings Confirmation Overlay */}
+          {showNavigateConfirm && (
+            <View style={styles.confirmOverlay}>
+              <View style={styles.confirmCard}>
+                <MaterialIcons name="event-note" size={32} color="#00595c" style={{ marginBottom: 12 }} />
+                <Text style={styles.confirmTitle}>View Bookings?</Text>
+                <Text style={styles.confirmBody}>This will end your current chat session. Are you sure you want to navigate to your bookings?</Text>
+                <View style={styles.confirmActions}>
+                  <TouchableOpacity style={styles.confirmKeepBtn} onPress={() => setShowNavigateConfirm(false)}>
+                    <Text style={styles.confirmKeepText}>Stay in Chat</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.confirmLeaveBtn} onPress={() => {
+                    setShowNavigateConfirm(false);
+                    onClose();
+                    if (onNavigateToBookings) {
+                      onNavigateToBookings();
+                    }
+                  }}>
+                    <Text style={styles.confirmLeaveText}>Yes, Go to Bookings</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
           )}
 
           {/* Close Confirmation Overlay */}

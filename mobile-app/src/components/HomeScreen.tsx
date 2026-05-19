@@ -1781,6 +1781,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       providerName={chatProviderName}
       messages={chatProviderMode ? providerMessages : assistantMessages}
       setMessages={chatProviderMode ? setProviderMessages : setAssistantMessages}
+      onNavigateToBookings={() => setActiveTab('bookings')}
     />
 
 
