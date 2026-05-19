@@ -1,0 +1,414 @@
+================================================================
+BOOKINGS API CONTRACT
+================================================================
+
+
+
+================================================================
+API 1 — BOOKING LISTING
+================================================================
+
+ENDPOINT:   GET /api/bookings
+HEADERS:    Authorization: Bearer <token>
+            Content-Type: application/json
+
+QUERY PARAMS (all optional):
+  - search        (string)  : Filter by customer name or booking ID
+  - status        (string)  : Filter by status. One of:
+                              Pending | In Progress | Completed | Cancelled | Dispute
+  - date_from     (string)  : Filter from date. Format: YYYY-MM-DD
+  - date_to       (string)  : Filter to date.   Format: YYYY-MM-DD
+  - service_type  (string)  : Filter by service type e.g. "AC Repair"
+  - page          (integer) : Page number for pagination. Default: 1
+  - per_page      (integer) : Results per page. Default: 20
+
+
+Example Request:
+
+  GET /api/bookings?search=john&status=Pending&page=1&per_page=20
+
+
+----------------------------------------------------------------
+RESPONSE — SUCCESS (200 OK)
+----------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "Bookings retrieved successfully",
+  "data": {
+    "bookings": [
+      {
+        "id":          "B1",
+        "service_type": "AC Repair",
+        "status":      "In Progress",
+        "date":        "2026-05-18",
+        "time":        "10:00 AM",
+        "price":       15000,
+        "description": "AC unit making loud noise and not cooling properly.",
+        "created_at":  "2026-05-15T10:00:00Z",
+        "feedback":    null,
+        "customer": {
+          "id":      "C1",
+          "name":    "John Doe",
+          "phone":   "+92 300 1234567",
+          "email":   "john@example.com",
+          "address": "123 Maple St, Springfield"
+        }
+      },
+      {
+        "id":          "B2",
+        "service_type": "AC Repair",
+        "status":      "Pending",
+        "date":        "2026-05-18",
+        "time":        "02:00 PM",
+        "price":       8500,
+        "description": "Routine maintenance and filter cleaning.",
+        "created_at":  "2026-05-16T14:30:00Z",
+        "feedback":    null,
+        "customer": {
+          "id":      "C2",
+          "name":    "Jane Smith",
+          "phone":   "+92 321 9876543",
+          "email":   "jane@example.com",
+          "address": "456 Oak Ave, Riverside"
+        }
+      }
+    ],
+    "pagination": {
+      "current_page":  1,
+      "per_page":      20,
+      "total_records": 45,
+      "total_pages":   3
+    }
+  }
+}
+
+
+----------------------------------------------------------------
+RESPONSE — UNAUTHORIZED (401)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Unauthorized. Please login again.",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — SERVER ERROR (500)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Internal server error",
+  "data": null
+}
+
+
+================================================================
+API 2 — BOOKING DETAIL
+================================================================
+
+ENDPOINT:   GET /api/bookings/:id
+HEADERS:    Authorization: Bearer <token>
+            Content-Type: application/json
+
+URL PARAM:
+  - id   (string, required) : Booking ID e.g. B3
+
+
+Example Request:
+
+  GET /api/bookings/B3
+
+
+----------------------------------------------------------------
+RESPONSE — SUCCESS (200 OK)
+----------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "Booking retrieved successfully",
+  "data": {
+    "id":           "B3",
+    "service_type": "AC Repair",
+    "status":       "Completed",
+    "date":         "2026-05-17",
+    "time":         "09:00 AM",
+    "price":        21000,
+    "description":  "Compressor replacement.",
+    "created_at":   "2026-05-14T08:00:00Z",
+    "customer": {
+      "id":      "C3",
+      "name":    "Robert Brown",
+      "phone":   "+92 333 5550109",
+      "email":   "robert@example.com",
+      "address": "789 Pine Ln, Laketown"
+    },
+    "feedback": {
+      "rating":     5,
+      "comment":    "Excellent work! The AC is cooling perfectly now. Very professional and on time.",
+      "created_at": "2026-05-17T14:30:00Z"
+    }
+  }
+}
+
+
+When the customer has not left feedback yet, feedback is null:
+
+{
+  "success": true,
+  "message": "Booking retrieved successfully",
+  "data": {
+    "id":           "B1",
+    "service_type": "AC Repair",
+    "status":       "In Progress",
+    "date":         "2026-05-18",
+    "time":         "10:00 AM",
+    "price":        15000,
+    "description":  "AC unit making loud noise and not cooling properly.",
+    "created_at":   "2026-05-15T10:00:00Z",
+    "customer": { ... },
+    "feedback": null
+  }
+}
+
+
+----------------------------------------------------------------
+RESPONSE — BOOKING NOT FOUND (404)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Booking not found",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — UNAUTHORIZED (401)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Unauthorized. Please login again.",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — SERVER ERROR (500)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Internal server error",
+  "data": null
+}
+
+
+================================================================
+API 3 — CANCEL BOOKING
+================================================================
+
+ENDPOINT:   PATCH /api/bookings/:id/cancel
+HEADERS:    Authorization: Bearer <token>
+            Content-Type: application/json
+
+URL PARAM:
+  - id   (string, required) : Booking ID e.g. B1
+
+
+REQUEST BODY:
+
+{
+  "reason": "Customer requested cancellation"
+}
+
+Fields:
+  - reason  (string, optional) : Reason for cancellation
+
+
+----------------------------------------------------------------
+RESPONSE — SUCCESS (200 OK)
+----------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "Booking #B1 has been cancelled successfully",
+  "data": {
+    "id":         "B1",
+    "status":     "Cancelled",
+    "cancelled_at": "2026-05-19T00:55:00Z",
+    "reason":     "Customer requested cancellation"
+  }
+}
+
+
+----------------------------------------------------------------
+RESPONSE — BOOKING NOT FOUND (404)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Booking not found",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — CANNOT CANCEL (409 Conflict)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Cannot cancel a booking that is already Completed or Cancelled",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — UNAUTHORIZED (401)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Unauthorized. Please login again.",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — SERVER ERROR (500)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Internal server error",
+  "data": null
+}
+
+
+================================================================
+API 4 — MARK BOOKING AS COMPLETE
+================================================================
+
+ENDPOINT:   PATCH /api/bookings/:id/complete
+HEADERS:    Authorization: Bearer <token>
+            Content-Type: application/json
+
+URL PARAM:
+  - id   (string, required) : Booking ID e.g. B1
+
+
+REQUEST BODY:
+
+{
+  "notes": "Job completed. Customer confirmed satisfaction."
+}
+
+Fields:
+  - notes  (string, optional) : Completion notes from the provider
+
+
+----------------------------------------------------------------
+RESPONSE — SUCCESS (200 OK)
+----------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "Booking #B1 has been marked as completed",
+  "data": {
+    "id":           "B1",
+    "status":       "Completed",
+    "completed_at": "2026-05-19T01:00:00Z",
+    "notes":        "Job completed. Customer confirmed satisfaction."
+  }
+}
+
+
+----------------------------------------------------------------
+RESPONSE — BOOKING NOT FOUND (404)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Booking not found",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — CANNOT COMPLETE (409 Conflict)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Only 'In Progress' bookings can be marked as completed",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — UNAUTHORIZED (401)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Unauthorized. Please login again.",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — SERVER ERROR (500)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Internal server error",
+  "data": null
+}
+
+
+================================================================
+CUSTOMER FEEDBACK OBJECT
+================================================================
+
+Returned on booking detail (API 2) and optionally on listing (API 1)
+when the customer has submitted a review. Null if no feedback yet.
+
+  - rating      (integer, required) : Star rating from 1 to 5
+  - comment     (string,  required) : Customer's written review
+  - created_at  (string,  required) : ISO 8601 timestamp when feedback was submitted
+
+Feedback is typically available after status is "Completed" or "Dispute".
+Customers submit feedback from the consumer app; providers can only read it.
+
+
+================================================================
+BOOKING STATUS VALUES
+================================================================
+
+  Pending      — Booking created, awaiting provider action
+  In Progress  — Service currently being carried out
+  Completed    — Service finished successfully
+  Cancelled    — Booking cancelled by provider or customer
+  Dispute      — Customer raised a dispute on this booking
+
+
+================================================================
+NOTES
+================================================================
+
+- All endpoints require a valid JWT in the Authorization header.
+- Use GET /api/bookings/:id on the booking detail screen (includes feedback).
+- Listing may omit full feedback; use detail endpoint for review text and rating.
+- Cancellation is only allowed for "Pending" or "In Progress" bookings.
+- Mark as Complete is only allowed for "In Progress" bookings.
+- Completed, Cancelled, and Dispute bookings are final states
+  and cannot be transitioned further via these endpoints.
+- price is in PKR (Pakistani Rupees).
+
+================================================================

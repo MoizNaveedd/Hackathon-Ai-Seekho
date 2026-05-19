@@ -1,0 +1,131 @@
+================================================================
+REGISTER API CONTRACT
+================================================================
+
+ENDPOINT:   POST /api/auth/register
+HEADERS:    Content-Type: multipart/form-data
+            (Use multipart/form-data to support profile image upload)
+
+
+----------------------------------------------------------------
+REQUEST BODY (Form Fields)
+----------------------------------------------------------------
+
+Step 1 — Personal Profile:
+  - name          (string,   required) : Full name of the provider
+  - phone         (string,   required) : Phone number e.g. +92 300 0000000
+  - email         (string,   required) : Valid email address
+  - password      (string,   required) : Min 8 characters
+  - avatar        (file,     optional) : Profile image (jpg/png/webp)
+
+Step 2 — Service Selection:
+  - service_type  (string,   required) : One of the service categories below
+
+Accepted service_type values:
+  - Electrical
+  - Plumbing
+  - AC Repair
+  - Cleaning
+  - Car Wash
+  - Salon
+  - Tutoring
+  - Carpentry
+  - Moving
+  - Appliance Repair
+  - Photography
+  - Other
+
+
+Example (JSON equivalent for reference):
+
+{
+  "name":         "Alex Khan",
+  "phone":        "+92 300 1234567",
+  "email":        "alex@provider.com",
+  "password":     "securepass123",
+  "avatar":       "<binary file>",
+  "service_type": "Electrical"
+}
+
+
+----------------------------------------------------------------
+RESPONSE — SUCCESS (201 Created)
+----------------------------------------------------------------
+
+{
+  "success": true,
+  "message": "Account created successfully",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id":           "usr_456",
+      "name":         "Alex Khan",
+      "email":        "alex@provider.com",
+      "phone":        "+92 300 1234567",
+      "role":         "service_provider",
+      "service_type": "Electrical",
+      "avatar":       "https://cdn.example.com/avatars/usr_456.jpg",
+      "created_at":   "2026-05-19T00:00:00Z"
+    }
+  }
+}
+
+
+----------------------------------------------------------------
+RESPONSE — EMAIL ALREADY EXISTS (409 Conflict)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "An account with this email already exists",
+  "data": null
+}
+
+
+----------------------------------------------------------------
+RESPONSE — VALIDATION ERROR (422 Unprocessable Entity)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": {
+    "name":         "Full name is required",
+    "phone":        "Phone number is required",
+    "email":        "A valid email address is required",
+    "password":     "Password must be at least 8 characters",
+    "service_type": "Please select a service category"
+  }
+}
+
+
+----------------------------------------------------------------
+RESPONSE — SERVER ERROR (500 Internal Server Error)
+----------------------------------------------------------------
+
+{
+  "success": false,
+  "message": "Internal server error",
+  "data": null
+}
+
+
+================================================================
+NOTES
+================================================================
+
+- Send as multipart/form-data when including an avatar image.
+  If no avatar is uploaded, the backend should assign a default.
+
+- The returned "token" is a JWT. Store it in localStorage or
+  an httpOnly cookie for subsequent authenticated requests.
+
+- For protected routes, send the token in the header:
+    Authorization: Bearer <token>
+
+- Registration is a 2-step UI flow:
+    Step 1: Personal details + avatar upload
+    Step 2: Service category selection
+  Both steps should be submitted together in one API call.
+
+================================================================
