@@ -313,3 +313,16 @@ export async function getProviders(params?: {
   return get<ProviderListResponse>(`/providers${query}`);
 }
 
+/**
+ * GET /providers/{provider_id}
+ * Retrieves details of a single provider by ID.
+ */
+export async function getProviderDetails(providerId: number, latitude?: number | null, longitude?: number | null): Promise<Provider> {
+  let query = '';
+  if (latitude !== undefined && latitude !== null && longitude !== undefined && longitude !== null) {
+    query = `?latitude=${latitude}&longitude=${longitude}`;
+  }
+  return get<Provider>(`/providers/${providerId}${query}`);
+}
+
+

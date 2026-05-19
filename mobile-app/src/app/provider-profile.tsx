@@ -17,39 +17,117 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { scheduleHeadsUpNotification } from '../services/notificationService';
+import { getProviderDetails, type Provider } from '../services/apiService';
 
 const { width, height } = Dimensions.get('window');
 
-// Mock reviews data specifically for Ali
-const MOCK_REVIEWS = [
-  {
-    id: 'r1',
-    userName: 'Saad Mansoor',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
-    rating: 5,
-    date: 'Yesterday',
-    comment: 'Very professional. He arrived on time and fixed the gas leakage in my inverter AC which two other mechanics couldn\'t solve. Highly recommended!',
-    verified: true,
-  },
-  {
-    id: 'r2',
-    userName: 'Fatima Khan',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
-    rating: 5,
-    date: '3 days ago',
-    comment: 'Ali was very thorough and cleaned up the workspace after finishing. Great service quality and highly professional behavior.',
-    verified: true,
-  },
-  {
-    id: 'r3',
-    userName: 'Zainab Jamil',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80',
-    rating: 4.8,
-    date: '1 week ago',
-    comment: 'Great expertise. Explained the inverter issue in detail before replacing the capacitor. Fair pricing.',
-    verified: true,
+// Helper to generate dynamic reviews per provider
+const getRandomReviews = (providerId: string | number, serviceType: string, providerName: string) => {
+  const firstName = providerName.split(' ')[0];
+  const serviceLower = serviceType.toLowerCase();
+  
+  // Base pools of users/comments
+  const users = [
+    { name: 'Saad Mansoor', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' },
+    { name: 'Fatima Khan', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
+    { name: 'Zainab Jamil', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80' },
+    { name: 'Hamza Malik', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80' },
+    { name: 'Ayesha Omer', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80' }
+  ];
+
+  // Map seed based on providerId to vary the selected users/ratings/dates
+  const seed = typeof providerId === 'number' ? providerId : (parseInt(providerId as string, 10) || 5);
+  
+  // Custom comments based on service type
+  let comments: string[] = [];
+  if (serviceLower.includes('plumb')) {
+    comments = [
+      `Extremely professional. He arrived right on time and fixed the clogged drain in our kitchen. He even cleaned the workspace after finishing.`,
+      `${firstName} was very thorough. He quickly diagnosed the water pump leakage and resolved it in no time. Highly recommended for plumbing issues!`,
+      `Great expertise. Explained why the pressure was low and fixed the fixture replacement seamlessly. Fair and transparent pricing.`
+    ];
+  } else if (serviceLower.includes('electr') || serviceLower.includes('wire')) {
+    comments = [
+      `Excellent service! He fixed our short circuit problem immediately. Had all the necessary tools and did the job very safely.`,
+      `${firstName} installed our new smart switchboard perfectly. Professional behavior and knew exactly what he was doing.`,
+      `Very knowledgeable technician. Found the fault in our main distribution board and repaired it. Saved us from a major hazard.`
+    ];
+  } else if (serviceLower.includes('ac') || serviceLower.includes('cool') || serviceLower.includes('hvac')) {
+    comments = [
+      `Arrived on time and solved the gas leakage in my inverter AC which two other mechanics couldn't fix. Very satisfied!`,
+      `${firstName} did a deep jet cleaning of our split AC. The cooling has improved significantly. Great service quality!`,
+      `Explained the inverter issue in detail before replacing the capacitor. Fair pricing and very professional.`
+    ];
+  } else {
+    comments = [
+      `Outstanding service. Arrived promptly and solved the issue with high precision. Will definitely book again!`,
+      `${firstName} was polite, professional, and very efficient in finishing the job. Worth every rupee.`,
+      `Excellent diagnostic skills and transparent billing. Highly recommend ${firstName} for any home maintenance jobs.`
+    ];
   }
-];
+
+  // Generate 3 reviews using seed
+  return [
+    {
+      id: 'r1',
+      userName: users[seed % users.length].name,
+      avatar: users[seed % users.length].avatar,
+      rating: 5,
+      date: 'Yesterday',
+      comment: comments[0],
+      verified: true,
+    },
+    {
+      id: 'r2',
+      userName: users[(seed + 1) % users.length].name,
+      avatar: users[(seed + 1) % users.length].avatar,
+      rating: (5.0 - (seed % 3) * 0.1),
+      date: '3 days ago',
+      comment: comments[1],
+      verified: true,
+    },
+    {
+      id: 'r3',
+      userName: users[(seed + 2) % users.length].name,
+      avatar: users[(seed + 2) % users.length].avatar,
+      rating: Number((4.8 - (seed % 2) * 0.1).toFixed(1)),
+      date: '1 week ago',
+      comment: comments[2],
+      verified: seed % 2 === 0,
+    }
+  ];
+};
+
+// Helper to generate dynamic portfolio per provider based on service type
+const getDynamicPortfolio = (serviceType: string) => {
+  const serviceLower = serviceType.toLowerCase();
+  if (serviceLower.includes('plumb')) {
+    return [
+      { title: 'Water Pump Installation', desc: 'DHA Phase 6 Resident', img: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=200&auto=format&fit=crop&q=80' },
+      { title: 'Bathroom Fixtures Upgrade', desc: 'Modern Sanitary Installation', img: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=200&auto=format&fit=crop&q=80' },
+      { title: 'Drainage Pipe Unclogging', desc: 'Commercial Kitchen Main Line', img: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80' },
+      { title: 'Leakage Diagnostic & Repair', desc: 'Under-slab Copper Piping', img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=200&auto=format&fit=crop&q=80' }
+    ];
+  }
+  if (serviceLower.includes('electr') || serviceLower.includes('wire')) {
+    return [
+      { title: 'Smart DB Installation', desc: 'Custom 3-Phase Panel Board', img: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80' },
+      { title: 'Residential Rewiring', desc: 'G-11 Villa Complete Wiring', img: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=200&auto=format&fit=crop&q=80' },
+      { title: 'LED Track Light Setup', desc: 'Commercial Art Gallery', img: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=200&auto=format&fit=crop&q=80' },
+      { title: 'UPS & Inverter Backup Setup', desc: 'Dual-battery Emergency System', img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=200&auto=format&fit=crop&q=80' }
+    ];
+  }
+  // Default/AC
+  return [
+    { title: 'Inverter Board Repair', desc: 'Samsung 1.5 Ton AC', img: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80' },
+    { title: 'Jet Clean Service', desc: 'DHA Phase 5 Resident', img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=200&auto=format&fit=crop&q=80' },
+    { title: 'Full AC Installation', desc: 'G-13 Office Complex', img: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=200&auto=format&fit=crop&q=80' },
+    { title: 'Compressor Swap', desc: 'Haier Inverter Series', img: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=200&auto=format&fit=crop&q=80' }
+  ];
+};
+
+
+
 
 export default function ProviderProfile() {
   const router = useRouter();
@@ -57,16 +135,132 @@ export default function ProviderProfile() {
 
   // Dynamic values or defaults for Ali AC Services
   const providerId = params.id || 'ali';
-  const providerName = params.name || 'Ali AC Services';
-  const providerService = params.service || 'Inverter & Central Cooling Specialist';
-  const providerPrice = params.price || 'Rs 1,500 Base Fee';
+  const [providerDetails, setProviderDetails] = useState<Provider | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const providerName = providerDetails?.name || (params.name as string) || 'Ali AC Services';
+  const providerService = providerDetails?.service_type || (params.service as string) || 'Inverter & Central Cooling Specialist';
+  const providerPrice = providerDetails?.hourly_rate ? `Rs ${providerDetails.hourly_rate} Base Fee` : ((params.price as string) || 'Rs 1,500 Base Fee');
+
+  useEffect(() => {
+    const numericId = parseInt(providerId as string, 10);
+    if (!isNaN(numericId)) {
+      setLoading(true);
+      getProviderDetails(numericId)
+        .then((data) => {
+          setProviderDetails(data);
+        })
+        .catch((err) => {
+          console.error("Error fetching provider details:", err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [providerId]);
 
   const [activeSubTab, setActiveSubTab] = useState<'about' | 'reviews' | 'portfolio'>('about');
   const [showBookingModal, setShowBookingModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<'today' | 'tomorrow'>('today');
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isBookingSubmitting, setIsBookingSubmitting] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  const parsedId = parseInt(providerId as string, 10);
+  const providerSeed = isNaN(parsedId) ? (providerName.length || 5) : parsedId;
+  const experienceYears = (providerName.includes("Ali") || providerId === 'ali') ? 12 : ((providerSeed % 5) + 3);
+  const jobsDone = (providerName.includes("Ali") || providerId === 'ali') ? '1,240+' : `${((providerSeed % 10) + 1) * 35}+`;
+  const onTimeRate = (providerName.includes("Ali") || providerId === 'ali') ? '98%' : `${90 + (providerSeed % 9)}%`;
+  
+  const providerLocation = providerDetails?.location || (params.location as string) || 'Islamabad';
+  const providerRating = providerDetails?.rating || (params.rating ? Number(params.rating) : 4.8);
+  const providerDistance = providerDetails?.distance_km !== undefined && providerDetails?.distance_km !== null
+    ? `${providerDetails.distance_km.toFixed(1)} km`
+    : (params.distance_km ? `${Number(params.distance_km).toFixed(1)} km` : '2.4 km');
+
+  const avatarSource = (providerName.includes("Ali") || providerId === 'ali' || providerId === '37' || providerId === 37)
+    ? require('../../assets/images/ali_profile.png')
+    : { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=00595c&color=fff&size=200` };
+
+  const getDynamicDates = () => {
+    if (!providerDetails) {
+      return [
+        { label: 'Today', dateString: new Date().toISOString().split('T')[0], displayDate: new Date().toLocaleDateString([], { month: 'short', day: 'numeric' }) },
+        { label: 'Tomorrow', dateString: new Date(Date.now() + 86400000).toISOString().split('T')[0], displayDate: new Date(Date.now() + 86400000).toLocaleDateString([], { month: 'short', day: 'numeric' }) }
+      ];
+    }
+    
+    if (providerDetails.available_dates && providerDetails.available_dates.length > 0) {
+      return providerDetails.available_dates.map(d => {
+        const dateObj = new Date(d);
+        const isToday = d === new Date().toISOString().split('T')[0];
+        const isTomorrow = d === new Date(Date.now() + 86400000).toISOString().split('T')[0];
+        const label = isToday ? 'Today' : (isTomorrow ? 'Tomorrow' : dateObj.toLocaleDateString([], { weekday: 'short' }));
+        const displayDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return { label, dateString: d, displayDate };
+      });
+    }
+    
+    if (providerDetails.available_slots && !Array.isArray(providerDetails.available_slots)) {
+      const dates = Object.keys(providerDetails.available_slots);
+      return dates.map(d => {
+        const dateObj = new Date(d);
+        const isToday = d === new Date().toISOString().split('T')[0];
+        const isTomorrow = d === new Date(Date.now() + 86400000).toISOString().split('T')[0];
+        const label = isToday ? 'Today' : (isTomorrow ? 'Tomorrow' : dateObj.toLocaleDateString([], { weekday: 'short' }));
+        const displayDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return { label, dateString: d, displayDate };
+      });
+    }
+    
+    return [
+      { label: 'Today', dateString: new Date().toISOString().split('T')[0], displayDate: new Date().toLocaleDateString([], { month: 'short', day: 'numeric' }) },
+      { label: 'Tomorrow', dateString: new Date(Date.now() + 86400000).toISOString().split('T')[0], displayDate: new Date(Date.now() + 86400000).toLocaleDateString([], { month: 'short', day: 'numeric' }) }
+    ];
+  };
+
+  const dynamicDates = getDynamicDates();
+
+  useEffect(() => {
+    if (dynamicDates.length > 0 && !selectedDate) {
+      setSelectedDate(dynamicDates[0].dateString);
+    }
+  }, [providerDetails]);
+
+  const getDynamicSlots = () => {
+    if (!providerDetails) {
+      return [
+        '10:00 AM - 11:30 AM',
+        '01:00 PM - 02:30 PM',
+        '03:00 PM - 04:30 PM',
+        '06:00 PM - 07:30 PM'
+      ];
+    }
+    const slots = providerDetails.available_slots;
+    if (!slots) return [];
+    if (Array.isArray(slots)) {
+      return slots;
+    }
+    return slots[selectedDate] || slots[Object.keys(slots)[0]] || [];
+  };
+
+  const getSpecializations = () => {
+    const serviceLower = providerService.toLowerCase();
+    if (serviceLower.includes('electrical') || serviceLower.includes('electrician')) {
+      return ['Wiring & Rewiring', 'Short circuit diagnostics', 'Switchboard installation', 'Appliance repair', 'Lighting fixtures'];
+    }
+    if (serviceLower.includes('plumbing') || serviceLower.includes('plumber')) {
+      return ['Pipe leakage fixing', 'Drain unblocking', 'Fixture installation', 'Water pump repair', 'Bathroom renovation'];
+    }
+    if (serviceLower.includes('ac') || serviceLower.includes('cooling') || serviceLower.includes('hvac')) {
+      return ['Inverter AC repair', 'Gas leakage fixing', 'Deep Jet Cleaning', 'PCB Board diagnostic', 'Split AC Installation'];
+    }
+    return ['General diagnosis', 'Quick-fix repair', 'Component replacement', 'Emergency service', 'Safety inspection'];
+  };
+
+  const aboutText = (providerName.includes("Ali") || providerId === 'ali')
+    ? "With over 12 years of experience in HVAC systems across Pakistan and Dubai, Ali specializes in the latest energy-efficient inverter technologies. Known for meticulous diagnostic testing, clean work practices, and transparent pricing."
+    : `With over ${experienceYears} years of professional experience, ${providerName} is highly skilled in ${providerService.toLowerCase()} and related home maintenance solutions. Committed to providing clean work practices, transparent pricing, and excellent service quality in ${providerLocation}.`;
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -171,7 +365,7 @@ export default function ProviderProfile() {
           <View style={styles.heroSection}>
             <View style={styles.avatarWrapper}>
               <Image
-                source={require('../../assets/images/ali_profile.png')}
+                source={avatarSource}
                 style={styles.avatarImage}
                 resizeMode="cover"
               />
@@ -186,12 +380,12 @@ export default function ProviderProfile() {
             <View style={styles.quickStatsRow}>
               <View style={styles.quickStat}>
                 <MaterialIcons name="star" size={18} color="#FFB300" />
-                <Text style={styles.quickStatText}>4.8 (120 reviews)</Text>
+                <Text style={styles.quickStatText}>{providerRating.toFixed(1)} (120 reviews)</Text>
               </View>
               <View style={styles.quickStatDivider} />
               <View style={styles.quickStat}>
                 <MaterialIcons name="location-on" size={18} color="#00595c" />
-                <Text style={styles.quickStatText}>2.4 km away</Text>
+                <Text style={styles.quickStatText}>{providerDistance} away</Text>
               </View>
             </View>
 
@@ -208,17 +402,17 @@ export default function ProviderProfile() {
               <Text style={styles.smartMatchTitle}>Antigravity Smart Match</Text>
             </View>
             <Text style={styles.smartMatchIntro}>
-              Ali has been matched as your top Karigar based on your specific requirements:
+              {providerName} has been matched as your top Karigar based on your specific requirements:
             </Text>
 
             <View style={styles.smartReasonItem}>
               <View style={styles.smartReasonIconBox}>
-                <MaterialIcons name="ac-unit" size={18} color="#00595c" />
+                <MaterialIcons name="construction" size={18} color="#00595c" />
               </View>
               <View style={styles.smartReasonTextContent}>
-                <Text style={styles.smartReasonItemTitle}>Inverter AC Specialist</Text>
+                <Text style={styles.smartReasonItemTitle}>{providerService} Specialist</Text>
                 <Text style={styles.smartReasonItemDesc}>
-                  Certified specifically for your Samsung Inverter model, with 15+ similar cooling fixes resolved this month.
+                  Highly skilled and certified in {providerService.toLowerCase()} issues, ensuring high-quality workmanship.
                 </Text>
               </View>
             </View>
@@ -230,7 +424,7 @@ export default function ProviderProfile() {
               <View style={styles.smartReasonTextContent}>
                 <Text style={styles.smartReasonItemTitle}>Proximity Advantage</Text>
                 <Text style={styles.smartReasonItemDesc}>
-                  Currently located just 2.4km away from you in DHA, ensuring an arrival within 45 minutes of scheduling.
+                  Currently located just {providerDistance} away from you in {providerLocation}, ensuring an arrival within 45 minutes of scheduling.
                 </Text>
               </View>
             </View>
@@ -242,7 +436,7 @@ export default function ProviderProfile() {
               <View style={styles.smartReasonTextContent}>
                 <Text style={styles.smartReasonItemTitle}>Elite Reliability Record</Text>
                 <Text style={styles.smartReasonItemDesc}>
-                  Maintains a perfect zero-cancellation streak for the last 50 bookings in your immediate neighborhood.
+                  Maintains a perfect zero-cancellation streak for recent bookings in your immediate neighborhood.
                 </Text>
               </View>
             </View>
@@ -251,15 +445,15 @@ export default function ProviderProfile() {
           {/* Key numerical metrics section */}
           <View style={styles.metricsRow}>
             <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>12 Yrs</Text>
+              <Text style={styles.metricValue}>{experienceYears} Yrs</Text>
               <Text style={styles.metricLabel}>Experience</Text>
             </View>
             <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>1,240+</Text>
+              <Text style={styles.metricValue}>{jobsDone}</Text>
               <Text style={styles.metricLabel}>Jobs Done</Text>
             </View>
             <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>98%</Text>
+              <Text style={styles.metricValue}>{onTimeRate}</Text>
               <Text style={styles.metricLabel}>On-Time</Text>
             </View>
             <View style={styles.metricCard}>
@@ -280,7 +474,7 @@ export default function ProviderProfile() {
               style={[styles.tabItem, activeSubTab === 'reviews' && styles.activeTabItem]}
               onPress={() => setActiveSubTab('reviews')}
             >
-              <Text style={[styles.tabText, activeSubTab === 'reviews' && styles.activeTabText]}>Reviews (120)</Text>
+              <Text style={[styles.tabText, activeSubTab === 'reviews' && styles.activeTabText]}>Reviews ({getRandomReviews(providerId, providerService, providerName).length})</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.tabItem, activeSubTab === 'portfolio' && styles.activeTabItem]}
@@ -295,26 +489,24 @@ export default function ProviderProfile() {
             {activeSubTab === 'about' && (
               <View style={styles.aboutTab}>
                 <Text style={styles.aboutText}>
-                  With over 12 years of experience in HVAC systems across Pakistan and Dubai, Ali specializes in the latest energy-efficient inverter technologies. Known for meticulous diagnostic testing, clean work practices, and transparent pricing.
+                  {aboutText}
                 </Text>
                 
                 <Text style={styles.sectionHeading}>Specializations</Text>
                 <View style={styles.specializationsContainer}>
-                  {['Inverter AC repair', 'Gas leakage fixing', 'Deep Jet Cleaning', 'PCB Board diagnostic', 'Split AC Installation'].map((spec, index) => (
+                  {getSpecializations().map((spec, index) => (
                     <View key={index} style={styles.specChip}>
                       <MaterialIcons name="done" size={14} color="#00595c" />
                       <Text style={styles.specChipText}>{spec}</Text>
                     </View>
                   ))}
                 </View>
-
-               
               </View>
             )}
 
             {activeSubTab === 'reviews' && (
               <View style={styles.reviewsTab}>
-                {MOCK_REVIEWS.map((rev) => (
+                {getRandomReviews(providerId, providerService, providerName).map((rev) => (
                   <View key={rev.id} style={styles.reviewCard}>
                     <View style={styles.reviewHeader}>
                       <Image source={{ uri: rev.avatar }} style={styles.reviewAvatar} />
@@ -344,12 +536,7 @@ export default function ProviderProfile() {
               <View style={styles.portfolioTab}>
                 <Text style={styles.portfolioHeading}>Recent Work Done</Text>
                 <View style={styles.portfolioGrid}>
-                  {[
-                    { title: 'Inverter Board Repair', desc: 'Samsung 1.5 Ton AC', img: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80' },
-                    { title: 'Jet Clean Service', desc: 'DHA Phase 5 Resident', img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=200&auto=format&fit=crop&q=80' },
-                    { title: 'Full Installation', desc: 'G-13 Office Complex', img: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=200&auto=format&fit=crop&q=80' },
-                    { title: 'Compressor Swap', desc: 'Haier Inverter Series', img: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=200&auto=format&fit=crop&q=80' }
-                  ].map((work, idx) => (
+                  {getDynamicPortfolio(providerService).map((work, idx) => (
                     <View key={idx} style={styles.portfolioCard}>
                       <Image source={{ uri: work.img }} style={styles.portfolioImg} />
                       <View style={styles.portfolioText}>
@@ -374,7 +561,7 @@ export default function ProviderProfile() {
         <Animated.View style={{ transform: [{ scale: scaleButton }], flex: 1 }}>
           <TouchableOpacity style={styles.bookBtn} onPress={handleBookingPress} activeOpacity={0.9}>
             <MaterialIcons name="event-available" size={20} color="#fff" />
-            <Text style={styles.bookBtnText}>Book Ali Now</Text>
+            <Text style={styles.bookBtnText}>Book {providerName.split(' ')[0]} Now</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -409,10 +596,10 @@ export default function ProviderProfile() {
                 </View>
                 <Text style={styles.successTitle}>Booking Confirmed!</Text>
                 <Text style={styles.successSubtitle}>
-                  Ali has been scheduled for {selectedDate === 'today' ? 'Today' : 'Tomorrow'} at {selectedSlot}.
+                  {providerName} has been scheduled for {dynamicDates.find(d => d.dateString === selectedDate)?.label || selectedDate} at {selectedSlot}.
                 </Text>
                 <Text style={styles.successAlertText}>
-                  📞 Ali will contact you 30 minutes before arriving. A tracking notification will be sent shortly.
+                  📞 {providerName} will contact you 30 minutes before arriving. A tracking notification will be sent shortly.
                 </Text>
 
                 <TouchableOpacity 
@@ -435,44 +622,44 @@ export default function ProviderProfile() {
                 {/* Date Selector */}
                 <Text style={styles.bookingFormLabel}>Date Choice</Text>
                 <View style={styles.dateRow}>
-                  <TouchableOpacity 
-                    style={[styles.dateOption, selectedDate === 'today' && styles.activeDateOption]}
-                    onPress={() => setSelectedDate('today')}
-                  >
-                    <Text style={[styles.dateOptionText, selectedDate === 'today' && styles.activeDateOptionText]}>Today</Text>
-                    <Text style={[styles.dateOptionSub, selectedDate === 'today' && styles.activeDateOptionSub]}>May 17</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.dateOption, selectedDate === 'tomorrow' && styles.activeDateOption]}
-                    onPress={() => setSelectedDate('tomorrow')}
-                  >
-                    <Text style={[styles.dateOptionText, selectedDate === 'tomorrow' && styles.activeDateOptionText]}>Tomorrow</Text>
-                    <Text style={[styles.dateOptionSub, selectedDate === 'tomorrow' && styles.activeDateOptionSub]}>May 18</Text>
-                  </TouchableOpacity>
+                  {dynamicDates.map((opt) => (
+                    <TouchableOpacity 
+                      key={opt.dateString}
+                      style={[styles.dateOption, selectedDate === opt.dateString && styles.activeDateOption]}
+                      onPress={() => {
+                        setSelectedDate(opt.dateString);
+                        setSelectedSlot(null); // Reset selected slot when date changes
+                      }}
+                    >
+                      <Text style={[styles.dateOptionText, selectedDate === opt.dateString && styles.activeDateOptionText]}>{opt.label}</Text>
+                      <Text style={[styles.dateOptionSub, selectedDate === opt.dateString && styles.activeDateOptionSub]}>{opt.displayDate}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
 
                 {/* Available Slots */}
                 <Text style={styles.bookingFormLabel}>Available Hours (30m Travel Buffer included)</Text>
                 <View style={styles.slotsGrid}>
-                  {[
-                    '10:00 AM - 11:30 AM',
-                    '01:00 PM - 02:30 PM',
-                    '03:00 PM - 04:30 PM',
-                    '06:00 PM - 07:30 PM'
-                  ].map((slot, index) => (
-                    <TouchableOpacity 
-                      key={index} 
-                      style={[styles.slotItem, selectedSlot === slot && styles.activeSlotItem]}
-                      onPress={() => setSelectedSlot(slot)}
-                    >
-                      <MaterialIcons 
-                        name="access-time" 
-                        size={16} 
-                        color={selectedSlot === slot ? '#fff' : '#00595c'} 
-                      />
-                      <Text style={[styles.slotText, selectedSlot === slot && styles.activeSlotText]}>{slot}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {getDynamicSlots().length === 0 ? (
+                    <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: '#ba1a1a', marginVertical: 8, textAlign: 'center', width: '100%' }}>
+                      No slots available for this date.
+                    </Text>
+                  ) : (
+                    getDynamicSlots().map((slot, index) => (
+                      <TouchableOpacity 
+                        key={index} 
+                        style={[styles.slotItem, selectedSlot === slot && styles.activeSlotItem]}
+                        onPress={() => setSelectedSlot(slot)}
+                      >
+                        <MaterialIcons 
+                          name="access-time" 
+                          size={16} 
+                          color={selectedSlot === slot ? '#fff' : '#00595c'} 
+                        />
+                        <Text style={[styles.slotText, selectedSlot === slot && styles.activeSlotText]}>{slot}</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
                 </View>
 
                 {/* Summary Box */}
@@ -480,12 +667,12 @@ export default function ProviderProfile() {
                   <View style={styles.summaryContainer}>
                     <View style={styles.summaryLine}>
                       <Text style={styles.summaryLabel}>Karigar:</Text>
-                      <Text style={styles.summaryVal}>Ali (AC Expert)</Text>
+                      <Text style={styles.summaryVal}>{providerName}</Text>
                     </View>
                     <View style={styles.summaryLine}>
                       <Text style={styles.summaryLabel}>Schedule:</Text>
                       <Text style={styles.summaryVal}>
-                        {selectedDate === 'today' ? 'Today' : 'Tomorrow'}, {selectedSlot.split(' - ')[0]}
+                        {dynamicDates.find(d => d.dateString === selectedDate)?.label || selectedDate}, {selectedSlot.split(' - ')[0]}
                       </Text>
                     </View>
                     <View style={[styles.summaryLine, { borderBottomWidth: 0, paddingBottom: 0 }]}>
