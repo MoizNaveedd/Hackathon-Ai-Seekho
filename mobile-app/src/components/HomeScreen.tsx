@@ -781,7 +781,12 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
               No providers found nearby.
             </Text>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 12 }}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              style={{ marginHorizontal: -20 }}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 12, paddingBottom: 12 }}
+            >
               {providers.slice(0, 5).map((prov) => (
                 <TouchableOpacity
                   key={prov.id}
