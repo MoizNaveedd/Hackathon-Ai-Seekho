@@ -141,6 +141,13 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   const [bookingProposal, setBookingProposal] = useState<BookingProposal | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showNavigateConfirm, setShowNavigateConfirm] = useState(false);
+  const [whyHimModalVisible, setWhyHimModalVisible] = useState(false);
+  const [selectedWhyHimProvider, setSelectedWhyHimProvider] = useState<Provider | null>(null);
+
+  const handleWhyHimPress = (provider: Provider) => {
+    setSelectedWhyHimProvider(provider);
+    setWhyHimModalVisible(true);
+  };
   // Real API response state
   const [lastChatResponse, setLastChatResponse] = useState<ChatResponse | null>(null);
   
@@ -540,14 +547,27 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                                 <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.distance_km} km)
                               </Text>
                             </View>
-                            {p.hourly_rate !== undefined && (
-                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 10 }}>
-                                <MaterialIcons name="payments" size={14} color="#00595c" style={{ marginRight: 4 }} />
-                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#00595c' }}>
-                                  Rs. {p.hourly_rate}/hr
-                                </Text>
-                              </View>
-                            )}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginTop: 4 }}>
+                              {p.smart_match ? (
+                                <TouchableOpacity 
+                                  style={styles.whyHimButton} 
+                                  onPress={() => handleWhyHimPress(p)}
+                                  activeOpacity={0.7}
+                                >
+                                  <MaterialIcons name="auto-awesome" size={10} color="#92400e" />
+                                  <Text style={styles.whyHimText}>Why him?</Text>
+                                </TouchableOpacity>
+                              ) : <View />}
+
+                              {p.hourly_rate !== undefined && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                  <MaterialIcons name="payments" size={14} color="#00595c" style={{ marginRight: 4 }} />
+                                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#00595c' }}>
+                                    Rs. {p.hourly_rate}/hr
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
                           </TouchableOpacity>
                           <Text style={styles.providerSlotsTitle}>Available Slots:</Text>
                           <View style={styles.slotsContainer}>
@@ -758,6 +778,61 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
               </View>
             </View>
           )}
+
+          {/* Why Him Smart Match Modal Overlay */}
+          {whyHimModalVisible && selectedWhyHimProvider && (
+            <View style={styles.confirmOverlay}>
+              <View style={[styles.confirmCard, { width: '90%', maxHeight: '80%' }]}>
+                <View style={{ flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <MaterialIcons name="auto-awesome" size={20} color="#92400e" />
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#1a1a2e' }}>AI Match Analysis</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => { setWhyHimModalVisible(false); setSelectedWhyHimProvider(null); }} style={{ padding: 4 }}>
+                    <MaterialIcons name="close" size={22} color="#6e7979" />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#00595c', alignSelf: 'flex-start', marginBottom: 4 }}>
+                  {selectedWhyHimProvider.name}
+                </Text>
+                
+                {selectedWhyHimProvider.smart_match?.headline && (
+                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#92400e', alignSelf: 'flex-start', backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginBottom: 14 }}>
+                    {selectedWhyHimProvider.smart_match.headline}
+                  </Text>
+                )}
+
+                <ScrollView style={{ width: '100%', maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                  {selectedWhyHimProvider.smart_match?.match_reasons?.map((reason: any, idx: number) => {
+                    let iconName = 'done';
+                    if (reason.factor === 'proximity') iconName = 'location-on';
+                    else if (reason.factor === 'price') iconName = 'payments';
+                    else if (reason.factor === 'rating') iconName = 'star';
+
+                    return (
+                      <View key={idx} style={{ flexDirection: 'row', gap: 12, marginBottom: 16, backgroundColor: '#f9fafb', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#f3f4f6' }}>
+                        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center' }}>
+                          <MaterialIcons name={iconName} size={16} color="#00595c" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#1a1a2e', marginBottom: 2 }}>{reason.title}</Text>
+                          <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: '#6e7979', lineHeight: 16 }}>{reason.description}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+
+                <TouchableOpacity 
+                  style={{ width: '100%', height: 48, borderRadius: 12, backgroundColor: '#00595c', alignItems: 'center', justifyContent: 'center', marginTop: 14 }} 
+                  onPress={() => { setWhyHimModalVisible(false); setSelectedWhyHimProvider(null); }}
+                >
+                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#fff' }}>Ok</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -877,4 +952,20 @@ const styles = StyleSheet.create({
   topPickBadgeInCard: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#fcd34d', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: 6 },
   topPickBadgeTextInCard: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 8, color: '#92400e' },
   providerAvatarInCard: { width: 32, height: 32, borderRadius: 16, marginRight: 8, borderWidth: 1, borderColor: '#e2e8f0' },
+  whyHimButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fffbeb',
+    borderColor: '#fcd34d',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    gap: 4,
+  },
+  whyHimText: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 10,
+    color: '#92400e',
+  },
 });

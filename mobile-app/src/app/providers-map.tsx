@@ -13,7 +13,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { getProviders, Provider } from '../services/apiService';
 
 const { width } = Dimensions.get('window');
@@ -35,6 +36,13 @@ export default function ProvidersMapScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
 
+  const targetProviderId = searchParams.targetProviderId ? parseInt(searchParams.targetProviderId as string, 10) : null;
+  const [userLoc, setUserLoc] = useState<{ latitude: number; longitude: number } | null>(
+    searchParams.latitude && searchParams.longitude 
+      ? { latitude: initialLat, longitude: initialLng } 
+      : null
+  );
+
   // Region state
   const [region, setRegion] = useState({
     latitude: initialLat,
@@ -47,6 +55,56 @@ export default function ProvidersMapScreen() {
     fetchProviders();
   }, []);
 
+  // Request foreground location permission and position if not provided
+  useEffect(() => {
+    const getUserLocation = async () => {
+      if (searchParams.latitude && searchParams.longitude) return;
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        let loc = await Location.getCurrentPositionAsync({});
+        setUserLoc({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude
+        });
+      } catch (err) {
+        console.warn("Could not get user location:", err);
+      }
+    };
+    getUserLocation();
+  }, []);
+
+  // Auto select, center, and scroll to target provider on load
+  useEffect(() => {
+    if (providers.length > 0) {
+      const initialId = targetProviderId && providers.some(p => p.id === targetProviderId)
+        ? targetProviderId
+        : providers[0].id;
+        
+      setSelectedProviderId(initialId);
+      
+      const prov = providers.find(p => p.id === initialId);
+      if (prov && prov.latitude && prov.longitude) {
+        focusOnCoordinate(prov.latitude, prov.longitude);
+        
+        const index = providers.findIndex(p => p.id === initialId);
+        if (index !== -1 && flatListRef.current) {
+          setTimeout(() => {
+            try {
+              flatListRef.current?.scrollToIndex({
+                index,
+                animated: true,
+                viewPosition: 0.5
+              });
+            } catch (err) {
+              console.warn("FlatList scrollToIndex failed:", err);
+            }
+          }, 400);
+        }
+      }
+    }
+  }, [providers]);
+
   const fetchProviders = async () => {
     setIsLoading(true);
     try {
@@ -58,10 +116,6 @@ export default function ProvidersMapScreen() {
       if (res && res.providers) {
         const validProviders = res.providers.filter(p => p.latitude !== null && p.longitude !== null && p.latitude !== undefined && p.longitude !== undefined);
         setProviders(validProviders);
-        // Automatically select the first provider, if any
-        if (validProviders.length > 0) {
-          setSelectedProviderId(validProviders[0].id);
-        }
       }
     } catch (err) {
       console.error("Error fetching providers for map:", err);
@@ -133,9 +187,23 @@ export default function ProvidersMapScreen() {
         ref={mapRef}
         style={styles.map}
         initialRegion={region}
-        showsUserLocation={!!searchParams.latitude}
+        showsUserLocation={true}
       >
-        
+        {/* Custom User Location Marker */}
+        {(!!searchParams.latitude || !!userLoc) && (
+          <Marker
+            coordinate={{
+              latitude: userLoc?.latitude || initialLat,
+              longitude: userLoc?.longitude || initialLng
+            }}
+            title="Apki Location"
+            description="Milaane ka markaz"
+          >
+            <View style={styles.userLocationMarker}>
+              <MaterialIcons name="person-pin-circle" size={24} color="#00595c" />
+            </View>
+          </Marker>
+        )}
 
         {/* Dynamic Provider Markers */}
         {mapProviders.map((prov) => {
@@ -170,6 +238,25 @@ export default function ProvidersMapScreen() {
             </Marker>
           );
         })}
+
+        {/* Direction Polyline between User and Selected Provider */}
+        {selectedProviderId && (() => {
+          const selProv = providers.find(p => p.id === selectedProviderId);
+          if (selProv && selProv.latitude && selProv.longitude) {
+            return (
+              <Polyline
+                coordinates={[
+                  { latitude: userLoc?.latitude || initialLat, longitude: userLoc?.longitude || initialLng },
+                  { latitude: selProv.latitude, longitude: selProv.longitude }
+                ]}
+                strokeColor="#00595c"
+                strokeWidth={3}
+                lineDashPattern={Platform.OS === 'ios' ? [6, 4] : [10, 10]}
+              />
+            );
+          }
+          return null;
+        })()}
       </MapView>
 
       {/* Floating Header */}
@@ -509,5 +596,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     fontSize: 14,
     color: '#6e7979',
+  },
+  userLocationMarker: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 4,
+    borderWidth: 2,
+    borderColor: '#00595c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
 });
