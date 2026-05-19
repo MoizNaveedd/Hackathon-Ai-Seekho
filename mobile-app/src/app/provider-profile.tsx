@@ -351,6 +351,40 @@ export default function ProviderProfile() {
     Linking.openURL('tel:+923018206192');
   };
 
+  const handleShowLocationInMap = () => {
+    const lat = providerDetails?.latitude || (params.latitude ? parseFloat(params.latitude as string) : null);
+    const lng = providerDetails?.longitude || (params.longitude ? parseFloat(params.longitude as string) : null);
+    
+    let url = '';
+    if (lat && lng) {
+      url = Platform.select({
+        ios: `maps://app?daddr=${lat},${lng}&t=m`,
+        android: `google.navigation:q=${lat},${lng}`,
+        default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+      });
+    } else {
+      const query = encodeURIComponent(`${providerName}, ${providerLocation}`);
+      url = Platform.select({
+        ios: `maps://app?q=${query}`,
+        android: `geo:0,0?q=${query}`,
+        default: `https://www.google.com/maps/search/?api=1&query=${query}`
+      });
+    }
+
+    Linking.canOpenURL(url).then(supported => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat || 33.6844},${lng || 73.0479}`;
+        Linking.openURL(webUrl);
+      }
+    }).catch(err => {
+      console.error("Error opening map URL:", err);
+      const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat || 33.6844},${lng || 73.0479}`;
+      Linking.openURL(webUrl);
+    });
+  };
+
   const renderStars = (rating: number) => {
     const stars = [];
     const floor = Math.floor(rating);
@@ -414,6 +448,15 @@ export default function ProviderProfile() {
               <View style={styles.pulseDot} />
               <Text style={styles.availabilityText}>Available Today</Text>
             </View>
+          </View>
+
+          {/* Map Access Card */}
+          <View style={styles.mapCardContainer}>
+            <TouchableOpacity style={styles.mapButton} onPress={handleShowLocationInMap} activeOpacity={0.85}>
+              <MaterialIcons name="map" size={20} color="#fff" />
+              <Text style={styles.mapButtonText}>Show location in map</Text>
+              <MaterialIcons name="chevron-right" size={22} color="#fff" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
           </View>
 
           {/* Antigravity Smart Match Reason Card */}
@@ -1418,5 +1461,30 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 10,
     color: '#92400e',
+  },
+  mapCardContainer: {
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#00595c',
+    borderRadius: 16,
+    height: 54,
+    paddingHorizontal: 16,
+    shadowColor: '#00595c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mapButtonText: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 14,
+    color: '#fff',
+    marginLeft: 10,
+    letterSpacing: 0.2,
   },
 });
