@@ -102,6 +102,158 @@
                 }
             }
         },
+        "/bookings/{booking_id}": {
+            "get": {
+                "tags": [
+                    "Bookings"
+                ],
+                "summary": "Get Booking Detail",
+                "description": "Get full detail for a single booking, including customer + feedback nested objects.",
+                "operationId": "get_booking_detail_bookings__booking_id__get",
+                "parameters": [
+                    {
+                        "name": "booking_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Booking Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Get Booking Detail Bookings  Booking Id  Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/bookings/{booking_id}/cancel": {
+            "post": {
+                "tags": [
+                    "Bookings"
+                ],
+                "summary": "Cancel Booking",
+                "description": "Cancel a booking. Either party can cancel.\n\nSend exactly one of `user_id` or `provider_id` in the body to identify the actor.\n- Marks the booking as 'Cancelled'\n- Restores the time slot to the provider's available_slots\n- Notifies the other party (DB record + push)",
+                "operationId": "cancel_booking_bookings__booking_id__cancel_post",
+                "parameters": [
+                    {
+                        "name": "booking_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Booking Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BookingCancelRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Cancel Booking Bookings  Booking Id  Cancel Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/bookings/{booking_id}/complete": {
+            "post": {
+                "tags": [
+                    "Bookings"
+                ],
+                "summary": "Complete Booking",
+                "description": "Mark a booking as completed. Either party can complete.\n\nSend exactly one of `user_id` or `provider_id` in the body to identify the actor.\n- Marks the booking as 'Completed' and stores optional feedback\n- Notifies the other party (DB record + push)",
+                "operationId": "complete_booking_bookings__booking_id__complete_post",
+                "parameters": [
+                    {
+                        "name": "booking_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Booking Id"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BookingCompleteRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "title": "Response Complete Booking Bookings  Booking Id  Complete Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/notifications/send": {
             "post": {
                 "tags": [
@@ -730,6 +882,195 @@
                 }
             }
         },
+        "/api/auth/register": {
+            "post": {
+                "tags": [
+                    "Auth API"
+                ],
+                "summary": "Register",
+                "description": "Service Provider registration endpoint.\nAccepts multipart/form-data for profile creation and optional profile image.\nInserts a new provider record in the Provider database table.",
+                "operationId": "register_api_auth_register_post",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_register_api_auth_register_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/login": {
+            "post": {
+                "tags": [
+                    "Auth API"
+                ],
+                "summary": "Login",
+                "description": "Service Provider login endpoint.\nVerifies provider credentials against the Provider table and returns a simulated JWT token.",
+                "operationId": "login_api_auth_login_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/me": {
+            "get": {
+                "tags": [
+                    "Auth API"
+                ],
+                "summary": "Get Me",
+                "description": "Get profile details for a User or Provider.\nCan be retrieved by explicit 'id' parameter or decoded from 'Authorization' token.",
+                "operationId": "get_me_api_auth_me_get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "User or Provider ID",
+                            "title": "Id"
+                        },
+                        "description": "User or Provider ID"
+                    },
+                    {
+                        "name": "authorization",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Bearer Token",
+                            "title": "Authorization"
+                        },
+                        "description": "Bearer Token"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/me/{id}": {
+            "get": {
+                "tags": [
+                    "Auth API"
+                ],
+                "summary": "Get Me Path",
+                "description": "Get profile details for a User or Provider by ID passed as a path parameter.",
+                "operationId": "get_me_path_api_auth_me__id__get",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/chat/v2": {
             "post": {
                 "summary": "Chat",
@@ -848,6 +1189,44 @@
                 }
             }
         },
+        "/users/{user_id}/chat_sessions": {
+            "get": {
+                "summary": "Get User Chat Sessions",
+                "description": "Get all chat sessions for a specific user.",
+                "operationId": "get_user_chat_sessions_users__user_id__chat_sessions_get",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "User Id"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/update_user_location": {
             "post": {
                 "summary": "Update User Location",
@@ -940,6 +1319,149 @@
     },
     "components": {
         "schemas": {
+            "Body_register_api_auth_register_post": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "title": "Phone"
+                    },
+                    "email": {
+                        "type": "string",
+                        "title": "Email"
+                    },
+                    "password": {
+                        "type": "string",
+                        "title": "Password"
+                    },
+                    "avatar": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "binary"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Avatar"
+                    },
+                    "service_type": {
+                        "type": "string",
+                        "title": "Service Type"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "phone",
+                    "email",
+                    "password",
+                    "service_type"
+                ],
+                "title": "Body_register_api_auth_register_post"
+            },
+            "BookingCancelRequest": {
+                "properties": {
+                    "user_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "User Id",
+                        "description": "ID of the user cancelling (provide one of user_id/provider_id)"
+                    },
+                    "provider_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Provider Id",
+                        "description": "ID of the provider cancelling (provide one of user_id/provider_id)"
+                    },
+                    "reason": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Reason",
+                        "description": "Optional cancellation reason (provider-only — ignored if user cancels)"
+                    }
+                },
+                "type": "object",
+                "title": "BookingCancelRequest"
+            },
+            "BookingCompleteRequest": {
+                "properties": {
+                    "user_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "User Id",
+                        "description": "ID of the user completing (provide one of user_id/provider_id)"
+                    },
+                    "provider_id": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Provider Id",
+                        "description": "ID of the provider completing (provide one of user_id/provider_id)"
+                    },
+                    "feedback": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Feedback",
+                        "description": "Optional feedback comment"
+                    },
+                    "rating": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "maximum": 5.0,
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Rating",
+                        "description": "Optional 1-5 rating (user-only)"
+                    }
+                },
+                "type": "object",
+                "title": "BookingCompleteRequest"
+            },
             "BookingDetailResponse": {
                 "properties": {
                     "id": {
@@ -990,6 +1512,83 @@
                     "status": {
                         "type": "string",
                         "title": "Status"
+                    },
+                    "service_type": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Service Type"
+                    },
+                    "price": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Price"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description"
+                    },
+                    "feedback": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Feedback"
+                    },
+                    "customer_feedback": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Customer Feedback"
+                    },
+                    "customer_rating": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Customer Rating"
+                    },
+                    "prompt": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prompt"
                     },
                     "provider": {
                         "anyOf": [
@@ -1131,6 +1730,39 @@
                             }
                         ],
                         "title": "Session Id"
+                    },
+                    "latitude": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Latitude"
+                    },
+                    "longitude": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Longitude"
+                    },
+                    "location_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Location Name"
                     },
                     "selected_provider_id": {
                         "anyOf": [
@@ -1308,6 +1940,27 @@
                     "longitude"
                 ],
                 "title": "LocationUpdateRequest"
+            },
+            "LoginRequest": {
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "title": "Email",
+                        "description": "Registered email address"
+                    },
+                    "password": {
+                        "type": "string",
+                        "minLength": 8,
+                        "title": "Password",
+                        "description": "User password (min 8 chars)"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "email",
+                    "password"
+                ],
+                "title": "LoginRequest"
             },
             "NotificationListResponse": {
                 "properties": {

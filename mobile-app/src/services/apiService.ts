@@ -109,6 +109,48 @@ export interface ChatResponse {
   booking_id: number | null;
 }
 
+export interface BookingProvider {
+  id: number;
+  name: string;
+  service_type: string;
+  location: string;
+  rating: number;
+}
+
+export interface BookingUser {
+  id: number;
+  name: string;
+  email: string;
+  location: string;
+}
+
+export interface BookingItem {
+  id: number;
+  user_intent: string;
+  user_id: number;
+  provider_id: number;
+  time_slot: string;
+  booking_date: string;
+  status: string;
+  service_type: string;
+  price: number;
+  description: string | null;
+  feedback: string | null;
+  customer_feedback: string | null;
+  customer_rating: number | null;
+  prompt: string | null;
+  provider: BookingProvider;
+  user: BookingUser;
+}
+
+export interface BookingsResponse {
+  bookings: BookingItem[];
+  total_count: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
@@ -136,6 +178,25 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     // Some endpoints return an empty body on 200
     return {} as T;
   }
+}
+
+async function get<T>(path: string): Promise<T> {
+  const url = `${BASE_URL}${path}`;
+  console.log(`📡 GET ${url}`);
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const text = await response.text();
+  console.log(`📩 Response ${response.status}: ${text}`);
+
+  if (!response.ok) {
+    throw new Error(`API error ${response.status}: ${text}`);
+  }
+
+  return JSON.parse(text) as T;
 }
 
 // ─────────────────────────────────────────────
@@ -177,4 +238,28 @@ export async function chat(
   request: ChatRequest
 ): Promise<ChatResponse> {
   return post<ChatResponse>("/chat/v2", request);
+}
+
+/**
+ * GET /bookings
+ * Lists all bookings for a user.
+ */
+export async function getUserBookings(userId: number): Promise<BookingsResponse> {
+  return get<BookingsResponse>(`/bookings?user_id=${userId}`);
+}
+
+/**
+ * POST /bookings/{booking_id}/cancel
+ * Cancels a booking.
+ */
+export async function cancelBooking(bookingId: number, userId: number, reason?: string): Promise<void> {
+  await post<void>(`/bookings/${bookingId}/cancel`, { user_id: userId, reason: reason || null });
+}
+
+/**
+ * POST /bookings/{booking_id}/complete
+ * Marks a booking as completed.
+ */
+export async function completeBooking(bookingId: number, userId: number, rating?: number, feedback?: string): Promise<void> {
+  await post<void>(`/bookings/${bookingId}/complete`, { user_id: userId, rating: rating || null, feedback: feedback || null });
 }

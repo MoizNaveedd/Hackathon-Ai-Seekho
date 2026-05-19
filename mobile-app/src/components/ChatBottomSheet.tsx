@@ -45,6 +45,7 @@ interface Props {
   onNavigateToBookings?: () => void;
   userLocation?: { latitude: number; longitude: number } | null;
   locationName?: string;
+  providerName?: string;
 }
 
 // ─── Voice Player Component ──────────────────────────────────────────────────

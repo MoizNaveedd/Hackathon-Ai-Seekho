@@ -10,6 +10,8 @@ import ChatBottomSheet, { Message } from './ChatBottomSheet';
 import { transcribeVoiceLive } from '../services/transcriptionService';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { getUserBookings, cancelBooking, completeBooking } from '../services/apiService';
+import { scheduleHeadsUpNotification } from '../services/notificationService';
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '[GCP_API_KEY]';
 
@@ -314,47 +316,88 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   const router = useRouter();
 
   const [selectedFilter, setSelectedFilter] = useState('Upcoming');
-  const [bookings, setBookings] = useState([
-    {
-      id: 'KG-9290',
-      service: 'Electrical Wiring Check',
-      provider: 'Assigning Provider...',
-      providerDetail: 'Searching near your area',
-      date: 'Oct 28, 2023',
-      time: '09:00 AM - 11:00 AM',
-      status: 'Active',
-      color: '#FF8F00',
-      badgeBg: '#fffde7',
-      price: 'Rs 850 (Est)',
-      rated: false,
-    },
-    {
-      id: 'KG-9285',
-      service: 'AC Deep Cleaning',
-      provider: 'Salman Khan',
-      providerDetail: 'HVAC Expert • 5.0★',
-      date: 'Oct 26, 2023',
-      time: '02:30 PM - 04:30 PM',
-      status: 'Upcoming',
-      color: '#00595c',
-      badgeBg: '#e0f2f1',
-      price: 'Rs 2,500',
-      rated: false,
-    },
-    {
-      id: 'KG-9281',
-      service: 'General Plumbing Repair',
-      provider: 'Ahmed Raza',
-      providerDetail: 'Lead Plumber • 4.9★',
-      date: 'Oct 24, 2023',
-      time: '10:00 AM - 12:00 PM',
-      status: 'Completed',
-      color: '#005c3e',
-      badgeBg: '#e8fff5',
-      price: 'Rs 1,200',
-      rated: false,
+  const [bookings, setBookings] = useState<any[]>([]);
+
+  const [apiBookings, setApiBookings] = useState<any[]>([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+
+  const fetchBookings = async () => {
+    if (!userId) return;
+    setIsLoadingBookings(true);
+    try {
+      const response = await getUserBookings(userId);
+      if (response && response.bookings) {
+        setApiBookings(response.bookings);
+      }
+    } catch (error) {
+      console.error("Failed to fetch bookings:", error);
+    } finally {
+      setIsLoadingBookings(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'bookings') {
+      fetchBookings();
+    }
+  }, [activeTab, userId]);
+
+  const mapApiBooking = (item: any) => {
+    let appStatus = 'Upcoming';
+    let badgeBg = '#e0f2f1';
+    let color = '#00595c';
+    
+    if (item.status === 'Completed') {
+      appStatus = 'Completed';
+      badgeBg = '#e8fff5';
+      color = '#005c3e';
+    } else if (item.status === 'Active' || item.status === 'In Progress' || item.status === 'In_Progress') {
+      appStatus = 'Active';
+      badgeBg = '#fffde7';
+      color = '#FF8F00';
+    } else {
+      // Confirmed, Pending, or any other raw state defaults to 'Upcoming'
+      appStatus = 'Upcoming';
+      if (item.status === 'Cancelled' || item.status === 'Declined') {
+        badgeBg = '#ffebee';
+        color = '#c62828';
+      } else {
+        badgeBg = '#e0f2f1';
+        color = '#00595c';
+      }
+    }
+
+    let formattedDate = item.booking_date;
+    try {
+      const d = new Date(item.booking_date);
+      if (!isNaN(d.getTime())) {
+        const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+        formattedDate = d.toLocaleDateString('en-US', options);
+      }
+    } catch (e) {}
+
+    return {
+      id: `BK-${item.id}`,
+      realId: item.id,
+      service: item.service_type || item.user_intent || 'Selected Service',
+      provider: item.provider?.name || 'Assigned Provider',
+      providerDetail: `${item.provider?.service_type || 'Specialist'} • ${item.provider?.rating || '4.5'}★`,
+      date: formattedDate,
+      time: item.time_slot || 'Flexible Slot',
+      status: appStatus,
+      color,
+      badgeBg,
+      price: `Rs. ${item.price}`,
+      rated: item.customer_rating !== null,
+      rawItem: item
+    };
+  };
+
+  const getDisplayedBookings = () => {
+    return apiBookings
+      .map(mapApiBooking)
+      .filter(b => b.status === selectedFilter);
+  };
 
   const [ratingBooking, setRatingBooking] = useState<any>(null);
   const [trackingBooking, setTrackingBooking] = useState<any>(null);
@@ -875,7 +918,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             <Text style={styles.bookingsHeaderTitle}>My Bookings</Text>
             <View style={styles.bookingsCountBadge}>
               <Text style={styles.bookingsCountText}>
-                {bookings.filter(b => b.status === selectedFilter).length}
+                {getDisplayedBookings().length}
               </Text>
             </View>
           </View>
@@ -904,12 +947,28 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
           </View>
 
           <ScrollView 
-            contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 20, paddingTop: 8 }]} 
+            contentContainerStyle={[
+              styles.scrollContent, 
+              { paddingHorizontal: 20, paddingTop: 8 },
+              (isLoadingBookings || getDisplayedBookings().length === 0) && { flexGrow: 1, justifyContent: 'center', paddingBottom: 120 }
+            ]} 
             showsVerticalScrollIndicator={false}
           >
-            {bookings
-              .filter(b => b.status === selectedFilter)
-              .map((booking) => (
+            {isLoadingBookings ? (
+              <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#00595c" />
+                <Text style={{ marginTop: 12, color: '#6e7979', fontFamily: 'PlusJakartaSans_500Medium' }}>Loading bookings...</Text>
+              </View>
+            ) : getDisplayedBookings().length === 0 ? (
+              <View style={styles.emptyBookingsContainer}>
+                <MaterialIcons name="event-busy" size={48} color="#bec9c9" />
+                <Text style={styles.emptyBookingsTitle}>No Bookings Found</Text>
+                <Text style={styles.emptyBookingsSubtitle}>
+                  You don't have any {selectedFilter.toLowerCase()} bookings.
+                </Text>
+              </View>
+            ) :
+              getDisplayedBookings().map((booking) => (
                 <View key={booking.id} style={styles.bookingCard}>
                   {/* Top Header Row of card */}
                   <View style={styles.bookingCardTop}>
@@ -919,7 +978,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                         <ActivityIndicator size="small" color="#FF8F00" style={{ marginRight: 6 }} />
                       )}
                       <Text style={[styles.statusBadgeText, { color: booking.color }]}>
-                        {booking.status}
+                        {booking.status === 'Active' ? 'Work in Progress' : booking.status}
                       </Text>
                     </View>
                   </View>
@@ -977,8 +1036,18 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                                 cancelText: "Keep Booking",
                                 iconName: "warning",
                                 iconColor: "#ba1a1a",
-                                onConfirm: () => {
-                                  setBookings(prev => prev.filter(b => b.id !== booking.id));
+                                onConfirm: async () => {
+                                  const bAny = booking as any;
+                                  if (bAny.realId) {
+                                    try {
+                                      await cancelBooking(bAny.realId, userId!);
+                                      fetchBookings();
+                                    } catch (err) {
+                                      console.error("Cancel booking error:", err);
+                                    }
+                                  } else {
+                                    setBookings(prev => prev.filter(b => b.id !== booking.id));
+                                  }
                                   setConfirmDialog(null);
                                 }
                               });
@@ -1074,15 +1143,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                 </View>
               ))}
 
-            {bookings.filter(b => b.status === selectedFilter).length === 0 && (
-              <View style={styles.emptyBookingsContainer}>
-                <MaterialIcons name="event-busy" size={48} color="#bec9c9" />
-                <Text style={styles.emptyBookingsTitle}>No Bookings Found</Text>
-                <Text style={styles.emptyBookingsSubtitle}>
-                  You don't have any {selectedFilter.toLowerCase()} bookings.
-                </Text>
-              </View>
-            )}
+
           </ScrollView>
         </View>
       ) : activeTab === 'rate-service' ? (
@@ -1183,22 +1244,52 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
           <View style={styles.ratingFooter}>
             <TouchableOpacity 
               style={styles.ratingSubmitBtn}
-              onPress={() => {
+              onPress={async () => {
                 if (!ratingBooking) return;
-                // Submit Feedback:
-                setBookings(prev => prev.map(b => 
-                  b.id === ratingBooking.id 
-                    ? { 
-                        ...b, 
-                        status: 'Completed', 
-                        rated: true, 
-                        provider: b.provider === 'Assigning Provider...' ? 'Ahmed Hassan' : b.provider,
-                        providerDetail: b.provider === 'Assigning Provider...' ? 'Expert AC Technician • Service ID #4829' : b.providerDetail,
-                        color: '#005c3e', 
-                        badgeBg: '#e8fff5' 
-                      } 
-                    : b
-                ));
+                
+                try {
+                  if (ratingBooking.realId) {
+                    await completeBooking(ratingBooking.realId, userId!, ratingStars, ratingComment);
+                    fetchBookings();
+                  } else {
+                    setBookings(prev => prev.map(b => 
+                      b.id === ratingBooking.id 
+                        ? { 
+                            ...b, 
+                            status: 'Completed', 
+                            rated: true, 
+                            provider: b.provider === 'Assigning Provider...' ? 'Ahmed Hassan' : b.provider,
+                            providerDetail: b.provider === 'Assigning Provider...' ? 'Expert AC Technician • Service ID #4829' : b.providerDetail,
+                            color: '#005c3e', 
+                            badgeBg: '#e8fff5' 
+                          } 
+                        : b
+                    ));
+                  }
+
+                  // Fire a push notification
+                  await scheduleHeadsUpNotification(
+                    "Service Completed Successfully 🎉",
+                    `Your service for ${ratingBooking.service} is marked as completed! Thank you for rating us ${ratingStars} stars.`
+                  );
+
+                  // Prepend to local notifications list
+                  setNotifications(prev => [
+                    {
+                      id: Date.now(),
+                      title: "Service Completed 🎉",
+                      description: `Your booking for ${ratingBooking.service} has been completed successfully. Thank you for your feedback!`,
+                      time: "Just now",
+                      icon: "verified",
+                      iconColor: "#005c3e",
+                      bgColor: "rgba(0, 92, 62, 0.08)",
+                      unread: true
+                    },
+                    ...prev
+                  ]);
+                } catch (err) {
+                  console.error("Complete booking error:", err);
+                }
                 
                 // Transition tab selections
                 setSelectedFilter('Completed');
