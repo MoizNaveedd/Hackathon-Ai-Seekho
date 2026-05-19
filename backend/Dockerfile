@@ -12,5 +12,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Auto-seed the SQLite database on container boot, then start the FastAPI application
-CMD sh -c "python seed.py && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}

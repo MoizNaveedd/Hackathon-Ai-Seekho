@@ -86,7 +86,7 @@ class IntentUnderstandingAgent:
         
         # Tool: Call Gemini
         response = gemini_client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -181,7 +181,7 @@ class ProviderDiscoveryAgent:
             
             try:
                 response = gemini_client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-1.5-flash',
                     contents=prompt,
                     config=types.GenerateContentConfig(temperature=0.5)
                 )
@@ -311,7 +311,7 @@ class AntigravityOrchestrator:
                 prompt = f"The user asked to book a service. Booking failed. Reason: {reasoning}. Here is the last user message:\n{last_user_request}\nWrite a polite, friendly rejection reply to the user. You MUST write the reply in the SAME language the user used (e.g. Urdu, Roman Urdu, or English)."
                 try:
                     response = gemini_client.models.generate_content(
-                        model='gemini-2.5-flash',
+                        model='gemini-1.5-flash',
                         contents=prompt,
                         config=types.GenerateContentConfig(temperature=0.5)
                     )
@@ -343,7 +343,7 @@ class AntigravityOrchestrator:
                 """
                 try:
                     response = gemini_client.models.generate_content(
-                        model='gemini-2.5-flash',
+                        model='gemini-1.5-flash',
                         contents=prompt,
                         config=types.GenerateContentConfig(temperature=0.5)
                     )

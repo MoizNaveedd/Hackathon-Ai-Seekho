@@ -4,4 +4,6 @@ sqlalchemy==2.0.30
 sqlalchemy-libsql==0.2.0
 pydantic==2.7.1
 google-genai
+groq
 python-dotenv
+psycopg2-binary

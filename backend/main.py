@@ -1,32 +1,61 @@
-from fastapi import FastAPI, Depends, HTTPException
+import logging
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from database import get_db, engine, Base
-from agents import AntigravityOrchestrator
 from agents_v2 import OrchestratorV2
 from typing import Dict, Any, List, Optional
-from models import User
+from models import User, ChatSession, ChatMessage
 from bookings_notifications import bookings_router, notifications_router
+from providers import providers_router
+from auth_bookings_api import router as auth_bookings_router
+
+# Configure logging — shows agent activity, LLM provider used, errors
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(name)-20s | %(levelname)-7s | %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 # Ensure tables exist
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Karigar AI Service Orchestrator API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
 app.include_router(bookings_router)
 app.include_router(notifications_router)
+app.include_router(providers_router)
+app.include_router(auth_bookings_router)
 
-class Message(BaseModel):
-    role: str
-    content: str
 
-class ServiceRequest(BaseModel):
-    messages: List[Message]
+# ============ Request Schemas ============
+
+class ChatRequest(BaseModel):
+    message: Optional[str] = None
     user_id: Optional[int] = None
+    session_id: Optional[int] = None  # None = new conversation
+    latitude: Optional[float] = None             # GPS from map picker
+    longitude: Optional[float] = None            # GPS from map picker
+    location_name: Optional[str] = None          # Location name from map picker (e.g. "G-13")
+    selected_provider_id: Optional[int] = None   # When user selects a provider from FE
+    selected_slot: Optional[str] = None           # Selected time slot
+    selected_date: Optional[str] = None           # Selected date (YYYY-MM-DD)
 
 class BookingRequest(BaseModel):
     user_id: int
     provider_id: int
     slot: str
+    booking_date: str  # "2026-05-19"
     language: Optional[str] = "english"
 
 class LocationUpdateRequest(BaseModel):
@@ -52,44 +81,70 @@ class SSOLoginRequest(BaseModel):
     type: str
     data: GoogleUserData
 
-# ============ V1 Endpoints (Legacy) ============
-
-@app.post("/v1/process_request", response_model=Dict[str, Any])
-def process_request_v1(request: ServiceRequest, db: Session = Depends(get_db)):
-    user = None
-    if request.user_id:
-        user = db.query(User).filter(User.id == request.user_id).first()
-    orchestrator = AntigravityOrchestrator()
-    chat_history = [{"role": msg.role, "content": msg.content} for msg in request.messages]
-    response = orchestrator.process_request(chat_history, db, user=user)
-    return response
-
 # ============ V2 Endpoints (Current) ============
 
-@app.post("/chat", response_model=Dict[str, Any])
-def chat(request: ServiceRequest, db: Session = Depends(get_db)):
-    """Conversational endpoint: extracts intent, validates, returns providers with selectable slots."""
-    user = None
-    if request.user_id:
-        user = db.query(User).filter(User.id == request.user_id).first()
+@app.post("/chat/v2", response_model=Dict[str, Any])
+def chat(request: ChatRequest, db: Session = Depends(get_db)):
+    """Conversational endpoint: handles all phases of the booking flow.
 
+    - Phase 1 (gathering_intent): send message only
+    - Phase 2 (selecting_provider): send selected_provider_id + selected_slot + selected_date
+    - Phase 3 (confirming_booking): send message (yes/no/change time/change provider)
+    """
     orchestrator = OrchestratorV2()
-    chat_history = [{"role": msg.role, "content": msg.content} for msg in request.messages]
-    response = orchestrator.process_chat(chat_history, db, user=user)
+    response = orchestrator.process_chat(
+        message=request.message,
+        user_id=request.user_id,
+        db=db,
+        session_id=request.session_id,
+        latitude=request.latitude,
+        longitude=request.longitude,
+        location_name=request.location_name,
+        selected_provider_id=request.selected_provider_id,
+        selected_slot=request.selected_slot,
+        selected_date=request.selected_date,
+    )
     return response
+
+
+
 
 @app.post("/book", response_model=Dict[str, Any])
 def book(request: BookingRequest, db: Session = Depends(get_db)):
-    """Booking endpoint: called after user selects a provider + slot from FE."""
+    """Booking endpoint: called after user selects a provider + slot + date from FE."""
     orchestrator = OrchestratorV2()
     response = orchestrator.process_booking(
         user_id=request.user_id,
         provider_id=request.provider_id,
         slot=request.slot,
+        booking_date=request.booking_date,
         db=db,
         language=request.language
     )
     return response
+
+@app.get("/chat/{session_id}/history")
+def get_chat_history(session_id: int, db: Session = Depends(get_db)):
+    """Get full chat history for a session."""
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+
+    messages = [
+        {
+            "role": msg.role,
+            "content": msg.content,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None
+        }
+        for msg in session.messages
+    ]
+
+    return {
+        "session_id": session.id,
+        "user_id": session.user_id,
+        "status": session.status,
+        "messages": messages
+    }
 
 @app.post("/update_user_location")
 def update_user_location(request: LocationUpdateRequest, db: Session = Depends(get_db)):
@@ -103,19 +158,14 @@ def update_user_location(request: LocationUpdateRequest, db: Session = Depends(g
 
 @app.post("/sso_login")
 def sso_login(request: SSOLoginRequest, db: Session = Depends(get_db)):
-    """SSO Login & Registration Endpoint:
-    Matches users by google_id or email. If the user doesn't exist, it auto-registers them
-    with fallback coordinates in Islamabad (G-13).
-    """
+    """SSO Login & Registration Endpoint"""
     google_user = request.data.user
-    
-    # Check if user already exists in DB
+
     user = db.query(User).filter(
         (User.google_id == google_user.id) | (User.email == google_user.email)
     ).first()
-    
+
     if not user:
-        # Create a new User
         user = User(
             name=google_user.name,
             email=google_user.email,
@@ -123,17 +173,12 @@ def sso_login(request: SSOLoginRequest, db: Session = Depends(get_db)):
             photo=google_user.photo,
             given_name=google_user.givenName,
             family_name=google_user.familyName,
-            # Assign fallback default location parameters
-            location="G-13",
-            latitude=33.6331,
-            longitude=72.9691
         )
         db.add(user)
         db.commit()
         db.refresh(user)
         message = "User registered successfully via SSO"
     else:
-        # Update existing user profile details from Google
         user.name = google_user.name
         user.photo = google_user.photo
         user.given_name = google_user.givenName
@@ -141,7 +186,7 @@ def sso_login(request: SSOLoginRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
         message = "User logged in successfully via SSO"
-        
+
     return {
         "message": message,
         "user": {

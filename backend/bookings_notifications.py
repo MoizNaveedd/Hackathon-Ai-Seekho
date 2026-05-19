@@ -48,7 +48,14 @@ class BookingDetailResponse(BaseModel):
     user_id: Optional[int] = None
     provider_id: int
     time_slot: str
+    booking_date: Optional[str] = None
     status: str
+    service_type: Optional[str] = None
+    price: Optional[float] = None
+    description: Optional[str] = None
+    feedback: Optional[str] = None
+    customer_feedback: Optional[str] = None
+    customer_rating: Optional[float] = None
     provider: Optional[ProviderSummary] = None
     user: Optional[UserSummary] = None
 
@@ -61,6 +68,19 @@ class BookingListResponse(BaseModel):
     page: int
     limit: int
     total_pages: int
+
+class BookingCancelRequest(BaseModel):
+    user_id: Optional[int] = Field(None, description="ID of the user cancelling (provide one of user_id/provider_id)")
+    provider_id: Optional[int] = Field(None, description="ID of the provider cancelling (provide one of user_id/provider_id)")
+    reason: Optional[str] = Field(None, description="Optional cancellation reason (provider-only — ignored if user cancels)")
+
+
+class BookingCompleteRequest(BaseModel):
+    user_id: Optional[int] = Field(None, description="ID of the user completing (provide one of user_id/provider_id)")
+    provider_id: Optional[int] = Field(None, description="ID of the provider completing (provide one of user_id/provider_id)")
+    feedback: Optional[str] = Field(None, description="Optional feedback comment")
+    rating: Optional[float] = Field(None, ge=1, le=5, description="Optional 1-5 rating (user-only)")
+
 
 class NotificationSendRequest(BaseModel):
     user_id: Optional[int] = Field(None, description="Recipient User ID (optional)")
@@ -309,6 +329,300 @@ def list_bookings(
         "page": page,
         "limit": limit,
         "total_pages": total_pages
+    }
+
+
+@bookings_router.get("/{booking_id}", response_model=dict)
+def get_booking_detail(booking_id: int, db: Session = Depends(get_db)):
+    """Get full detail for a single booking, including customer + feedback nested objects."""
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail=f"Booking {booking_id} not found")
+
+    user = db.query(User).filter(User.id == booking.user_id).first() if booking.user_id else None
+
+    customer = None
+    if user:
+        customer = {
+            "id": f"C{user.id}",
+            "name": user.name,
+            "phone": user.phone,
+            "email": user.email,
+            "address": user.address,
+        }
+
+    feedback = None
+    if booking.customer_feedback or booking.customer_rating is not None:
+        feedback = {
+            "rating": booking.customer_rating,
+            "comment": booking.customer_feedback,
+            "created_at": booking.created_at.isoformat() if booking.created_at else None,
+        }
+
+    return {
+        "success": True,
+        "message": "Booking retrieved successfully",
+        "data": {
+            "id": f"B{booking.id}",
+            "service_type": booking.service_type,
+            "status": booking.status,
+            "date": booking.booking_date,
+            "time": booking.time_slot,
+            "price": booking.price,
+            "description": booking.description,
+            "created_at": booking.created_at.isoformat() if booking.created_at else None,
+            "customer": customer,
+            "feedback": feedback,
+        },
+    }
+
+
+def _booking_start_datetime(booking: Booking) -> Optional[datetime.datetime]:
+    """Parse booking_date + time_slot into a datetime. Returns None if either is missing/unparseable."""
+    if not booking.booking_date or not booking.time_slot:
+        return None
+    raw = f"{booking.booking_date} {booking.time_slot.strip()}"
+    for fmt in ("%Y-%m-%d %I:%M %p", "%Y-%m-%d %H:%M", "%Y-%m-%d %I %p"):
+        try:
+            return datetime.datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _resolve_actor(user_id: Optional[int], provider_id: Optional[int], booking: Booking, db: Session):
+    """Validate that exactly one actor is supplied, the actor exists, and owns the booking.
+
+    Returns (actor_role, user, provider) where actor_role is 'user' or 'provider'.
+    The non-acting party is also returned (for notifications), or None if not present.
+    """
+    if bool(user_id) == bool(provider_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of user_id or provider_id",
+        )
+
+    if user_id:
+        if booking.user_id != user_id:
+            raise HTTPException(status_code=403, detail="This booking does not belong to the user")
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        provider = db.query(Provider).filter(Provider.id == booking.provider_id).first()
+        return "user", user, provider
+
+    if booking.provider_id != provider_id:
+        raise HTTPException(status_code=403, detail="This booking does not belong to the provider")
+    provider = db.query(Provider).filter(Provider.id == provider_id).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    user = db.query(User).filter(User.id == booking.user_id).first() if booking.user_id else None
+    return "provider", user, provider
+
+
+def _restore_slot(provider: Provider, booking: Booking) -> bool:
+    """Put the booking's slot back into the provider's available_slots JSON. Returns True if restored."""
+    if not (booking.booking_date and booking.time_slot):
+        return False
+    try:
+        slots_data = json.loads(provider.available_slots) if provider.available_slots else {}
+    except (json.JSONDecodeError, TypeError):
+        slots_data = {}
+    if isinstance(slots_data, list):
+        slots_data = {booking.booking_date: slots_data}
+
+    day_slots = slots_data.get(booking.booking_date, [])
+    if booking.time_slot in day_slots:
+        return False
+    day_slots.append(booking.time_slot)
+    slots_data[booking.booking_date] = day_slots
+    provider.available_slots = json.dumps(slots_data)
+    return True
+
+
+def _push_and_record(
+    *, db: Session, booking: Booking, recipient_user: Optional[User],
+    recipient_provider: Optional[Provider], notif_user_id: Optional[int],
+    notif_provider_id: Optional[int], title: str, body: str, notif_type: str,
+):
+    """Save a Notification row and dispatch a push to whichever recipient has a device token."""
+    db_notification = Notification(
+        title=title,
+        message=body,
+        type=notif_type,
+        is_read=False,
+        created_at=datetime.datetime.utcnow().isoformat(),
+        user_id=notif_user_id,
+        provider_id=notif_provider_id,
+        booking_id=booking.id,
+    )
+    db.add(db_notification)
+    db.commit()
+
+    token = None
+    if recipient_user and recipient_user.device_token:
+        token = recipient_user.device_token
+    elif recipient_provider and recipient_provider.device_token:
+        token = recipient_provider.device_token
+
+    if not token:
+        return None
+
+    dispatch = trigger_push_notification(
+        device_token=token,
+        title=title,
+        message=body,
+        data={"booking_id": str(booking.id), "type": notif_type},
+    )
+    return {"status": dispatch.status, "service": dispatch.service}
+
+
+@bookings_router.post("/{booking_id}/cancel", response_model=dict)
+def cancel_booking(
+    booking_id: int,
+    request: BookingCancelRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Cancel a booking. Either party can cancel.
+
+    Send exactly one of `user_id` or `provider_id` in the body to identify the actor.
+    - Marks the booking as 'Cancelled'
+    - Restores the time slot to the provider's available_slots
+    - Notifies the other party (DB record + push)
+    """
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail=f"Booking {booking_id} not found")
+
+    if booking.status and booking.status.lower() in ("cancelled", "completed"):
+        raise HTTPException(status_code=400, detail=f"Booking is already {booking.status}")
+
+    actor_role, user, provider = _resolve_actor(request.user_id, request.provider_id, booking, db)
+
+    if actor_role == "user":
+        start_dt = _booking_start_datetime(booking)
+        if start_dt and datetime.datetime.now() >= start_dt:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot cancel after the booking start time",
+            )
+
+    slot_restored = _restore_slot(provider, booking) if provider else False
+
+    booking.status = "Cancelled"
+    db.commit()
+    db.refresh(booking)
+
+    if actor_role == "provider":
+        reason_suffix = f" Reason: {request.reason}" if request.reason else ""
+        title = "Booking Cancelled"
+        body = (
+            f"{provider.name} cancelled your booking on "
+            f"{booking.booking_date} at {booking.time_slot}.{reason_suffix}"
+        )
+        push_result = _push_and_record(
+            db=db, booking=booking, recipient_user=user, recipient_provider=None,
+            notif_user_id=booking.user_id, notif_provider_id=provider.id,
+            title=title, body=body, notif_type="booking_cancellation",
+        )
+    else:
+        actor_name = user.name if user else "The customer"
+        title = "Booking Cancelled"
+        body = (
+            f"{actor_name} cancelled the booking on "
+            f"{booking.booking_date} at {booking.time_slot}."
+        )
+        push_result = _push_and_record(
+            db=db, booking=booking, recipient_user=None, recipient_provider=provider,
+            notif_user_id=user.id if user else None, notif_provider_id=booking.provider_id,
+            title=title, body=body, notif_type="booking_cancellation",
+        )
+
+    return {
+        "message": "Booking cancelled successfully",
+        "booking_id": booking.id,
+        "status": booking.status,
+        "cancelled_by": actor_role,
+        "slot_restored": slot_restored,
+        "push_trigger": push_result,
+    }
+
+
+@bookings_router.post("/{booking_id}/complete", response_model=dict)
+def complete_booking(
+    booking_id: int,
+    request: BookingCompleteRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Mark a booking as completed. Either party can complete.
+
+    Send exactly one of `user_id` or `provider_id` in the body to identify the actor.
+    - Marks the booking as 'Completed' and stores optional feedback
+    - Notifies the other party (DB record + push)
+    """
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail=f"Booking {booking_id} not found")
+
+    if booking.status and booking.status.lower() in ("completed", "cancelled"):
+        raise HTTPException(status_code=400, detail=f"Booking is already {booking.status}")
+
+    actor_role, user, provider = _resolve_actor(request.user_id, request.provider_id, booking, db)
+
+    if actor_role == "provider":
+        start_dt = _booking_start_datetime(booking)
+        if start_dt and datetime.datetime.now() < start_dt:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot mark booking complete before the start time",
+            )
+
+    booking.status = "Completed"
+    if request.feedback:
+        if actor_role == "user":
+            booking.customer_feedback = request.feedback
+        else:
+            booking.feedback = request.feedback
+    if request.rating is not None and actor_role == "user":
+        booking.customer_rating = request.rating
+    db.commit()
+    db.refresh(booking)
+
+    if actor_role == "provider":
+        title = "Booking Completed"
+        provider_name = provider.name if provider else "The provider"
+        body = (
+            f"{provider_name} marked the booking on "
+            f"{booking.booking_date} at {booking.time_slot} as completed."
+        )
+        push_result = _push_and_record(
+            db=db, booking=booking, recipient_user=user, recipient_provider=None,
+            notif_user_id=booking.user_id, notif_provider_id=provider.id if provider else None,
+            title=title, body=body, notif_type="booking_completion",
+        )
+    else:
+        user_name = user.name if user else "The customer"
+        title = "Booking Completed"
+        body = (
+            f"{user_name} marked the booking on "
+            f"{booking.booking_date} at {booking.time_slot} as completed."
+        )
+        push_result = _push_and_record(
+            db=db, booking=booking, recipient_user=None, recipient_provider=provider,
+            notif_user_id=user.id if user else None, notif_provider_id=booking.provider_id,
+            title=title, body=body, notif_type="booking_completion",
+        )
+
+    return {
+        "message": "Booking completed successfully",
+        "booking_id": booking.id,
+        "status": booking.status,
+        "completed_by": actor_role,
+        "feedback": booking.feedback,
+        "customer_feedback": booking.customer_feedback,
+        "push_trigger": push_result,
     }
 
 
