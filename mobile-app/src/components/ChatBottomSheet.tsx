@@ -805,7 +805,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
 
                 <ScrollView style={{ width: '100%', maxHeight: 300 }} showsVerticalScrollIndicator={false}>
                   {selectedWhyHimProvider.smart_match?.match_reasons?.map((reason: any, idx: number) => {
-                    let iconName = 'done';
+                    let iconName: any = 'done';
                     if (reason.factor === 'proximity') iconName = 'location-on';
                     else if (reason.factor === 'price') iconName = 'payments';
                     else if (reason.factor === 'rating') iconName = 'star';
