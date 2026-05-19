@@ -486,7 +486,12 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                 {msg.selectable && msg.providers && msg.providers.length > 0 && (
                   <View style={styles.providersContainer}>
                     <Text style={styles.providersHeader}>Available Providers</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providersScroll}>
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false} 
+                      style={{ marginHorizontal: -16 }}
+                      contentContainerStyle={styles.providersScroll}
+                    >
                       {msg.providers.map(p => (
                         <View key={p.id} style={styles.providerCard}>
                           <View style={styles.providerCardHeader}>
@@ -547,7 +552,6 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                     <TouchableOpacity 
                       style={styles.bookingRow}
                       onPress={() => {
-                        onClose();
                         router.push({
                           pathname: '/provider-profile',
                           params: {
@@ -812,7 +816,7 @@ const styles = StyleSheet.create({
   audioDuration: { fontFamily: 'Inter_400Regular', fontSize: 10, minWidth: 28 },
   providersContainer: { marginTop: 12, marginBottom: 8 },
   providersHeader: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#00595c', marginLeft: 4, marginBottom: 8 },
-  providersScroll: { paddingHorizontal: 4, paddingBottom: 8, gap: 12 },
+  providersScroll: { paddingHorizontal: 16, paddingBottom: 8, gap: 12 },
   providerCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, width: 240, borderWidth: 1, borderColor: '#d0d7d7', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   providerCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   providerName: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#1a1a2e', flex: 1, marginRight: 8 },
