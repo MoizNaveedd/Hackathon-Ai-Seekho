@@ -242,13 +242,19 @@ export default function ProvidersMapScreen() {
                   </View>
 
                   <View style={styles.cardDetails}>
-                    <View style={styles.detailRow}>
-                      <MaterialIcons name="star" size={16} color="#FFB300" />
-                      <Text style={styles.cardRating}>
-                        {item.rating.toFixed(1)}
-                      </Text>
-                      <Text style={styles.cardLocation}>
-                        · {item.location || 'Islamabad'}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <View style={styles.detailRow}>
+                        <MaterialIcons name="star" size={16} color="#FFB300" />
+                        <Text style={styles.cardRating}>
+                          {item.rating.toFixed(1)}
+                        </Text>
+                        <Text style={styles.cardLocation}>
+                          · {item.location || 'Islamabad'}
+                        </Text>
+                      </View>
+                      
+                      <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 12, color: '#00595c' }}>
+                        {item.hourly_rate ? `Rs ${item.hourly_rate} Base Fee` : 'Rs 1,200 Base Fee'}
                       </Text>
                     </View>
                     
