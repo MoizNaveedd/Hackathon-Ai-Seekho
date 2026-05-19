@@ -445,6 +445,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
             style={styles.messages}
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             {/* Greeting chip */}
             <View style={styles.systemChip}>
@@ -491,6 +492,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                       showsHorizontalScrollIndicator={false} 
                       style={{ marginHorizontal: -16 }}
                       contentContainerStyle={styles.providersScroll}
+                      keyboardShouldPersistTaps="handled"
                     >
                       {msg.providers.map(p => (
                         <View key={p.id} style={styles.providerCard}>
