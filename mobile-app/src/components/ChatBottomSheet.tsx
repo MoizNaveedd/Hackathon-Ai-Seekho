@@ -6,7 +6,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { transcribeVoiceLive } from '../services/transcriptionService';
 import { chat, type ChatResponse, type Provider } from '../services/apiService';
 import { scheduleHeadsUpNotification } from '../services/notificationService';
@@ -131,6 +131,7 @@ function VoiceMessagePlayer({ uri, isUser }: { uri: string; isUser: boolean }) {
 export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, userId, providerMode = false, providerName = "Ahmed Khan", messages, setMessages, onNavigateToBookings, userLocation, locationName }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const navigation = useNavigation();
   const slideAnim = useRef(new Animated.Value(600)).current;
   const keyboardAnim = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);
@@ -181,6 +182,15 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       sessionIdRef.current = null;
     }
   }, [messages.length]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Prevent going back when the sheet is visible
+      e.preventDefault();
+    });
+    return unsubscribe;
+  }, [navigation, visible]);
 
   useEffect(() => {
     if (isRecording) {
@@ -396,7 +406,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={() => {}}>
       <View style={styles.backdrop}>
         <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} />
 
@@ -488,7 +498,16 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                             <Text style={[styles.providerLocation, { marginBottom: 0 }]}>
-                              <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.dista                           <View style={styles.slotsContainer}>
+                              <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.distance_km} km)
+                            </Text>
+                            {p.hourly_rate !== undefined && (
+                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#00595c' }}>
+                                Rs. {p.hourly_rate}/hr
+                              </Text>
+                            )}
+                          </View>
+                          <Text style={styles.providerSlotsTitle}>Available Slots:</Text>
+                          <View style={styles.slotsContainer}>
                             {(Array.isArray(p.available_slots)
                               ? p.available_slots
                               : Object.values(p.available_slots).flat()
@@ -502,13 +521,6 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                                   const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text: selectionText, timestamp: new Date() };
                                   const updatedHistory = [...messages, userMsg];
                                   setMessages(updatedHistory);
-                                  fetchReply(selectionText, updatedHistory, { provider_id: p.id, slot, date: p.booking_date || new Date().toISOString().split('T')[0] });
-                                }}
-                              >
-                                <Text style={[styles.slotBtnText, isOldMessage && styles.disabledSlotBtnText]}>{slot}</Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>y);
                                   fetchReply(selectionText, updatedHistory, { provider_id: p.id, slot, date: p.booking_date || new Date().toISOString().split('T')[0] });
                                 }}
                               >

@@ -449,6 +449,9 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
 
   useEffect(() => {
     const handleBackPress = () => {
+      if (chatVisible) {
+        return true; // handled, don't allow back gesture when chat is open
+      }
       if (activeTab === 'rate-service') {
         setActiveTab('bookings');
         setRatingBooking(null);
@@ -473,7 +476,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => subscription.remove();
-  }, [activeTab]);
+  }, [activeTab, chatVisible]);
 
   useEffect(() => {
     if (isRecording) {
@@ -749,33 +752,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
            
         </TouchableOpacity>
 
-        {/* Recommended Pro Card */}
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 18, color: '#1a1a2e', marginBottom: 12 }}>
-             Specialist Near You
-          </Text>
-          <TouchableOpacity 
-            style={[styles.aiCard, { backgroundColor: '#fff', borderColor: '#bec9c9', borderWidth: 1, marginBottom: 0 }]}
-            onPress={() => router.push('/provider-profile')}
-          >
-            <View style={styles.aiCardLeft}>
-              <Image 
-                source={require('../../assets/images/ali_profile.png')}
-                style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: '#00595c' }}
-              />
-              <View style={{ flexShrink: 1 }}>
-                <Text style={[styles.aiCardTitle, { fontSize: 15, color: '#1a1a2e' }]}>Ali AC Services</Text>
-                <Text style={[styles.aiCardSubtitle, { fontSize: 12, color: '#3e4949', marginTop: 2 }]} numberOfLines={1}>
-                  ⭐ 4.8 · Inverter AC Expert · 2.4km
-                </Text>
-              </View>
-            </View>
-            <View style={{ backgroundColor: '#e8fff5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#005c3e' }}>Profile</Text>
-              <MaterialIcons name="chevron-right" size={14} color="#005c3e" />
-            </View>
-          </TouchableOpacity>
-        </View>
+
 
         {/* Providers near you section */}
         <View style={{ marginBottom: 32 }}>
@@ -857,7 +834,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                       </Text>
                     </View>
                     <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 11, color: '#3e4949' }}>
-                      {prov.location || 'Islamabad'}
+                      {prov.location || 'Islamabad'}{prov.distance_km !== null && prov.distance_km !== undefined ? ` (${prov.distance_km.toFixed(1)} km)` : ''}
                     </Text>
                   </View>
                 </TouchableOpacity>
