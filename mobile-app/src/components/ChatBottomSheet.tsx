@@ -432,9 +432,11 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
               <Text style={styles.systemChipText}>Chat started · {formatTime(new Date())}</Text>
             </View>
 
-            {messages.map(msg => (
-              <React.Fragment key={`fragment-${msg.id}`}>
-                <View style={[styles.bubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+            {messages.map((msg, index) => {
+              const isOldMessage = index < messages.length - 1;
+              return (
+                <React.Fragment key={`fragment-${msg.id}`}>
+                  <View style={[styles.bubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
                   {msg.role === 'assistant' && (
                     <View style={[styles.aiBubbleAvatar, providerMode && { backgroundColor: '#e6f4fe', borderColor: '#b3dbf8' }]}>
                       <MaterialIcons name={providerMode ? "person" : "smart-toy"} size={14} color={providerMode ? "#004B87" : "#00595c"} />
@@ -490,7 +492,8 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                             {p.available_slots.map(slot => (
                               <TouchableOpacity 
                                 key={slot} 
-                                style={styles.slotBtn}
+                                style={[styles.slotBtn, isOldMessage && styles.disabledSlotBtn]}
+                                disabled={isOldMessage}
                                 onPress={() => {
                                   const selectionText = `I want to book ${p.name} at ${slot}`;
                                   const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text: selectionText, timestamp: new Date() };
@@ -499,7 +502,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                                   fetchReply(selectionText, updatedHistory, { provider_id: p.id, slot, date: p.booking_date || new Date().toISOString().split('T')[0] });
                                 }}
                               >
-                                <Text style={styles.slotBtnText}>{slot}</Text>
+                                <Text style={[styles.slotBtnText, isOldMessage && styles.disabledSlotBtnText]}>{slot}</Text>
                               </TouchableOpacity>
                             ))}
                           </View>
@@ -551,18 +554,27 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                       <Text style={[styles.bookingValue, { color: '#00595c', fontFamily: 'PlusJakartaSans_600SemiBold' }]}>{msg.bookingProposal.price}</Text>
                     </View>
                     <View style={styles.bookingActions}>
-                      <TouchableOpacity style={styles.rejectBtn} onPress={() => handleDeclineBooking(msg.id)}>
-                        <Text style={styles.rejectBtnText}>Decline</Text>
+                      <TouchableOpacity 
+                        style={[styles.rejectBtn, isOldMessage && styles.disabledRejectBtn]} 
+                        disabled={isOldMessage}
+                        onPress={() => handleDeclineBooking(msg.id)}
+                      >
+                        <Text style={[styles.rejectBtnText, isOldMessage && styles.disabledRejectBtnText]}>Decline</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.confirmBtn} onPress={() => handleConfirmBooking(msg.id, msg.bookingProposal!)}>
-                        <MaterialIcons name="check" size={16} color="#fff" />
-                        <Text style={styles.confirmBtnText}>Confirm Booking</Text>
+                      <TouchableOpacity 
+                        style={[styles.confirmBtn, isOldMessage && styles.disabledConfirmBtn]} 
+                        disabled={isOldMessage}
+                        onPress={() => handleConfirmBooking(msg.id, msg.bookingProposal!)}
+                      >
+                        <MaterialIcons name="check" size={16} color="#fff" style={isOldMessage && { opacity: 0.5 }} />
+                        <Text style={[styles.confirmBtnText, isOldMessage && styles.disabledConfirmBtnText]}>Confirm Booking</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                 )}
-              </React.Fragment>
-            ))}
+                </React.Fragment>
+              );
+            })}
 
             {/* Typing indicator */}
             {isTyping && (
@@ -789,4 +801,10 @@ const styles = StyleSheet.create({
   slotsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   slotBtn: { backgroundColor: '#f0fdfa', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#b3e8d8' },
   slotBtnText: { fontFamily: 'Inter_500Medium', fontSize: 11, color: '#00595c' },
+  disabledSlotBtn: { backgroundColor: '#f0f2f2', borderColor: '#d0d7d7', opacity: 0.6 },
+  disabledSlotBtnText: { color: '#6e7979' },
+  disabledRejectBtn: { borderColor: '#d0d7d7', opacity: 0.5 },
+  disabledRejectBtnText: { color: '#9eabab' },
+  disabledConfirmBtn: { backgroundColor: '#bec9c9', opacity: 0.6 },
+  disabledConfirmBtnText: { color: '#fff' },
 });
