@@ -72,6 +72,9 @@ export interface ChatRequest {
   selected_provider_id?: number | null;
   selected_slot?: string | null;
   selected_date?: string | null;
+  latitude?: number;
+  longitude?: number;
+  location_name?: string | null;
 }
 
 export interface Provider {

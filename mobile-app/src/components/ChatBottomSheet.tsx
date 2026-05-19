@@ -43,6 +43,8 @@ interface Props {
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   onNavigateToBookings?: () => void;
+  userLocation?: { latitude: number; longitude: number } | null;
+  locationName?: string;
 }
 
 // ─── Voice Player Component ──────────────────────────────────────────────────
@@ -125,7 +127,7 @@ function VoiceMessagePlayer({ uri, isUser }: { uri: string; isUser: boolean }) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, userId, providerMode = false, providerName = "Ahmed Khan", messages, setMessages, onNavigateToBookings }: Props) {
+export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, userId, providerMode = false, providerName = "Ahmed Khan", messages, setMessages, onNavigateToBookings, userLocation, locationName }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const slideAnim = useRef(new Animated.Value(600)).current;
@@ -259,6 +261,12 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
           user_id: userId ?? null,
           session_id: sessionIdRef.current,
         };
+
+        if (userLocation) {
+          request.latitude = userLocation.latitude;
+          request.longitude = userLocation.longitude;
+          request.location_name = (locationName && locationName !== "Finding location..." && locationName !== "Location denied" && locationName !== "Location error") ? locationName : "Unknown Location";
+        }
 
         if (selection) {
           request.selected_provider_id = selection.provider_id;

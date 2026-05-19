@@ -301,8 +301,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       if (reverseGeocode && reverseGeocode.length > 0) {
         const { city, district, region, subregion } = reverseGeocode[0];
         const area = district || subregion || city || 'Unknown Area';
-        const reg = region ? `, ${region}` : '';
-        setLocationName(`${area}${reg}`);
+        setLocationName(area);
       } else {
         setLocationName("Location found");
       }
@@ -1782,6 +1781,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       messages={chatProviderMode ? providerMessages : assistantMessages}
       setMessages={chatProviderMode ? setProviderMessages : setAssistantMessages}
       onNavigateToBookings={() => setActiveTab('bookings')}
+      userLocation={userLocation}
+      locationName={locationName}
     />
 
 
