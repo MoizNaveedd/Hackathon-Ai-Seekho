@@ -20,6 +20,8 @@ export interface Message {
   timestamp: Date;
   selectable?: boolean;
   providers?: Provider[] | null;
+  bookingProposal?: BookingProposal | null;
+  proposalStatus?: 'pending' | 'confirmed' | 'declined';
 }
 
 interface BookingProposal {
@@ -293,7 +295,9 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
         text: reply, 
         timestamp: new Date(),
         selectable,
-        providers
+        providers,
+        bookingProposal: proposal,
+        proposalStatus: proposal ? 'pending' : undefined
       };
       setMessages(prev => [...prev, aiMsg]);
       if (proposal) setBookingProposal(proposal);
@@ -349,7 +353,12 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
     fetchReply(text, updatedHistory);
   }
 
-  function handleConfirmBooking() {
+  function handleDeclineBooking(msgId: string) {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, proposalStatus: 'declined' } : m));
+    setBookingProposal(null);
+  }
+
+  function handleConfirmBooking(msgId: string, proposal: BookingProposal) {
     setBookingConfirmed(true);
     const confirmMsg: Message = {
       id: `u${Date.now()}`,
@@ -360,17 +369,20 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
     const aiConfirmMsg: Message = {
       id: `a${Date.now()}`,
       role: 'assistant',
-      text: `🎉 Your booking is confirmed! ${bookingProposal?.provider} will arrive at ${bookingProposal?.time}. You'll receive a notification 30 mins before arrival.`,
+      text: `🎉 Your booking is confirmed! ${proposal.provider} will arrive at ${proposal.time}. You'll receive a notification 30 mins before arrival.`,
       timestamp: new Date(),
     };
-    setMessages(prev => [...prev, confirmMsg, aiConfirmMsg]);
+    setMessages(prev => {
+      const updated = prev.map(m => m.id === msgId ? { ...m, proposalStatus: 'confirmed' } : m);
+      return [...updated, confirmMsg, aiConfirmMsg];
+    });
     setBookingProposal(null);
     
     // Trigger local heads-up notification
     scheduleHeadsUpNotification(
       'Booking Confirmed!',
-      `${bookingProposal?.provider} is scheduled to arrive at ${bookingProposal?.time}.`,
-      { service: bookingProposal?.service }
+      `${proposal.provider} is scheduled to arrive at ${proposal.time}.`,
+      { service: proposal.service }
     );
   }
 
@@ -490,6 +502,59 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                     </ScrollView>
                   </View>
                 )}
+
+                {msg.bookingProposal && msg.proposalStatus === 'pending' && (
+                  <View style={styles.bookingCard}>
+                    <View style={styles.bookingCardHeader}>
+                      <MaterialIcons name="event-available" size={20} color="#00595c" />
+                      <Text style={styles.bookingCardTitle}>Booking Proposal</Text>
+                    </View>
+                    <View style={styles.bookingRow}>
+                      <Text style={styles.bookingLabel}>Service</Text>
+                      <Text style={styles.bookingValue}>{msg.bookingProposal.service}</Text>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.bookingRow}
+                      onPress={() => {
+                        onClose();
+                        router.push({
+                          pathname: '/provider-profile',
+                          params: {
+                            id: msg.bookingProposal!.provider_id?.toString() || 'unknown',
+                            name: msg.bookingProposal!.provider,
+                            service: msg.bookingProposal!.service,
+                            price: msg.bookingProposal!.price
+                          }
+                        });
+                      }}
+                    >
+                      <Text style={styles.bookingLabel}>Provider</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                        <Text style={[styles.bookingValue, { color: '#00595c', textDecorationLine: 'underline', fontFamily: 'Inter_600SemiBold' }]}>
+                          {msg.bookingProposal.provider}
+                        </Text>
+                        <MaterialIcons name="chevron-right" size={16} color="#00595c" />
+                      </View>
+                    </TouchableOpacity>
+                    <View style={styles.bookingRow}>
+                      <Text style={styles.bookingLabel}>Time</Text>
+                      <Text style={styles.bookingValue}>{msg.bookingProposal.time}</Text>
+                    </View>
+                    <View style={[styles.bookingRow, { borderBottomWidth: 0 }]}>
+                      <Text style={styles.bookingLabel}>Estimated Cost</Text>
+                      <Text style={[styles.bookingValue, { color: '#00595c', fontFamily: 'PlusJakartaSans_600SemiBold' }]}>{msg.bookingProposal.price}</Text>
+                    </View>
+                    <View style={styles.bookingActions}>
+                      <TouchableOpacity style={styles.rejectBtn} onPress={() => handleDeclineBooking(msg.id)}>
+                        <Text style={styles.rejectBtnText}>Decline</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.confirmBtn} onPress={() => handleConfirmBooking(msg.id, msg.bookingProposal!)}>
+                        <MaterialIcons name="check" size={16} color="#fff" />
+                        <Text style={styles.confirmBtnText}>Confirm Booking</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </React.Fragment>
             ))}
 
@@ -504,60 +569,6 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                   <Text style={[styles.typingText, providerMode && { color: '#004B87' }]}>
                     {providerMode ? `${providerName} is typing...` : "Karigar AI is thinking..."}
                   </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Booking Proposal Card */}
-            {bookingProposal && !bookingConfirmed && (
-              <View style={styles.bookingCard}>
-                <View style={styles.bookingCardHeader}>
-                  <MaterialIcons name="event-available" size={20} color="#00595c" />
-                  <Text style={styles.bookingCardTitle}>Booking Proposal</Text>
-                </View>
-                <View style={styles.bookingRow}>
-                  <Text style={styles.bookingLabel}>Service</Text>
-                  <Text style={styles.bookingValue}>{bookingProposal.service}</Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.bookingRow}
-                  onPress={() => {
-                    onClose();
-                    router.push({
-                      pathname: '/provider-profile',
-                      params: {
-                        id: bookingProposal.provider_id?.toString() || 'unknown',
-                        name: bookingProposal.provider,
-                        service: bookingProposal.service,
-                        price: bookingProposal.price
-                      }
-                    });
-                  }}
-                >
-                  <Text style={styles.bookingLabel}>Provider</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                    <Text style={[styles.bookingValue, { color: '#00595c', textDecorationLine: 'underline', fontFamily: 'Inter_600SemiBold' }]}>
-                      {bookingProposal.provider}
-                    </Text>
-                    <MaterialIcons name="chevron-right" size={16} color="#00595c" />
-                  </View>
-                </TouchableOpacity>
-                <View style={styles.bookingRow}>
-                  <Text style={styles.bookingLabel}>Time</Text>
-                  <Text style={styles.bookingValue}>{bookingProposal.time}</Text>
-                </View>
-                <View style={[styles.bookingRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.bookingLabel}>Estimated Cost</Text>
-                  <Text style={[styles.bookingValue, { color: '#00595c', fontFamily: 'PlusJakartaSans_600SemiBold' }]}>{bookingProposal.price}</Text>
-                </View>
-                <View style={styles.bookingActions}>
-                  <TouchableOpacity style={styles.rejectBtn} onPress={() => setBookingProposal(null)}>
-                    <Text style={styles.rejectBtnText}>Decline</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmBooking}>
-                    <MaterialIcons name="check" size={16} color="#fff" />
-                    <Text style={styles.confirmBtnText}>Confirm Booking</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             )}
