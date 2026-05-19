@@ -134,13 +134,19 @@ export default function ProviderProfile() {
   const params = useLocalSearchParams();
 
   // Dynamic values or defaults for Ali AC Services
-  const providerId = params.id || 'ali';
+  const providerIdRaw = params.id || 'ali';
+  const providerId = Array.isArray(providerIdRaw) ? providerIdRaw[0] : providerIdRaw;
   const [providerDetails, setProviderDetails] = useState<Provider | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const providerName = providerDetails?.name || (params.name as string) || 'Ali AC Services';
-  const providerService = providerDetails?.service_type || (params.service as string) || 'Inverter & Central Cooling Specialist';
-  const providerPrice = providerDetails?.hourly_rate ? `Rs ${providerDetails.hourly_rate} Base Fee` : ((params.price as string) || 'Rs 1,500 Base Fee');
+  const providerNameRaw = providerDetails?.name || params.name || 'Ali AC Services';
+  const providerName = Array.isArray(providerNameRaw) ? providerNameRaw[0] : providerNameRaw;
+
+  const providerServiceRaw = providerDetails?.service_type || params.service || 'Inverter & Central Cooling Specialist';
+  const providerService = Array.isArray(providerServiceRaw) ? providerServiceRaw[0] : providerServiceRaw;
+
+  const providerPriceRaw = providerDetails?.hourly_rate ? `Rs ${providerDetails.hourly_rate} Base Fee` : (params.price || 'Rs 1,500 Base Fee');
+  const providerPrice = Array.isArray(providerPriceRaw) ? providerPriceRaw[0] : providerPriceRaw;
 
   useEffect(() => {
     const numericId = parseInt(providerId as string, 10);
@@ -178,7 +184,7 @@ export default function ProviderProfile() {
     ? `${providerDetails.distance_km.toFixed(1)} km`
     : (params.distance_km ? `${Number(params.distance_km).toFixed(1)} km` : '2.4 km');
 
-  const avatarSource = (providerName.includes("Ali") || providerId === 'ali' || providerId === '37' || providerId === 37)
+  const avatarSource = (providerName.includes("Ali") || providerId === 'ali' || providerId === '37')
     ? require('../../assets/images/ali_profile.png')
     : { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(providerName)}&background=00595c&color=fff&size=200` };
 
@@ -303,9 +309,10 @@ export default function ProviderProfile() {
       setBookingSuccess(true);
       
       // Trigger notification
+      const dateLabel = dynamicDates.find(d => d.dateString === selectedDate)?.label || selectedDate;
       scheduleHeadsUpNotification(
         'Booking Confirmed!',
-        `${providerName} is scheduled for ${selectedDate === 'today' ? 'Today' : 'Tomorrow'} at ${selectedSlot}.`,
+        `${providerName} is scheduled for ${dateLabel} at ${selectedSlot}.`,
         { service: providerService }
       );
       
@@ -561,7 +568,7 @@ export default function ProviderProfile() {
         <Animated.View style={{ transform: [{ scale: scaleButton }], flex: 1 }}>
           <TouchableOpacity style={styles.bookBtn} onPress={handleBookingPress} activeOpacity={0.9}>
             <MaterialIcons name="event-available" size={20} color="#fff" />
-            <Text style={styles.bookBtnText}>Book {providerName.split(' ')[0]} Now</Text>
+            <Text style={styles.bookBtnText}>Book Now</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
