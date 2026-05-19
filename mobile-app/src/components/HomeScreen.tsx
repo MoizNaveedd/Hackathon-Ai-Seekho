@@ -797,11 +797,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                     padding: 14,
                     borderWidth: 1,
                     borderColor: '#bec9c9',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 4,
-                    elevation: 2,
+               
                   }}
                   onPress={() => router.push({
                     pathname: '/provider-profile',
@@ -913,11 +909,11 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 4,
-                      shadowColor: '#000',
+                       
                       shadowOffset: { width: 0, height: 2 },
                       shadowOpacity: 0.1,
                       shadowRadius: 3,
-                      elevation: 2,
+                      elevation:1,
                     }}>
                       <MaterialIcons name="construction" size={12} color="#00595c" />
                       <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 10, color: '#00595c' }}>
@@ -2469,11 +2465,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#f3f5f5',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
   micActive: {
     backgroundColor: '#ffdad6',
@@ -2659,11 +2657,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#f3f5f5',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
   },
   statValue: {
     fontFamily: 'PlusJakartaSans_600SemiBold',
