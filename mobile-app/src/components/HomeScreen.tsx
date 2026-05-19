@@ -10,7 +10,7 @@ import ChatBottomSheet, { Message } from './ChatBottomSheet';
 import { transcribeVoiceLive } from '../services/transcriptionService';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { getUserBookings, cancelBooking, completeBooking } from '../services/apiService';
+import { getUserBookings, cancelBooking, completeBooking, getProviders, Provider } from '../services/apiService';
 import { scheduleHeadsUpNotification } from '../services/notificationService';
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '[GCP_API_KEY]';
@@ -24,6 +24,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   const [locationName, setLocationName] = useState("Finding location...");
   const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -311,6 +313,34 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       setLocationName("Location error");
     }
   };
+
+  const fetchProvidersData = async (lat?: number, lng?: number) => {
+    setIsLoadingProviders(true);
+    try {
+      const res = await getProviders({
+        latitude: lat,
+        longitude: lng,
+        limit: 10
+      });
+      if (res && res.providers) {
+        const validProviders = res.providers.filter(p => p.latitude !== null && p.longitude !== null && p.latitude !== undefined && p.longitude !== undefined);
+        setProviders(validProviders);
+      }
+    } catch (error) {
+      console.error("Failed to fetch providers in HomeScreen:", error);
+    } finally {
+      setIsLoadingProviders(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userLocation) {
+      fetchProvidersData(userLocation.latitude, userLocation.longitude);
+    } else {
+      fetchProvidersData();
+    }
+  }, [userLocation]);
+
 
   const [pulseAnim] = useState(new Animated.Value(1));
   const router = useRouter();
@@ -746,6 +776,205 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* Providers near you section */}
+        <View style={{ marginBottom: 32 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 18, color: '#1a1a2e' }}>
+              Providers near you
+            </Text>
+            <TouchableOpacity onPress={() => router.push({
+              pathname: '/providers-map',
+              params: {
+                latitude: userLocation?.latitude?.toString() || '',
+                longitude: userLocation?.longitude?.toString() || ''
+              }
+            })}>
+              <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#00595c' }}>
+                View Map
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Dynamic Providers Cards List */}
+          {isLoadingProviders ? (
+            <ActivityIndicator size="small" color="#00595c" style={{ marginVertical: 20 }} />
+          ) : providers.length === 0 ? (
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 14, color: '#6e7979', textAlign: 'center', marginVertical: 10 }}>
+              No providers found nearby.
+            </Text>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 12 }}>
+              {providers.slice(0, 5).map((prov) => (
+                <TouchableOpacity
+                  key={prov.id}
+                  style={{
+                    width: 220,
+                    backgroundColor: '#fff',
+                    borderRadius: 16,
+                    padding: 14,
+                    borderWidth: 1,
+                    borderColor: '#bec9c9',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 4,
+                    elevation: 2,
+                  }}
+                  onPress={() => router.push({
+                    pathname: '/provider-profile',
+                    params: {
+                      id: prov.id.toString(),
+                      name: prov.name,
+                      service: prov.service_type || 'Specialist',
+                      price: prov.hourly_rate ? `Rs ${prov.hourly_rate} Base Fee` : 'Rs 1,200 Base Fee'
+                    }
+                  })}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <Image
+                      source={
+                        prov.name.includes("Ali") 
+                          ? require('../../assets/images/ali_profile.png') 
+                          : { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(prov.name)}&background=00595c&color=fff` }
+                      }
+                      style={{ width: 40, height: 40, borderRadius: 20 }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#1a1a2e' }} numberOfLines={1}>
+                        {prov.name}
+                      </Text>
+                      <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 11, color: '#6e7979' }} numberOfLines={1}>
+                        {prov.service_type || 'Specialist'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <MaterialIcons name="star" size={16} color="#FFB300" />
+                      <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 12, color: '#1a1a2e' }}>
+                        {prov.rating.toFixed(1)}
+                      </Text>
+                    </View>
+                    <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 11, color: '#3e4949' }}>
+                      {prov.location || 'Islamabad'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* Map Component Preview */}
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push({
+              pathname: '/providers-map',
+              params: {
+                latitude: userLocation?.latitude?.toString() || '',
+                longitude: userLocation?.longitude?.toString() || ''
+              }
+            })}
+            style={{
+              height: 180,
+              borderRadius: 16,
+              overflow: 'hidden',
+              borderWidth: 1,
+              borderColor: '#bec9c9',
+              marginTop: 8,
+              position: 'relative',
+            }}
+          >
+            {userLocation ? (
+              <MapView
+                scrollEnabled={false}
+                zoomEnabled={false}
+                rotateEnabled={false}
+                pitchEnabled={false}
+                style={StyleSheet.absoluteFillObject}
+                initialRegion={{
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                  latitudeDelta: 0.04,
+                  longitudeDelta: 0.04,
+                }}
+              >
+                {/* User Marker */}
+                <Marker
+                  coordinate={{
+                    latitude: userLocation.latitude,
+                    longitude: userLocation.longitude,
+                  }}
+                  title="Your Location"
+                >
+                  <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#00595c', borderWidth: 2, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 3 }} />
+                </Marker>
+
+                {/* Nearby Provider Markers */}
+                {providers.filter(p => p.latitude && p.longitude).map((prov) => (
+                  <Marker
+                    key={prov.id}
+                    coordinate={{
+                      latitude: prov.latitude!,
+                      longitude: prov.longitude!,
+                    }}
+                    title={prov.name}
+                    description={prov.service_type}
+                  >
+                    <View style={{
+                      backgroundColor: '#fff',
+                      borderRadius: 20,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderWidth: 1.5,
+                      borderColor: '#00595c',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 3,
+                      elevation: 2,
+                    }}>
+                      <MaterialIcons name="construction" size={12} color="#00595c" />
+                      <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 10, color: '#00595c' }}>
+                        {prov.name.split(' ')[0]}
+                      </Text>
+                    </View>
+                  </Marker>
+                ))}
+              </MapView>
+            ) : (
+              <View style={{ flex: 1, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#00595c" />
+                <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: '#6e7979', marginTop: 8 }}>
+                  Loading map preview...
+                </Text>
+              </View>
+            )}
+
+            {/* Map Overlay Badge */}
+            <View style={{
+              position: 'absolute',
+              bottom: 12,
+              right: 12,
+              backgroundColor: 'rgba(0, 89, 92, 0.9)',
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 20,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+              <MaterialIcons name="fullscreen" size={16} color="#fff" />
+              <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#fff' }}>
+                Tap to Expand
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
 
         {/* Popular Services Grid */}
         <View style={styles.popularSection}>

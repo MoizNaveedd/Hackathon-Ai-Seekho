@@ -82,10 +82,14 @@ export interface Provider {
   name: string;
   location: string;
   rating: number;
-  distance_km: number;
+  distance_km: number | null;
   hourly_rate?: number;
   booking_date?: string;
-  available_slots: string[];
+  available_slots: string[] | { [date: string]: string[] };
+  available_dates?: string[];
+  latitude?: number | null;
+  longitude?: number | null;
+  service_type?: string;
 }
 
 export interface ChatState {
@@ -263,3 +267,49 @@ export async function cancelBooking(bookingId: number, userId: number, reason?: 
 export async function completeBooking(bookingId: number, userId: number, rating?: number, feedback?: string): Promise<void> {
   await post<void>(`/bookings/${bookingId}/complete`, { user_id: userId, rating: rating || null, feedback: feedback || null });
 }
+
+export interface ProviderListResponse {
+  providers: Provider[];
+  total_count: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+/**
+ * GET /providers
+ * Fetches the list of service providers, optionally sorted by distance if coordinates are provided.
+ */
+export async function getProviders(params?: {
+  service_type?: string;
+  location?: string;
+  min_rating?: number;
+  latitude?: number;
+  longitude?: number;
+  max_distance_km?: number;
+  booking_date?: string;
+  sort_by?: 'rating' | 'distance' | 'name';
+  page?: number;
+  limit?: number;
+}): Promise<ProviderListResponse> {
+  let query = "";
+  if (params) {
+    const parts: string[] = [];
+    if (params.service_type) parts.push(`service_type=${encodeURIComponent(params.service_type)}`);
+    if (params.location) parts.push(`location=${encodeURIComponent(params.location)}`);
+    if (params.min_rating !== undefined) parts.push(`min_rating=${params.min_rating}`);
+    if (params.latitude !== undefined && params.latitude !== null) parts.push(`latitude=${params.latitude}`);
+    if (params.longitude !== undefined && params.longitude !== null) parts.push(`longitude=${params.longitude}`);
+    if (params.max_distance_km !== undefined) parts.push(`max_distance_km=${params.max_distance_km}`);
+    if (params.booking_date) parts.push(`booking_date=${params.booking_date}`);
+    if (params.sort_by) parts.push(`sort_by=${params.sort_by}`);
+    if (params.page !== undefined) parts.push(`page=${params.page}`);
+    if (params.limit !== undefined) parts.push(`limit=${params.limit}`);
+    
+    if (parts.length > 0) {
+      query = "?" + parts.join("&");
+    }
+  }
+  return get<ProviderListResponse>(`/providers${query}`);
+}
+

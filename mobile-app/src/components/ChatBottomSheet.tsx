@@ -488,17 +488,11 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                             <Text style={[styles.providerLocation, { marginBottom: 0 }]}>
-                              <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.distance_km} km)
-                            </Text>
-                            {p.hourly_rate !== undefined && (
-                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#00595c' }}>
-                                Rs. {p.hourly_rate}/hr
-                              </Text>
-                            )}
-                          </View>
-                          <Text style={styles.providerSlotsTitle}>Available Slots:</Text>
-                          <View style={styles.slotsContainer}>
-                            {p.available_slots.map(slot => (
+                              <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.dista                           <View style={styles.slotsContainer}>
+                            {(Array.isArray(p.available_slots)
+                              ? p.available_slots
+                              : Object.values(p.available_slots).flat()
+                            ).map((slot: string) => (
                               <TouchableOpacity 
                                 key={slot} 
                                 style={[styles.slotBtn, isOldMessage && styles.disabledSlotBtn]}
@@ -508,6 +502,13 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                                   const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text: selectionText, timestamp: new Date() };
                                   const updatedHistory = [...messages, userMsg];
                                   setMessages(updatedHistory);
+                                  fetchReply(selectionText, updatedHistory, { provider_id: p.id, slot, date: p.booking_date || new Date().toISOString().split('T')[0] });
+                                }}
+                              >
+                                <Text style={[styles.slotBtnText, isOldMessage && styles.disabledSlotBtnText]}>{slot}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>y);
                                   fetchReply(selectionText, updatedHistory, { provider_id: p.id, slot, date: p.booking_date || new Date().toISOString().split('T')[0] });
                                 }}
                               >
