@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -147,6 +147,20 @@ export default function ProviderProfile() {
 
   const providerPriceRaw = providerDetails?.hourly_rate ? `Rs ${providerDetails.hourly_rate} Base Fee` : (params.price || 'Rs 1,500 Base Fee');
   const providerPrice = Array.isArray(providerPriceRaw) ? providerPriceRaw[0] : providerPriceRaw;
+
+  const smartMatchParam = params.smart_match;
+  const parsedSmartMatch = useMemo(() => {
+    if (!smartMatchParam) return null;
+    try {
+      const matchData = Array.isArray(smartMatchParam) ? smartMatchParam[0] : smartMatchParam;
+      return JSON.parse(matchData);
+    } catch (e) {
+      console.warn("Failed to parse smart_match param:", e);
+      return null;
+    }
+  }, [smartMatchParam]);
+
+  const smartMatch = providerDetails?.smart_match || parsedSmartMatch;
 
   useEffect(() => {
     const numericId = parseInt(providerId as string, 10);
@@ -403,51 +417,52 @@ export default function ProviderProfile() {
           </View>
 
           {/* Antigravity Smart Match Reason Card */}
-          <View style={styles.smartMatchCard}>
-            <View style={styles.smartMatchHeader}>
-              <MaterialIcons name="auto-awesome" size={20} color="#005c3e" />
-              <Text style={styles.smartMatchTitle}>Antigravity Smart Match</Text>
-            </View>
-            <Text style={styles.smartMatchIntro}>
-              {providerName} has been matched as your top Karigar based on your specific requirements:
-            </Text>
-
-            <View style={styles.smartReasonItem}>
-              <View style={styles.smartReasonIconBox}>
-                <MaterialIcons name="construction" size={18} color="#00595c" />
+          {smartMatch && (
+            <View style={styles.smartMatchCard}>
+              <View style={styles.smartMatchHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <MaterialIcons name="auto-awesome" size={20} color="#00595c" />
+                  <Text style={styles.smartMatchTitle}>AI Smart Match</Text>
+                </View>
+                {smartMatch.is_top_pick && (
+                  <View style={styles.topPickBadge}>
+                    <Text style={styles.topPickText}>TOP PICK</Text>
+                  </View>
+                )}
               </View>
-              <View style={styles.smartReasonTextContent}>
-                <Text style={styles.smartReasonItemTitle}>{providerService} Specialist</Text>
-                <Text style={styles.smartReasonItemDesc}>
-                  Highly skilled and certified in {providerService.toLowerCase()} issues, ensuring high-quality workmanship.
+              {smartMatch.headline ? (
+                <Text style={styles.smartMatchHeadline}>{smartMatch.headline}</Text>
+              ) : null}
+              {smartMatch.reasoning_summary ? (
+                <Text style={styles.smartMatchIntro}>
+                  {smartMatch.reasoning_summary}
                 </Text>
-              </View>
-            </View>
+              ) : null}
 
-            <View style={styles.smartReasonItem}>
-              <View style={styles.smartReasonIconBox}>
-                <MaterialIcons name="near-me" size={18} color="#00595c" />
-              </View>
-              <View style={styles.smartReasonTextContent}>
-                <Text style={styles.smartReasonItemTitle}>Proximity Advantage</Text>
-                <Text style={styles.smartReasonItemDesc}>
-                  Currently located just {providerDistance} away from you in {providerLocation}, ensuring an arrival within 45 minutes of scheduling.
-                </Text>
-              </View>
-            </View>
+              {smartMatch.match_reasons && smartMatch.match_reasons.map((reason: any, idx: number) => {
+                let iconName = 'auto-awesome';
+                if (reason.factor === 'proximity' || reason.factor === 'location') iconName = 'near-me';
+                else if (reason.factor === 'price') iconName = 'payments';
+                else if (reason.factor === 'rating') iconName = 'star';
+                else if (reason.factor === 'availability' || reason.factor === 'speed') iconName = 'schedule';
+                else if (reason.factor === 'experience') iconName = 'work';
 
-            <View style={styles.smartReasonItem}>
-              <View style={styles.smartReasonIconBox}>
-                <MaterialIcons name="security" size={18} color="#00595c" />
-              </View>
-              <View style={styles.smartReasonTextContent}>
-                <Text style={styles.smartReasonItemTitle}>Elite Reliability Record</Text>
-                <Text style={styles.smartReasonItemDesc}>
-                  Maintains a perfect zero-cancellation streak for recent bookings in your immediate neighborhood.
-                </Text>
-              </View>
+                return (
+                  <View key={idx} style={styles.smartReasonItem}>
+                    <View style={styles.smartReasonIconBox}>
+                      <MaterialIcons name={iconName as any} size={18} color="#00595c" />
+                    </View>
+                    <View style={styles.smartReasonTextContent}>
+                      <Text style={styles.smartReasonItemTitle}>{reason.title}</Text>
+                      <Text style={styles.smartReasonItemDesc}>
+                        {reason.description}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
-          </View>
+          )}
 
           {/* Key numerical metrics section */}
           <View style={styles.metricsRow}>
@@ -1386,5 +1401,22 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 14,
     color: '#fff',
+  },
+  smartMatchHeadline: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 14,
+    color: '#00595c',
+    marginBottom: 6,
+  },
+  topPickBadge: {
+    backgroundColor: '#fcd34d',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  topPickText: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 10,
+    color: '#92400e',
   },
 });

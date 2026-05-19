@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, Modal, Animated, TouchableOpacity,
-  TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard,
+  TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -495,24 +495,60 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                       keyboardShouldPersistTaps="handled"
                     >
                       {msg.providers.map(p => (
-                        <View key={p.id} style={styles.providerCard}>
-                          <View style={styles.providerCardHeader}>
-                            <Text style={styles.providerName} numberOfLines={1}>{p.name}</Text>
-                            <View style={styles.providerRating}>
-                              <MaterialIcons name="star" size={14} color="#f59e0b" />
-                              <Text style={styles.providerRatingText}>{p.rating}</Text>
-                            </View>
-                          </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                            <Text style={[styles.providerLocation, { marginBottom: 0 }]}>
-                              <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.distance_km} km)
-                            </Text>
-                            {p.hourly_rate !== undefined && (
-                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#00595c' }}>
-                                Rs. {p.hourly_rate}/hr
-                              </Text>
+                        <View key={p.id} style={[styles.providerCard, p.smart_match?.is_top_pick && styles.providerCardTopPick]}>
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              router.push({
+                                pathname: '/provider-profile',
+                                params: {
+                                  id: p.id.toString(),
+                                  name: p.name,
+                                  service: p.service_type || 'Specialist',
+                                  price: p.hourly_rate ? `Rs ${p.hourly_rate} Base Fee` : 'Rs 1,200 Base Fee',
+                                  smart_match: p.smart_match ? JSON.stringify(p.smart_match) : undefined
+                                }
+                              });
+                            }}
+                          >
+                            {p.smart_match?.is_top_pick && (
+                              <View style={styles.topPickBadgeInCard}>
+                                <MaterialIcons name="auto-awesome" size={10} color="#92400e" />
+                                <Text style={styles.topPickBadgeTextInCard}>AI TOP PICK</Text>
+                              </View>
                             )}
-                          </View>
+                            <View style={styles.providerCardHeader}>
+                              <Image 
+                                source={(p.name.includes("Ali") || p.id === 37)
+                                  ? require('../../assets/images/ali_profile.png')
+                                  : { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=00595c&color=fff&size=100` }
+                                }
+                                style={styles.providerAvatarInCard}
+                              />
+                              <View style={{ flex: 1 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Text style={styles.providerName} numberOfLines={1}>{p.name}</Text>
+                                  <View style={styles.providerRating}>
+                                    <MaterialIcons name="star" size={12} color="#f59e0b" />
+                                    <Text style={styles.providerRatingText}>{p.rating}</Text>
+                                  </View>
+                                </View>
+                              </View>
+                            </View>
+                            <View style={{ marginBottom: 6 }}>
+                              <Text style={[styles.providerLocation, { marginBottom: 0 }]}>
+                                <MaterialIcons name="location-on" size={12} color="#6e7979" /> {p.location} ({p.distance_km} km)
+                              </Text>
+                            </View>
+                            {p.hourly_rate !== undefined && (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 10 }}>
+                                <MaterialIcons name="payments" size={14} color="#00595c" style={{ marginRight: 4 }} />
+                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#00595c' }}>
+                                  Rs. {p.hourly_rate}/hr
+                                </Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
                           <Text style={styles.providerSlotsTitle}>Available Slots:</Text>
                           <View style={styles.slotsContainer}>
                             {(Array.isArray(p.available_slots)
@@ -554,13 +590,15 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                     <TouchableOpacity 
                       style={styles.bookingRow}
                       onPress={() => {
+                        const matchingProvider = msg.providers?.find(p => p.id === msg.bookingProposal!.provider_id);
                         router.push({
                           pathname: '/provider-profile',
                           params: {
                             id: msg.bookingProposal!.provider_id?.toString() || 'unknown',
                             name: msg.bookingProposal!.provider,
                             service: msg.bookingProposal!.service,
-                            price: msg.bookingProposal!.price
+                            price: msg.bookingProposal!.price,
+                            smart_match: matchingProvider?.smart_match ? JSON.stringify(matchingProvider.smart_match) : undefined
                           }
                         });
                       }}
@@ -835,4 +873,8 @@ const styles = StyleSheet.create({
   disabledRejectBtnText: { color: '#9eabab' },
   disabledConfirmBtn: { backgroundColor: '#bec9c9', opacity: 0.6 },
   disabledConfirmBtnText: { color: '#fff' },
+  providerCardTopPick: { borderColor: '#fbbf24', borderWidth: 1, backgroundColor: '#fffbeb' },
+  topPickBadgeInCard: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#fcd34d', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: 6 },
+  topPickBadgeTextInCard: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 8, color: '#92400e' },
+  providerAvatarInCard: { width: 32, height: 32, borderRadius: 16, marginRight: 8, borderWidth: 1, borderColor: '#e2e8f0' },
 });

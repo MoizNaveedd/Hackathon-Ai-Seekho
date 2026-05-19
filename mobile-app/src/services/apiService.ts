@@ -77,6 +77,20 @@ export interface ChatRequest {
   location_name?: string | null;
 }
 
+export interface SmartMatchReason {
+  factor: string;
+  title: string;
+  description: string;
+}
+
+export interface SmartMatch {
+  headline: string;
+  confidence: number;
+  match_reasons: SmartMatchReason[];
+  is_top_pick: boolean;
+  reasoning_summary?: string | null;
+}
+
 export interface Provider {
   id: number;
   name: string;
@@ -90,6 +104,7 @@ export interface Provider {
   latitude?: number | null;
   longitude?: number | null;
   service_type?: string;
+  smart_match?: SmartMatch | null;
 }
 
 export interface ChatState {
