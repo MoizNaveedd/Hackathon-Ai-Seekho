@@ -78,6 +78,19 @@ export default function RootLayout() {
             <Text style={styles.subtitle}>Smart services. Transparent decisions.</Text>
           </View>
         </View>
+
+        {/* Powered by Antigravity Section at the bottom */}
+        <View style={styles.poweredContainer}>
+          <Text style={styles.poweredText}>Powered by Google</Text>
+          <View style={styles.poweredPill}>
+            <Image 
+              source={require('../../assets/images/antigravity_logo.jpeg')}
+              style={styles.poweredLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.poweredBrand}>Antigravity</Text>
+          </View>
+        </View>
       </View>
     );
   }
@@ -148,5 +161,47 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignContent: "center",
     transform: [{ rotate: "-12deg" }, { scale: 1.5 }],
-  }
+  },
+  poweredContainer: {
+    position: "absolute",
+    bottom: 60,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  poweredText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.5)",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 3,
+  },
+  poweredPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.25)",
+    borderRadius: 30,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  poweredLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+  },
+  poweredBrand: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 18,
+    color: "white",
+    letterSpacing: 0.8,
+  },
 });
