@@ -1,5 +1,6 @@
+import json
 import logging
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -124,11 +125,29 @@ def book(request: BookingRequest, db: Session = Depends(get_db)):
     return response
 
 @app.get("/chat/{session_id}/history")
-def get_chat_history(session_id: int, db: Session = Depends(get_db)):
-    """Get full chat history for a session."""
+def get_chat_history(
+    session_id: int,
+    limit: int = Query(50, ge=1, le=200, description="Max messages to return"),
+    offset: int = Query(0, ge=0, description="Messages to skip, counting back from newest"),
+    db: Session = Depends(get_db),
+):
+    """Get a session's chat history, paginated. Newest messages first by page
+    (offset walks back in time); messages within a page are chronological."""
     session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
+
+    base_query = db.query(ChatMessage).filter(ChatMessage.session_id == session_id)
+    total = base_query.count()
+
+    # Page from newest backward, then flip to chronological order for rendering.
+    rows = (
+        base_query.order_by(ChatMessage.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    rows.reverse()
 
     messages = [
         {
@@ -136,14 +155,72 @@ def get_chat_history(session_id: int, db: Session = Depends(get_db)):
             "content": msg.content,
             "created_at": msg.created_at.isoformat() if msg.created_at else None
         }
-        for msg in session.messages
+        for msg in rows
     ]
 
     return {
         "session_id": session.id,
         "user_id": session.user_id,
         "status": session.status,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + len(messages) < total,
         "messages": messages
+    }
+
+@app.get("/users/{user_id}/sessions")
+def list_user_sessions(
+    user_id: int,
+    limit: int = Query(20, ge=1, le=100, description="Max sessions to return"),
+    offset: int = Query(0, ge=0, description="Number of sessions to skip"),
+    db: Session = Depends(get_db),
+):
+    """List a user's chat sessions (most recent first) with a short preview, paginated."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Filter out empty sessions in the query so pagination counts stay consistent.
+    base_query = (
+        db.query(ChatSession)
+        .filter(ChatSession.user_id == user_id, ChatSession.messages.any())
+    )
+    total = base_query.count()
+    sessions = (
+        base_query.order_by(ChatSession.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    result = []
+    for s in sessions:
+        msgs = s.messages
+        last_msg = msgs[-1]
+        try:
+            state = json.loads(s.extracted_state) if s.extracted_state else {}
+        except (json.JSONDecodeError, TypeError):
+            state = {}
+
+        result.append({
+            "session_id": s.id,
+            "status": s.status,
+            "service_type": state.get("service_type"),
+            "phase": state.get("phase"),
+            "message_count": len(msgs),
+            "last_message": last_msg.content,
+            "last_message_at": last_msg.created_at.isoformat() if last_msg.created_at else None,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        })
+
+    return {
+        "user_id": user_id,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + len(result) < total,
+        "sessions": result,
     }
 
 @app.post("/update_user_location")

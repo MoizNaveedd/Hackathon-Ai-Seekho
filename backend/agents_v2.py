@@ -219,12 +219,17 @@ CRITICAL RULES:
 5. TIMING: After service is confirmed, ask about timing.
 6. Do NOT ask for location or address. It will be provided via map.
 
+LOCATION CHANGE:
+- If the user asks to change, update, or switch their location/address (e.g. "location change karni hai", "jagah badlo", "different location"), set "wants_location_change": true.
+- Otherwise set "wants_location_change": false.
+
 You MUST return ONLY a valid JSON object:
 {{
   "reply": "Your conversational response in the user's language.",
   "language": "english" | "roman_urdu" | "urdu",
   "is_valid": true/false,
   "rejection_reason": "Only if is_valid is false.",
+  "wants_location_change": true/false,
   "state": {{
     "service_type": "Extracted service or 'Unknown'",
     "booking_type": "urgent" | "scheduled" | null,
@@ -898,6 +903,7 @@ class OrchestratorV2:
             state["longitude"] = longitude
             if location_name:
                 state["location_name"] = location_name
+            state.pop("location_override", None)
             self._save_state(session, state, db)
             # Also update user profile for future sessions
             if user and (not user.latitude or not user.longitude):
@@ -910,6 +916,22 @@ class OrchestratorV2:
         if message:
             self._save_message(session, "user", message, db, state=state)
 
+        # Detect location change request in non-gathering phases via LLM
+        if message and phase != PHASE_GATHERING and self._detect_location_change_intent(message):
+            state.pop("latitude", None)
+            state.pop("longitude", None)
+            state.pop("location_name", None)
+            state.pop("providers", None)
+            state.pop("shown_provider_ids", None)
+            state.pop("booking_summary", None)
+            state["location_override"] = True
+            state["phase"] = PHASE_GATHERING
+            self._save_state(session, state, db)
+            location_reply = self._requires_location_reply(language)
+            self._save_message(session, "assistant", location_reply, db,
+                               state=state, extra_data={"requires_location": True, "reason": "user_requested_change"})
+            return self._build_response(location_reply, language, PHASE_GATHERING, session.id,
+                                        state, logger, requires_location=True)
         log.info(f"Session {session.id} | Phase: {phase} | Provider selection: {selected_provider_id} | Location: {bool(state.get('latitude'))}")
 
         # --- Route based on phase ---
@@ -962,11 +984,10 @@ class OrchestratorV2:
 
         is_valid = intent_result.get("is_valid", True)
         is_complete = intent_result.get("is_complete", False)
+        wants_location_change = intent_result.get("wants_location_change", False)
         reply = intent_result.get("reply", "...")
         language = intent_result.get("language", "english")
         new_state = intent_result.get("state", {})
-
-        self._save_message(session, "assistant", reply, db, state=new_state)
 
         # Carry forward location from session state
         if state.get("latitude"):
@@ -977,6 +998,24 @@ class OrchestratorV2:
 
         new_state["language"] = language
 
+        # Handle location change request detected by Intent Agent
+        if wants_location_change:
+            new_state.pop("latitude", None)
+            new_state.pop("longitude", None)
+            new_state.pop("location_name", None)
+            state.pop("providers", None)
+            state.pop("shown_provider_ids", None)
+            new_state["location_override"] = True
+            new_state["phase"] = PHASE_GATHERING
+            self._save_state(session, new_state, db)
+            location_reply = self._requires_location_reply(language)
+            self._save_message(session, "assistant", location_reply, db,
+                               state=new_state, extra_data={"requires_location": True, "reason": "user_requested_change"})
+            return self._build_response(location_reply, language, PHASE_GATHERING, session.id,
+                                        new_state, logger, requires_location=True)
+
+        self._save_message(session, "assistant", reply, db, state=new_state)
+
         if not is_valid or not is_complete:
             new_state["phase"] = PHASE_GATHERING
             self._save_state(session, new_state, db)
@@ -984,7 +1023,7 @@ class OrchestratorV2:
 
         # Intent complete — check if we have location
         has_location = bool(new_state.get("latitude") and new_state.get("longitude"))
-        if not has_location and user and user.latitude and user.longitude:
+        if not has_location and not new_state.get("location_override") and user and user.latitude and user.longitude:
             new_state["latitude"] = user.latitude
             new_state["longitude"] = user.longitude
             has_location = True
@@ -1530,6 +1569,23 @@ Rules:
         elif lang == "urdu":
             return "ٹھیک ہے، دوسرا پرووائیڈر منتخب کریں:"
         return "Sure, select a different provider:"
+
+    def _detect_location_change_intent(self, message: str) -> bool:
+        """Use LLM to detect if user wants to change their location."""
+        try:
+            result = _call_llm(
+                system_instruction=(
+                    "You are a classifier. Determine if the user's message is asking to change, update, or switch "
+                    "their location or address. The message may be in English, Roman Urdu, or Urdu. "
+                    "Reply with ONLY 'yes' or 'no'."
+                ),
+                prompt=f"User message: {message}",
+                json_mode=False,
+                temperature=0.0,
+            )
+            return result.strip().lower().startswith("yes")
+        except Exception:
+            return False
 
     def _requires_location_reply(self, lang):
         if lang == "roman_urdu":
