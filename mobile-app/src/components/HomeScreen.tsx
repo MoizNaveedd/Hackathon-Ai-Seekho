@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Animated, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, BackHandler, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Animated, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, BackHandler, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -10,7 +10,7 @@ import ChatBottomSheet, { Message } from './ChatBottomSheet';
 import { transcribeVoiceLive } from '../services/transcriptionService';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { getUserBookings, cancelBooking, completeBooking, getProviders, Provider } from '../services/apiService';
+import { getUserBookings, cancelBooking, completeBooking, getProviders, Provider, getUserSessions, getChatHistory, SessionItem, ChatHistoryMessage } from '../services/apiService';
 import { scheduleHeadsUpNotification } from '../services/notificationService';
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '[GCP_API_KEY]';
@@ -37,6 +37,10 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   const [providerMessages, setProviderMessages] = useState<Message[]>([]);
   const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState<any>(null);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [chatSessionId, setChatSessionId] = useState<number | null>(null);
+  const [chatHistoryLoading, setChatHistoryLoading] = useState(false);
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -369,6 +373,13 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
   useEffect(() => {
     if (activeTab === 'bookings') {
       fetchBookings();
+    }
+    if (activeTab === 'chats' && userId) {
+      setIsLoadingSessions(true);
+      getUserSessions(userId, 20).then(res => {
+        if (res && res.sessions) setSessions(res.sessions);
+      }).catch(err => console.error("Failed to load sessions:", err))
+        .finally(() => setIsLoadingSessions(false));
     }
   }, [activeTab, userId]);
 
@@ -1243,8 +1254,23 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                                     try {
                                       await cancelBooking(bAny.realId, userId!);
                                       fetchBookings();
-                                    } catch (err) {
+                                    } catch (err: any) {
                                       console.error("Cancel booking error:", err);
+                                      let errorMsg = "Unable to cancel your booking at this time. Please try again later.";
+                                      if (err.message && err.message.includes('API error 400')) {
+                                        try {
+                                          const match = err.message.match(/API error 400: (.*)/);
+                                          if (match && match[1]) {
+                                            const jsonErr = JSON.parse(match[1]);
+                                            if (jsonErr.detail) {
+                                              errorMsg = jsonErr.detail;
+                                            }
+                                          }
+                                        } catch (parseErr) {
+                                          // Fallback
+                                        }
+                                      }
+                                      Alert.alert("Cancellation Failed", errorMsg);
                                     }
                                   } else {
                                     setBookings(prev => prev.filter(b => b.id !== booking.id));
@@ -1256,7 +1282,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                           >
                             <Text style={styles.actionBtnTextSec}>Cancel</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity 
+                          {/* <TouchableOpacity 
                             style={styles.actionBtnPri}
                             onPress={() => {
                               // Reschedule confirmation dialog
@@ -1276,7 +1302,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                             }}
                           >
                             <Text style={styles.actionBtnTextPri}>Reschedule</Text>
-                          </TouchableOpacity>
+                          </TouchableOpacity> */}
                         </>
                       ) : booking.status === 'Active' ? (
                         <>
@@ -2013,6 +2039,92 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             </View>
           );
         })()
+      : activeTab === 'chats' ? (
+          <View style={styles.bookingsContainer}>
+            <View style={styles.bookingsHeaderBar}>
+              <Text style={styles.bookingsHeaderTitle}>Previous Chats</Text>
+            </View>
+            <ScrollView 
+              contentContainerStyle={[
+                styles.scrollContent, 
+                { paddingHorizontal: 20, paddingTop: 8 },
+                (isLoadingSessions || sessions.length === 0) && { flexGrow: 1, justifyContent: 'center', paddingBottom: 120 }
+              ]} 
+              showsVerticalScrollIndicator={false}
+            >
+              {isLoadingSessions ? (
+                <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#00595c" />
+                  <Text style={{ marginTop: 12, color: '#6e7979', fontFamily: 'PlusJakartaSans_500Medium' }}>Loading chats...</Text>
+                </View>
+              ) : sessions.length === 0 ? (
+                <View style={styles.emptyBookingsContainer}>
+                  <MaterialIcons name="chat-bubble-outline" size={48} color="#bec9c9" />
+                  <Text style={styles.emptyBookingsTitle}>No Chats Found</Text>
+                  <Text style={styles.emptyBookingsSubtitle}>You haven't started any chats yet.</Text>
+                </View>
+              ) : (
+                sessions.map(session => (
+                  <TouchableOpacity 
+                    key={session.session_id} 
+                    style={styles.bookingCard}
+                    onPress={async () => {
+                      setChatProviderMode(false);
+                      setChatSessionId(session.session_id);
+                      setChatVisible(true);
+                      setAssistantMessages([]); // Clear before loading
+                      setChatHistoryLoading(true);
+                      try {
+                        const history = await getChatHistory(session.session_id, 100);
+                        if (history && history.messages) {
+                          const formattedMsgs: Message[] = history.messages.map((m, i) => ({
+                            id: `hist_${i}`,
+                            role: m.role as 'user' | 'assistant',
+                            text: m.content,
+                            timestamp: new Date(m.created_at)
+                          }));
+                          setAssistantMessages(formattedMsgs);
+                        }
+                      } catch(err) {
+                        console.error('Failed to load chat history:', err);
+                      } finally {
+                        setChatHistoryLoading(false);
+                      }
+                    }}
+                  >
+                    <View style={styles.bookingCardTop}>
+                      <Text style={styles.bookingId}>Session #{session.session_id}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: session.status === 'completed' ? '#e8fff5' : '#e0f2f1' }]}>
+                        <Text style={[styles.statusBadgeText, { color: session.status === 'completed' ? '#005c3e' : '#00595c', textTransform: 'capitalize' }]}>
+                          {session.status}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.bookingServiceTitle}>{session.service_type || 'General Inquiry'}</Text>
+                    <View style={styles.bookingCardDivider} />
+                    <View style={styles.bookingScheduleRow}>
+                      <View style={{flexDirection: 'row', alignItems: 'center', flex: 1}}>
+                         <MaterialIcons name="chat" size={16} color="#6e7979" />
+                         <Text style={{marginLeft: 6, color: '#3e4949', fontSize: 13, flex: 1}} numberOfLines={1}>
+                            {session.last_message || 'No messages'}
+                         </Text>
+                      </View>
+                    </View>
+                    <View style={styles.bookingCardDivider} />
+                    <View style={styles.bookingCardBottom}>
+                       <Text style={{fontFamily: 'Inter_500Medium', fontSize: 12, color: '#6e7979'}}>
+                         {new Date(session.created_at).toLocaleDateString()}
+                       </Text>
+                       <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                          <MaterialIcons name="chevron-right" size={20} color="#00595c" />
+                       </View>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        )
       : (
         <View style={styles.comingSoonContainer}>
           <MaterialIcons name="construction" size={64} color="#00595c" />
@@ -2035,6 +2147,11 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
             <MaterialIcons name="event-note" size={24} color={activeTab === 'bookings' ? '#00595c' : '#3e4949'} />
             <Text style={[styles.navText, activeTab === 'bookings' && { color: '#00595c' }]}>My Bookings</Text>
             {activeTab === 'bookings' && <View style={styles.navActiveIndicator} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('chats')}>
+            <MaterialIcons name="chat" size={24} color={activeTab === 'chats' ? '#00595c' : '#3e4949'} />
+            <Text style={[styles.navText, activeTab === 'chats' && { color: '#00595c' }]}>Chats</Text>
+            {activeTab === 'chats' && <View style={styles.navActiveIndicator} />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('notifications')}>
             <View style={{ position: 'relative' }}>
@@ -2075,6 +2192,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       onNavigateToBookings={() => setActiveTab('bookings')}
       userLocation={userLocation}
       locationName={locationName}
+      sessionId={chatSessionId}
+      isLoadingHistory={chatHistoryLoading}
     />
 
 

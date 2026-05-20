@@ -49,6 +49,8 @@ interface Props {
   userLocation?: { latitude: number; longitude: number } | null;
   locationName?: string;
   providerName?: string;
+  sessionId?: number | null;
+  isLoadingHistory?: boolean;
 }
 
 // ─── Voice Player Component ──────────────────────────────────────────────────
@@ -131,7 +133,7 @@ function VoiceMessagePlayer({ uri, isUser }: { uri: string; isUser: boolean }) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, userId, providerMode = false, providerName = "Ahmed Khan", messages, setMessages, onNavigateToBookings, userLocation, locationName }: Props) {
+export default function ChatBottomSheet({ visible, initialQuery, onClose, userName, userId, providerMode = false, providerName = "Ahmed Khan", messages, setMessages, onNavigateToBookings, userLocation, locationName, sessionId, isLoadingHistory }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const navigation = useNavigation();
@@ -278,6 +280,9 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
         const firstMsg: Message = { id: 'u0', role: 'user', text: initialQuery, timestamp: new Date() };
         setMessages([firstMsg]);
         fetchReply(initialQuery, [firstMsg]);
+      }
+      if (sessionId) {
+        sessionIdRef.current = sessionId;
       }
     } else {
       Animated.timing(slideAnim, { toValue: 600, duration: 250, useNativeDriver: true }).start();
@@ -578,6 +583,13 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
             <View style={styles.systemChip}>
               <Text style={styles.systemChipText}>Chat started · {formatTime(new Date())}</Text>
             </View>
+
+            {isLoadingHistory && (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#00595c" />
+                <Text style={{ marginTop: 8, color: '#6e7979', fontSize: 13, fontFamily: 'Inter_500Medium' }}>Loading history...</Text>
+              </View>
+            )}
 
             {messages.map((msg, index) => {
               const isOldMessage = index < messages.length - 1;

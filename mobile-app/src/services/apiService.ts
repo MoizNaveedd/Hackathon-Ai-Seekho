@@ -341,4 +341,55 @@ export async function getProviderDetails(providerId: number, latitude?: number |
   return get<Provider>(`/providers/${providerId}${query}`);
 }
 
+export interface SessionItem {
+  session_id: number;
+  status: string;
+  service_type: string;
+  phase: string;
+  message_count: number;
+  last_message: string;
+  last_message_at: string;
+  created_at: string;
+}
 
+export interface SessionsResponse {
+  user_id: number;
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  sessions: SessionItem[];
+}
+
+export interface ChatHistoryMessage {
+  role: string;
+  content: string;
+  created_at: string;
+}
+
+export interface ChatHistoryResponse {
+  session_id: number;
+  user_id: number;
+  status: string;
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  messages: ChatHistoryMessage[];
+}
+
+/**
+ * GET /users/{user_id}/sessions
+ * Retrieves past chat sessions for a user.
+ */
+export async function getUserSessions(userId: number, limit: number = 20): Promise<SessionsResponse> {
+  return get<SessionsResponse>(`/users/${userId}/sessions?limit=${limit}`);
+}
+
+/**
+ * GET /chat/{session_id}/history
+ * Retrieves full history of a given chat session.
+ */
+export async function getChatHistory(sessionId: number, limit: number = 100): Promise<ChatHistoryResponse> {
+  return get<ChatHistoryResponse>(`/chat/${sessionId}/history?limit=${limit}`);
+}
