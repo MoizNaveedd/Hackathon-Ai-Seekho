@@ -922,7 +922,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                     <Text style={styles.confirmKeepText}>Keep Chatting</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.confirmLeaveBtn} onPress={onClose}>
-                    <Text style={styles.confirmLeaveText}>Yes, End Chat</Text>
+                    <Text style={styles.confirmLeaveText}>Yes, Close Chat</Text>
                   </TouchableOpacity>
                 </View>
               </View>
