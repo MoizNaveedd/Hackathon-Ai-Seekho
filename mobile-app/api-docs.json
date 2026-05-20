@@ -1154,7 +1154,7 @@
         "/chat/{session_id}/history": {
             "get": {
                 "summary": "Get Chat History",
-                "description": "Get full chat history for a session.",
+                "description": "Get a session's chat history, paginated. Newest messages first by page\n(offset walks back in time); messages within a page are chronological.",
                 "operationId": "get_chat_history_chat__session_id__history_get",
                 "parameters": [
                     {
@@ -1165,6 +1165,33 @@
                             "type": "integer",
                             "title": "Session Id"
                         }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 200,
+                            "minimum": 1,
+                            "description": "Max messages to return",
+                            "default": 50,
+                            "title": "Limit"
+                        },
+                        "description": "Max messages to return"
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Messages to skip, counting back from newest",
+                            "default": 0,
+                            "title": "Offset"
+                        },
+                        "description": "Messages to skip, counting back from newest"
                     }
                 ],
                 "responses": {
@@ -1189,11 +1216,11 @@
                 }
             }
         },
-        "/users/{user_id}/chat_sessions": {
+        "/users/{user_id}/sessions": {
             "get": {
-                "summary": "Get User Chat Sessions",
-                "description": "Get all chat sessions for a specific user.",
-                "operationId": "get_user_chat_sessions_users__user_id__chat_sessions_get",
+                "summary": "List User Sessions",
+                "description": "List a user's chat sessions (most recent first) with a short preview, paginated.",
+                "operationId": "list_user_sessions_users__user_id__sessions_get",
                 "parameters": [
                     {
                         "name": "user_id",
@@ -1203,6 +1230,33 @@
                             "type": "integer",
                             "title": "User Id"
                         }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1,
+                            "description": "Max sessions to return",
+                            "default": 20,
+                            "title": "Limit"
+                        },
+                        "description": "Max sessions to return"
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Number of sessions to skip",
+                            "default": 0,
+                            "title": "Offset"
+                        },
+                        "description": "Number of sessions to skip"
                     }
                 ],
                 "responses": {
@@ -1578,17 +1632,6 @@
                             }
                         ],
                         "title": "Customer Rating"
-                    },
-                    "prompt": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Prompt"
                     },
                     "provider": {
                         "anyOf": [
