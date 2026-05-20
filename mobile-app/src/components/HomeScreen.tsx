@@ -1359,13 +1359,13 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                       ) : (
                         <>
                           <TouchableOpacity 
-                            style={styles.actionBtnSec}
+                            style={styles.actionBtnPri}
                             onPress={() => {
                               setSelectedInvoiceBooking(booking);
                               setActiveTab('invoice');
                             }}
                           >
-                            <Text style={styles.actionBtnTextSec}>Invoice</Text>
+                            <Text style={styles.actionBtnTextPri}>Invoice</Text>
                           </TouchableOpacity>
                           <TouchableOpacity 
                             style={styles.actionBtnSec}
