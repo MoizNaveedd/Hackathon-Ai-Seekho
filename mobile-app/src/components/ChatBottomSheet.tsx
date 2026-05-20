@@ -7,6 +7,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import { useRouter, useNavigation } from 'expo-router';
+import MapView from 'react-native-maps';
+import * as Location from 'expo-location';
 import { transcribeVoiceLive } from '../services/transcriptionService';
 import { chat, type ChatResponse, type Provider } from '../services/apiService';
 import { scheduleHeadsUpNotification } from '../services/notificationService';
@@ -23,6 +25,7 @@ export interface Message {
   bookingProposal?: BookingProposal | null;
   proposalStatus?: 'pending' | 'confirmed' | 'declined';
   isCompleted?: boolean;
+  requireLocation?: boolean;
 }
 
 interface BookingProposal {
@@ -159,6 +162,112 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   const activeSessionRef = useRef(0);
   const sessionIdRef = useRef<number | null>(null);
 
+  // Map selection states
+  const [mapPickerVisible, setMapPickerVisible] = useState(false);
+  const [pickerRegion, setPickerRegion] = useState({
+    latitude: 24.8608,
+    longitude: 67.0104,
+    latitudeDelta: 0.015,
+    longitudeDelta: 0.015,
+  });
+  const [markerCoord, setMarkerCoord] = useState({
+    latitude: 24.8608,
+    longitude: 67.0104,
+  });
+  const mapPickerRef = useRef<MapView | null>(null);
+
+  const openMapPicker = async () => {
+    let lat = 24.8608;
+    let lng = 67.0104;
+
+    if (userLocation) {
+      lat = userLocation.latitude;
+      lng = userLocation.longitude;
+    } else {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({});
+          lat = loc.coords.latitude;
+          lng = loc.coords.longitude;
+        }
+      } catch (e) {
+        console.warn("Failed to get current location for map picker:", e);
+      }
+    }
+
+    const initialRegion = {
+      latitude: lat,
+      longitude: lng,
+      latitudeDelta: 0.015,
+      longitudeDelta: 0.015,
+    };
+
+    setMarkerCoord({ latitude: lat, longitude: lng });
+    setPickerRegion(initialRegion);
+    setMapPickerVisible(true);
+    
+    // Animate map ref if it's already mounted
+    setTimeout(() => {
+      mapPickerRef.current?.animateToRegion(initialRegion, 1);
+    }, 100);
+  };
+
+  const handleChooseLocation = async () => {
+    setMapPickerVisible(false);
+    const lat = markerCoord.latitude;
+    const lng = markerCoord.longitude;
+
+    let areaName = '';
+
+    // Attempt actual reverse geocoding if permission is granted
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const reverseGeocode = await Location.reverseGeocodeAsync({
+          latitude: lat,
+          longitude: lng,
+        });
+
+        if (reverseGeocode && reverseGeocode.length > 0) {
+          const { city, district, region, subregion, name, street } = reverseGeocode[0];
+          areaName = district || subregion || city || name || street || '';
+        }
+      }
+    } catch (err) {
+      console.warn("Geocoding failed, falling back to mock area:", err);
+    }
+
+    // Fallback to predefined mock areas if geocoding didn't return a name
+    if (!areaName) {
+      const karachiAreas = [
+        'Clifton',
+        'Gulshan-e-Iqbal',
+        'DHA Phase 6',
+        'Saddar',
+        'PECHS',
+        'North Nazimabad',
+        'Bahria Town',
+        'Korangi',
+        'Federal B Area',
+        'Malir Cantt'
+      ];
+      areaName = karachiAreas[Math.floor(Math.random() * karachiAreas.length)];
+    }
+
+    const displayText = `My location is ${areaName}`;
+    
+    const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text: displayText, timestamp: new Date() };
+    const updatedHistory = [...messages, userMsg];
+    setMessages(updatedHistory);
+    
+    fetchReply(displayText, updatedHistory, undefined, { 
+      latitude: lat, 
+      longitude: lng, 
+      location_name: areaName 
+    });
+  };
+
   // Slide up when visible
   useEffect(() => {
     if (visible) {
@@ -243,7 +352,12 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages, isTyping, bookingProposal]);
 
-  async function fetchReply(text: string, currentHistory: Message[], selection?: { provider_id: number; slot: string; date: string }) {
+  async function fetchReply(
+    text: string, 
+    currentHistory: Message[], 
+    selection?: { provider_id: number; slot: string; date: string },
+    customLocation?: { latitude: number; longitude: number; location_name: string }
+  ) {
     setIsTyping(true);
     try {
       let reply = "";
@@ -251,6 +365,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       let selectable = false;
       let providers = null;
       let isCompleted = false;
+      let requireLocation = false;
 
       if (providerMode) {
         // Mock provider responses (provider-to-user chat, not AI)
@@ -280,7 +395,11 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
           session_id: sessionIdRef.current,
         };
 
-        if (userLocation) {
+        if (customLocation) {
+          request.latitude = customLocation.latitude;
+          request.longitude = customLocation.longitude;
+          request.location_name = customLocation.location_name;
+        } else if (userLocation) {
           request.latitude = userLocation.latitude;
           request.longitude = userLocation.longitude;
           request.location_name = (locationName && locationName !== "Finding location..." && locationName !== "Location denied" && locationName !== "Location error") ? locationName : "Unknown Location";
@@ -305,6 +424,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
         selectable = !!(response.providers && response.providers.length > 0);
         providers = response.providers;
         isCompleted = response.phase === 'completed';
+        requireLocation = !!response.requires_location;
 
         if (isCompleted) {
           const service = response.state?.service_type || 'Selected Service';
@@ -324,7 +444,6 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
             provider_id: response.booking_summary.provider_id
           };
         }
-        // is_complete available on response for future use
       }
 
       const aiMsg: Message = { 
@@ -336,7 +455,8 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
         providers,
         bookingProposal: proposal,
         proposalStatus: proposal ? 'pending' : undefined,
-        isCompleted
+        isCompleted,
+        requireLocation
       };
       setMessages(prev => [...prev, aiMsg]);
       if (proposal) setBookingProposal(proposal);
@@ -483,6 +603,24 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                         onPress={() => setShowNavigateConfirm(true)}
                       >
                         <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13 }}>View Bookings</Text>
+                      </TouchableOpacity>
+                    )}
+                    {msg.requireLocation && (
+                      <TouchableOpacity 
+                        style={[
+                          styles.locationBtn,
+                          isOldMessage && styles.disabledLocationBtn
+                        ]}
+                        disabled={isOldMessage}
+                        onPress={openMapPicker}
+                      >
+                        <MaterialIcons name="map" size={16} color={isOldMessage ? "#6e7979" : "#fff"} />
+                        <Text style={[
+                          styles.locationBtnText,
+                          isOldMessage && styles.disabledLocationBtnText
+                        ]}>
+                          Choose Location from Map
+                        </Text>
                       </TouchableOpacity>
                     )}
                     <Text style={[styles.bubbleTime, msg.role === 'user' ? styles.userBubbleTime : styles.aiBubbleTime]}>
@@ -833,6 +971,105 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
               </View>
             </View>
           )}
+
+          {/* Interactive Map Picker Modal */}
+          <Modal
+            visible={mapPickerVisible}
+            animationType="slide"
+            transparent={false}
+            onRequestClose={() => setMapPickerVisible(false)}
+          >
+            <View style={styles.mapPickerContainer}>
+              {/* Map View */}
+              <MapView
+                ref={mapPickerRef}
+                style={styles.pickerMap}
+                initialRegion={pickerRegion}
+                onRegionChangeComplete={(region) => {
+                  setMarkerCoord({
+                    latitude: region.latitude,
+                    longitude: region.longitude
+                  });
+                }}
+              />
+
+              {/* Center Pin Indicator */}
+              <View style={styles.centerPinContainer} pointerEvents="none">
+                <View style={styles.pinBubble}>
+                  <Text style={styles.pinBubbleText}>Set your location here</Text>
+                </View>
+                <MaterialIcons name="location-on" size={40} color="#ba1a1a" />
+                <View style={styles.pinShadow} />
+              </View>
+
+              {/* Header Overlay */}
+              <View style={[styles.mapHeader, { paddingTop: insets.top + 8 }]}>
+                <TouchableOpacity 
+                  style={styles.mapBackButton} 
+                  onPress={() => setMapPickerVisible(false)}
+                >
+                  <MaterialIcons name="arrow-back" size={24} color="#1a1a2e" />
+                </TouchableOpacity>
+                <Text style={styles.mapHeaderTitle}>Select Location</Text>
+                <View style={{ width: 40 }} />
+              </View>
+
+              {/* Floating GPS Button */}
+              <TouchableOpacity 
+                style={[styles.gpsButton, { bottom: insets.bottom + 160 }]} 
+                onPress={async () => {
+                  try {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status === 'granted') {
+                      const loc = await Location.getCurrentPositionAsync({});
+                      mapPickerRef.current?.animateToRegion({
+                        latitude: loc.coords.latitude,
+                        longitude: loc.coords.longitude,
+                        latitudeDelta: 0.015,
+                        longitudeDelta: 0.015
+                      }, 600);
+                    }
+                  } catch (e) {
+                    console.warn("Failed to get current position:", e);
+                  }
+                }}
+              >
+                <MaterialIcons name="gps-fixed" size={24} color="#00595c" />
+              </TouchableOpacity>
+
+              {/* Bottom Control Panel */}
+              <View style={[styles.mapBottomPanel, { paddingBottom: insets.bottom + 16 }]}>
+                <View style={styles.locationInfoRow}>
+                  <View style={styles.locationIconCircle}>
+                    <MaterialIcons name="my-location" size={20} color="#00595c" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.locationInfoLabel}>Selected Coordinate</Text>
+                    <Text style={styles.locationInfoValue} numberOfLines={1}>
+                      {markerCoord.latitude.toFixed(6)}, {markerCoord.longitude.toFixed(6)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.mapActions}>
+                  <TouchableOpacity 
+                    style={styles.mapCancelBtn} 
+                    onPress={() => setMapPickerVisible(false)}
+                  >
+                    <Text style={styles.mapCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.mapConfirmBtn} 
+                    onPress={handleChooseLocation}
+                  >
+                    <MaterialIcons name="check" size={20} color="#fff" />
+                    <Text style={styles.mapConfirmBtnText}>Choose</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </Animated.View>
       </View>
     </Modal>
@@ -967,5 +1204,206 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 10,
     color: '#92400e',
+  },
+  locationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#00595c',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  disabledLocationBtn: {
+    backgroundColor: '#f0f2f2',
+    borderWidth: 1.5,
+    borderColor: '#bec9c9',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  locationBtnText: {
+    color: '#fff',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 13,
+  },
+  disabledLocationBtnText: {
+    color: '#6e7979',
+  },
+  mapPickerContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    position: 'relative',
+  },
+  pickerMap: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  centerPinContainer: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -20,
+    marginTop: -40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  pinBubble: {
+    backgroundColor: '#1a1a2e',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  pinBubbleText: {
+    color: '#fff',
+    fontFamily: 'Inter_500Medium',
+    fontSize: 10,
+  },
+  pinShadow: {
+    width: 6,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    marginTop: -2,
+  },
+  mapHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f2f2',
+    zIndex: 10,
+  },
+  mapBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mapHeaderTitle: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 16,
+    color: '#1a1a2e',
+  },
+  gpsButton: {
+    position: 'absolute',
+    right: 16,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 10,
+  },
+  mapBottomPanel: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 10,
+    zIndex: 10,
+  },
+  locationInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+    backgroundColor: '#f5f7f7',
+    padding: 12,
+    borderRadius: 12,
+  },
+  locationIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e8fff5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#b3e8d8',
+  },
+  locationInfoLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#6e7979',
+    marginBottom: 2,
+  },
+  locationInfoValue: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 14,
+    color: '#1a1a2e',
+  },
+  mapActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  mapCancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#bec9c9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapCancelBtnText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
+    color: '#3e4949',
+  },
+  mapConfirmBtn: {
+    flex: 1.5,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#00595c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  mapConfirmBtnText: {
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 14,
+    color: '#fff',
   },
 });

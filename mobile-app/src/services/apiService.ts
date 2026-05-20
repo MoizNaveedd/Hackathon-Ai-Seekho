@@ -126,6 +126,7 @@ export interface ChatResponse {
   providers: Provider[] | null;
   booking_summary: any | null;
   booking_id: number | null;
+  requires_location?: boolean;
 }
 
 export interface BookingProvider {

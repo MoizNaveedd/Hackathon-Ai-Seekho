@@ -863,21 +863,22 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
               position: 'relative',
             }}
           >
-            {userLocation ? (
-              <MapView
-                scrollEnabled={false}
-                zoomEnabled={false}
-                rotateEnabled={false}
-                pitchEnabled={false}
-                style={StyleSheet.absoluteFillObject}
-                initialRegion={{
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                  latitudeDelta: 0.04,
-                  longitudeDelta: 0.04,
-                }}
-              >
-                {/* User Marker */}
+            <MapView
+              scrollEnabled={false}
+              zoomEnabled={false}
+              rotateEnabled={false}
+              pitchEnabled={false}
+              style={StyleSheet.absoluteFillObject}
+              region={{
+                latitude: userLocation?.latitude || 24.8608,
+                longitude: userLocation?.longitude || 67.0104,
+                latitudeDelta: 0.04,
+                longitudeDelta: 0.04,
+              }}
+            >
+              {/* User Marker */}
+              {userLocation && (
+
                 <Marker
                   coordinate={{
                     latitude: userLocation.latitude,
@@ -887,50 +888,43 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                 >
                   <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: '#00595c', borderWidth: 2, borderColor: '#fff', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 3 }} />
                 </Marker>
+              )}
 
-                {/* Nearby Provider Markers */}
-                {providers.filter(p => p.latitude && p.longitude).map((prov) => (
-                  <Marker
-                    key={prov.id}
-                    coordinate={{
-                      latitude: prov.latitude!,
-                      longitude: prov.longitude!,
-                    }}
-                    title={prov.name}
-                    description={prov.service_type}
-                  >
-                    <View style={{
-                      backgroundColor: '#fff',
-                      borderRadius: 20,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderWidth: 1.5,
-                      borderColor: '#00595c',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 4,
-                       
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 3,
-                      elevation:1,
-                    }}>
-                      <MaterialIcons name="construction" size={12} color="#00595c" />
-                      <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 10, color: '#00595c' }}>
-                        {prov.name.split(' ')[0]}
-                      </Text>
-                    </View>
-                  </Marker>
-                ))}
-              </MapView>
-            ) : (
-              <View style={{ flex: 1, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#00595c" />
-                <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: '#6e7979', marginTop: 8 }}>
-                  Loading map preview...
-                </Text>
-              </View>
-            )}
+              {/* Nearby Provider Markers */}
+              {providers.filter(p => p.latitude && p.longitude).map((prov) => (
+                <Marker
+                  key={prov.id}
+                  coordinate={{
+                    latitude: prov.latitude!,
+                    longitude: prov.longitude!,
+                  }}
+                  title={prov.name}
+                  description={prov.service_type}
+                >
+                  <View style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 20,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderWidth: 1.5,
+                    borderColor: '#00595c',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                     
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 3,
+                    elevation:1,
+                  }}>
+                    <MaterialIcons name="construction" size={12} color="#00595c" />
+                    <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 10, color: '#00595c' }}>
+                      {prov.name.split(' ')[0]}
+                    </Text>
+                  </View>
+                </Marker>
+              ))}
+            </MapView>
 
             {/* Map Overlay Badge */}
             <View style={{

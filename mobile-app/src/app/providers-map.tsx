@@ -239,24 +239,6 @@ export default function ProvidersMapScreen() {
           );
         })}
 
-        {/* Direction Polyline between User and Selected Provider */}
-        {selectedProviderId && (() => {
-          const selProv = providers.find(p => p.id === selectedProviderId);
-          if (selProv && selProv.latitude && selProv.longitude) {
-            return (
-              <Polyline
-                coordinates={[
-                  { latitude: userLoc?.latitude || initialLat, longitude: userLoc?.longitude || initialLng },
-                  { latitude: selProv.latitude, longitude: selProv.longitude }
-                ]}
-                strokeColor="#00595c"
-                strokeWidth={3}
-                lineDashPattern={Platform.OS === 'ios' ? [6, 4] : [10, 10]}
-              />
-            );
-          }
-          return null;
-        })()}
       </MapView>
 
       {/* Floating Header */}
