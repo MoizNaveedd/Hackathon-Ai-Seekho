@@ -790,13 +790,13 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                       <Text style={[styles.bookingValue, { color: '#00595c', fontFamily: 'PlusJakartaSans_600SemiBold' }]}>{msg.bookingProposal.price}</Text>
                     </View>
                     <View style={styles.bookingActions}>
-                      <TouchableOpacity 
+                      {/* <TouchableOpacity 
                         style={[styles.rejectBtn, isOldMessage && styles.disabledRejectBtn]} 
                         disabled={isOldMessage}
                         onPress={() => handleDeclineBooking(msg.id)}
                       >
                         <Text style={[styles.rejectBtnText, isOldMessage && styles.disabledRejectBtnText]}>Decline</Text>
-                      </TouchableOpacity>
+                      </TouchableOpacity> */}
                       <TouchableOpacity 
                         style={[styles.confirmBtn, isOldMessage && styles.disabledConfirmBtn]} 
                         disabled={isOldMessage}
