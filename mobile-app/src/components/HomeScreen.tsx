@@ -397,12 +397,12 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       badgeBg = '#fffde7';
       color = '#FF8F00';
     } else {
-      // Confirmed, Pending, or any other raw state defaults to 'Upcoming'
-      appStatus = 'Upcoming';
       if (item.status === 'Cancelled' || item.status === 'Declined') {
+        appStatus = 'Cancelled';
         badgeBg = '#ffebee';
         color = '#c62828';
       } else {
+        appStatus = 'Upcoming';
         badgeBg = '#e0f2f1';
         color = '#00595c';
       }
@@ -429,6 +429,7 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
       color,
       badgeBg,
       price: `Rs. ${item.price}`,
+      providerId: item.provider?.id,
       rated: item.customer_rating !== null,
       rawItem: item
     };
@@ -1202,7 +1203,23 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                   <View style={styles.bookingCardDivider} />
 
                   {/* Provider Info Row */}
-                  <View style={styles.bookingProviderRow}>
+                  <TouchableOpacity 
+                    style={styles.bookingProviderRow}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (booking.providerId) {
+                        router.push({
+                          pathname: '/provider-profile',
+                          params: {
+                            id: booking.providerId.toString(),
+                            name: booking.provider,
+                            service: booking.service,
+                            price: booking.price
+                          }
+                        });
+                      }
+                    }}
+                  >
                     <View style={styles.providerAvatarPlaceholder}>
                       <MaterialIcons name="person" size={20} color="#3e4949" />
                     </View>
@@ -1210,7 +1227,8 @@ export default function HomeScreen({ user, onSignOut }: { user: any, onSignOut: 
                       <Text style={styles.providerNameText}>{booking.provider}</Text>
                       <Text style={styles.providerDetailText}>{booking.providerDetail}</Text>
                     </View>
-                  </View>
+                    <MaterialIcons name="chevron-right" size={20} color="#6e7979" style={{ marginLeft: 'auto' }} />
+                  </TouchableOpacity>
 
                   {/* Schedule details & cost row */}
                   <View style={styles.bookingScheduleRow}>
