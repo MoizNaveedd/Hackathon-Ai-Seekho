@@ -2,9 +2,12 @@ import json
 import math
 import os
 import logging
+import threading
 from datetime import datetime, timedelta
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from models import Provider, Booking, User, ChatSession, ChatMessage, Notification
+from database import SessionLocal
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -211,9 +214,10 @@ CONVERSATION FLOW:
 CRITICAL RULES:
 1. LANGUAGE: Detect the user's language and ALWAYS reply in the SAME language.
 2. VALIDATION: If the user's message is NOT related to booking a home service, set "is_valid": false and politely redirect.
-3. SERVICE EXTRACTION: Extract the service type. It MUST map to one of: "AC Technician", "Plumber", "Electrician", "Beautician", "Painter", "Carpenter", "Appliance Repair", "Pest Control", "Home Cleaning", "Locksmith". Infer from context.
-4. TIMING: After service is confirmed, ask about timing.
-5. Do NOT ask for location or address. It will be provided via map.
+3. IDENTITY: If the user asks who you are or what Karigar AI is (e.g., 'who is Karigar Ai', 'what is you', 'what are you'), briefly explain that Karigar AI is a home service platform, mention a few services we provide (like AC Repair, Plumbing, Electricians, etc.), and politely ask how you can help them today.
+4. SERVICE EXTRACTION: Extract the service type. It MUST map to one of: "AC Technician", "Plumber", "Electrician", "Beautician", "Painter", "Carpenter", "Appliance Repair", "Pest Control", "Home Cleaning", "Locksmith". Infer from context.
+5. TIMING: After service is confirmed, ask about timing.
+6. Do NOT ask for location or address. It will be provided via map.
 
 You MUST return ONLY a valid JSON object:
 {{
@@ -389,6 +393,209 @@ class ProviderDiscoveryAgent:
 
 
 # ============================================================
+# Agent 2b: Smart Match (Provider Discovery sub-agent)
+# ============================================================
+
+class SmartMatchAgent:
+    """Grounded-reasoning sub-agent for Provider Discovery.
+
+    Given the shortlisted providers + the user's request, it explains WHY each
+    provider fits — reasoning over a fact sheet built ONLY from existing
+    provider/booking data (distance, rate, rating, open slots, completed jobs).
+    The LLM may decide which factors matter and how to phrase them, but it can
+    only cite facts present in the sheet (no fabricated certifications/counts).
+
+    Output is keyed by provider_id so the orchestrator can attach each result
+    to the matching provider entry without changing the response structure.
+    """
+
+    VALID_FACTORS = {"proximity", "price", "rating", "availability", "experience", "speed"}
+
+    def __init__(self):
+        self.name = "Smart Match Agent"
+
+    def _booking_counts(self, provider_ids: list, db: Session) -> dict:
+        if not provider_ids:
+            return {}
+        try:
+            rows = (
+                db.query(Booking.provider_id, func.count(Booking.id))
+                .filter(Booking.provider_id.in_(provider_ids))
+                .group_by(Booking.provider_id)
+                .all()
+            )
+            return {pid: cnt for pid, cnt in rows}
+        except Exception:
+            return {}
+
+    def _build_fact_sheet(self, providers: list, db: Session):
+        ids = [p["id"] for p in providers]
+        counts = self._booking_counts(ids, db)
+
+        sheet = []
+        for p in providers:
+            slots = p.get("available_slots")
+            slot_count = len(slots) if isinstance(slots, list) else None
+            sheet.append({
+                "provider_id": p["id"],
+                "name": p.get("name"),
+                "location": p.get("location"),
+                "distance_km": p.get("distance_km"),
+                "hourly_rate": p.get("hourly_rate"),
+                "rating": p.get("rating"),
+                "open_slots_on_date": slot_count,
+                "completed_bookings": counts.get(p["id"], 0),
+            })
+
+        def _winner(key, lowest_wins):
+            vals = [(s["provider_id"], s[key]) for s in sheet if s.get(key) is not None]
+            if not vals:
+                return None
+            return (min if lowest_wins else max)(vals, key=lambda x: x[1])[0]
+
+        flags = {
+            "closest_provider_id": _winner("distance_km", lowest_wins=True),
+            "cheapest_provider_id": _winner("hourly_rate", lowest_wins=True),
+            "highest_rated_provider_id": _winner("rating", lowest_wins=False),
+            "most_experienced_provider_id": _winner("completed_bookings", lowest_wins=False),
+            "most_availability_provider_id": _winner("open_slots_on_date", lowest_wins=False),
+        }
+        return sheet, flags
+
+    def process(self, providers: list, state: dict, db: Session, logger: AgentExecutionLog) -> dict:
+        """Returns {provider_id: smart_match_dict}. Never raises — falls back to rules."""
+        if not providers:
+            return {}
+
+        language = state.get("language", "english")
+        service = state.get("service_type", "service")
+        urgency = state.get("booking_type") or "not specified"
+        booking_date = state.get("booking_date")
+
+        sheet, flags = self._build_fact_sheet(providers, db)
+
+        system_instruction = f"""
+You are the Smart Match reasoning engine for Karigar AI, a home-service booking platform.
+
+You are given a fact sheet of {len(sheet)} {service} providers already shortlisted for a user, plus the user's request context. REASON about why each provider is a good fit for THIS user and produce a short, convincing "smart match" explanation for each one.
+
+HOW TO REASON:
+- Weigh the factors (proximity, price, rating, availability, experience/speed) against the user's needs. If the booking is urgent, proximity and quick availability matter more. Otherwise rating and price carry more weight.
+- DIFFERENTIATE: each provider should highlight DIFFERENT strengths where possible, so the user sees a genuine comparison (e.g. one is closest, another is cheapest, another is highest rated). Use the comparative_flags to know who wins on each factor.
+- Pick the 2-3 factors where each provider is strongest relative to the others.
+
+GROUNDING RULES (critical):
+- Cite ONLY the numbers/facts in the fact sheet. NEVER invent certifications, brands, job counts, or skills that are not provided.
+- If a fact is null/missing, do not mention it.
+- "completed_bookings" = jobs done on the platform → use for experience. "open_slots_on_date" = how many time slots are free that day → use for availability/speed.
+- "factor" MUST be one of: proximity | price | rating | availability | experience | speed.
+
+OUTPUT — return ONLY this JSON object (reply text in {language}):
+{{
+  "top_pick_provider_id": <id of the single best overall match>,
+  "reasoning_summary": "One sentence on why the top pick is best, in {language}.",
+  "providers": [
+    {{
+      "provider_id": <id>,
+      "headline": "Short headline e.g. 'Best for urgent repair', in {language}",
+      "confidence": 0.0-1.0,
+      "match_reasons": [
+        {{"factor": "proximity", "title": "2-4 word title in {language}", "description": "One sentence citing a concrete fact, in {language}."}}
+      ]
+    }}
+  ]
+}}
+Include every provider from the fact sheet in the "providers" array.
+"""
+
+        prompt = json.dumps({
+            "user_request": {
+                "service_type": service,
+                "urgency": urgency,
+                "booking_date": booking_date,
+                "language": language,
+            },
+            "providers_fact_sheet": sheet,
+            "comparative_flags": flags,
+        }, ensure_ascii=False)
+
+        try:
+            response_text = _call_llm(
+                system_instruction=system_instruction,
+                prompt=prompt,
+                json_mode=True,
+                max_tokens=2048,
+                temperature=0.3,
+            )
+            result = json.loads(response_text)
+            top_pick = result.get("top_pick_provider_id")
+            summary = result.get("reasoning_summary")
+
+            mapped = {}
+            for entry in result.get("providers", []):
+                pid = entry.get("provider_id")
+                if pid is None:
+                    continue
+                reasons = [
+                    r for r in entry.get("match_reasons", [])
+                    if isinstance(r, dict) and r.get("factor") in self.VALID_FACTORS
+                ][:3]
+                mapped[pid] = {
+                    "headline": entry.get("headline"),
+                    "confidence": entry.get("confidence"),
+                    "match_reasons": reasons,
+                    "is_top_pick": pid == top_pick,
+                    "reasoning_summary": summary if pid == top_pick else None,
+                }
+
+            # Backfill any provider the LLM skipped with a deterministic card.
+            for s in sheet:
+                if s["provider_id"] not in mapped:
+                    mapped[s["provider_id"]] = self._fallback_card(s, flags)
+
+            logger.add_log(self.name, "Smart Match Generated", {
+                "providers": list(mapped.keys()),
+                "top_pick": top_pick,
+            })
+            return mapped
+        except Exception as e:
+            log.error(f"SmartMatch failed, using rule-based fallback: {str(e)[:100]}")
+            logger.add_log(self.name, "Fallback (rule-based)", str(e)[:80])
+            return {s["provider_id"]: self._fallback_card(s, flags) for s in sheet}
+
+    def _fallback_card(self, s: dict, flags: dict) -> dict:
+        """Deterministic, grounded card so the FE always has something credible to show."""
+        pid = s["provider_id"]
+        reasons = []
+        if flags.get("closest_provider_id") == pid and s.get("distance_km") is not None:
+            reasons.append({"factor": "proximity", "title": "Closest to You",
+                            "description": f"Nearest of your matches — about {s['distance_km']} km away."})
+        if flags.get("cheapest_provider_id") == pid and s.get("hourly_rate") is not None:
+            reasons.append({"factor": "price", "title": "Best Price",
+                            "description": f"Most affordable option at Rs. {int(s['hourly_rate'])}/hr."})
+        if flags.get("highest_rated_provider_id") == pid and s.get("rating") is not None:
+            reasons.append({"factor": "rating", "title": "Highest Rated",
+                            "description": f"Top rated of your matches at {s['rating']}/5."})
+        if flags.get("most_experienced_provider_id") == pid and s.get("completed_bookings"):
+            reasons.append({"factor": "experience", "title": "Most Experienced",
+                            "description": f"Completed {s['completed_bookings']} jobs on Karigar."})
+        if not reasons:
+            if s.get("rating") is not None:
+                reasons.append({"factor": "rating", "title": "Trusted Pro",
+                                "description": f"Rated {s['rating']}/5 by customers."})
+            if s.get("distance_km") is not None:
+                reasons.append({"factor": "proximity", "title": "Nearby",
+                                "description": f"About {s['distance_km']} km from your location."})
+        return {
+            "headline": None,
+            "confidence": None,
+            "match_reasons": reasons[:3],
+            "is_top_pick": False,
+            "reasoning_summary": None,
+        }
+
+
+# ============================================================
 # Agent 3: Booking Confirmation (Conversational)
 # ============================================================
 
@@ -417,18 +624,19 @@ Available time slots for this provider on this date: [{slots_str}]
 
 Determine the user's intent from their message. Return ONLY a JSON object:
 {{
-  "action": "confirm" | "change_time" | "change_provider" | "change_intent" | "cancel",
+  "action": "confirm" | "change_time" | "change_provider" | "change_intent" | "reject" | "cancel" | "clarify",
   "new_time": "The new time slot if action is change_time, else null",
   "reply": "A short conversational reply in {language}"
 }}
 
 Rules:
-- "confirm": user says yes/haan/theek hai/book karo/confirm/done/ok
+- "confirm": user CLEARLY agrees — yes/haan/theek hai/book karo/confirm/done/ok
 - "change_time": user wants a different time. Extract the new time. If the requested time is not in available slots, set new_time to null and list available options in your reply.
-- "change_provider": user says doosra dikhao/koi aur/change provider/different one/doosra
+- "change_provider": user explicitly asks for other/new providers — doosra dikhao/koi aur/change provider/different one
 - "change_intent": user wants a completely different service (e.g., "mujhe plumber chahiye instead", "actually I need electrician")
-- "cancel": user says cancel/band karo/nahi chahiye/rehne do/no thanks
-- If ambiguous, ask for clarification with action "confirm" (safe default).
+- "reject": user declines THIS booking but is NOT abandoning the search — no/nahi/ye nahi/ye wala nahi/I don't want this one/mujhe ye nahi chahiye. They should go back to pick another provider.
+- "cancel": user wants to abandon the whole thing — cancel/band karo/rehne do/forget it/no thanks/abhi nahi.
+- NEVER default to "confirm". Only use "confirm" when the user clearly agrees. A plain "no"/"nahi" is a "reject", not a "confirm". If the intent is genuinely unclear, set action to "clarify" and ask what they'd like to do.
 - Reply MUST be in {language}.
 """
 
@@ -444,7 +652,8 @@ Rules:
             return result
         except Exception as e:
             log.error(f"BookingConfirmation LLM failed: {str(e)[:100]}")
-            return {"action": "confirm", "new_time": None, "reply": ""}
+            # Safe default: never auto-confirm/book on failure — ask the user to clarify.
+            return {"action": "clarify", "new_time": None, "reply": ""}
 
     def create_booking(self, user_id: int, provider_id: int, slot: str, booking_date: str, db: Session, logger: AgentExecutionLog) -> dict:
         """Actually create the booking in DB."""
@@ -526,6 +735,63 @@ class FollowUpAgent:
 
 
 # ============================================================
+# Agent 5: Chat Summarizer (Background)
+# ============================================================
+
+class ChatSummarizerAgent:
+    def __init__(self):
+        self.name = "Chat Summarizer"
+
+    def summarize(self, session_id: int, booking_id: int):
+        db = SessionLocal()
+        try:
+            session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+            if not session:
+                log.error(f"ChatSummarizer: Session {session_id} not found.")
+                return
+
+            booking = db.query(Booking).filter(Booking.id == booking_id).first()
+            if not booking:
+                log.error(f"ChatSummarizer: Booking {booking_id} not found.")
+                return
+
+            messages = [{"role": msg.role, "content": msg.content} for msg in session.messages]
+
+            if not messages:
+                return
+
+            convo = ""
+            for m in messages:
+                role = "User" if m["role"] == "user" else "Assistant"
+                convo += f"{role}: {m['content']}\n"
+
+            system_instruction = (
+                "You are a helpful summarizer for Karigar AI. "
+                "Analyze the following conversation and write a single, plain text paragraph summarizing the interaction. "
+                "You MUST NOT use bullet points, numbered lists, asterisks, bold text, or headings. "
+                "Your summary should naturally explain what the user wanted, why they reached out, which specific service provider they booked, and for what date and time. "
+                "Example format: 'The user reached out to book a plumbing service because their sink was leaking. They successfully booked Ali Raza for May 25th at 14:00.' "
+                "Return ONLY the plain text paragraph."
+            )
+            prompt = f"Conversation:\n{convo}"
+
+            summary_text = _call_llm(
+                system_instruction=system_instruction,
+                prompt=prompt,
+                temperature=0.3,
+                json_mode=False
+            )
+
+            booking.prompt = summary_text.strip()
+            db.commit()
+            log.info(f"ChatSummarizer: Successfully summarized session {session_id} for booking {booking_id}")
+        except Exception as e:
+            log.error(f"ChatSummarizer failed: {e}")
+        finally:
+            db.close()
+
+
+# ============================================================
 # Orchestrator V2 (Phase-based)
 # ============================================================
 
@@ -539,6 +805,7 @@ class OrchestratorV2:
     def __init__(self):
         self.intent_agent = IntentValidationAgent()
         self.discovery_agent = ProviderDiscoveryAgent()
+        self.smart_match_agent = SmartMatchAgent()
         self.booking_agent = BookingConfirmationAgent()
 
     # --- Session helpers ---
@@ -751,6 +1018,14 @@ class OrchestratorV2:
             self._save_state(session, state, db)
             return self._build_response(reply, language, PHASE_SELECTING, session.id, state, logger)
 
+        # Enrich each provider with a grounded "smart match" explanation (best-effort).
+        try:
+            smart_matches = self.smart_match_agent.process(providers, state, db, logger)
+            for p in providers:
+                p["smart_match"] = smart_matches.get(p["id"])
+        except Exception as e:
+            log.error(f"Smart match enrichment skipped: {str(e)[:100]}")
+
         reply = self._selection_reply(language, state.get("service_type"), len(providers), state.get("booking_date"), providers)
         self._save_message(session, "assistant", reply, db, state=state,
                            extra_data={"provider_count": len(providers)})
@@ -913,7 +1188,7 @@ Rules:
                                         booking_summary=booking_summary)
 
         analysis = self.booking_agent.analyze_user_intent(message, booking_summary, available_slots, language, logger)
-        action = analysis.get("action", "confirm")
+        action = analysis.get("action", "clarify")
         llm_reply = analysis.get("reply", "")
 
         # --- CONFIRM ---
@@ -942,6 +1217,12 @@ Rules:
 
             # Trigger FCM push notification to user
             self._send_booking_notification(session.user_id, booking_result, db, logger)
+
+            # Trigger Chat Summarizer in background
+            threading.Thread(
+                target=ChatSummarizerAgent().summarize,
+                args=(session.id, booking_result["booking_id"])
+            ).start()
 
             state["phase"] = PHASE_COMPLETED
             state.pop("booking_summary", None)
@@ -994,6 +1275,23 @@ Rules:
                                extra_data={"action": "change_intent"})
             self._save_state(session, new_state, db)
             return self._build_response(reply, language, PHASE_GATHERING, session.id, new_state, logger)
+
+        # --- REJECT (decline this booking, go back to provider selection) ---
+        elif action == "reject":
+            state["phase"] = PHASE_SELECTING
+            state.pop("booking_summary", None)
+            self._save_state(session, state, db)
+
+            providers = state.get("providers", [])
+            if not providers:
+                return self._discover_and_respond(session, user, state, language, db, logger)
+
+            reply = self._selection_reply(language, state.get("service_type"),
+                                          len(providers), state.get("booking_date"), providers)
+            self._save_message(session, "assistant", reply, db, state=state,
+                               extra_data={"action": "reject"})
+            return self._build_response(reply, language, PHASE_SELECTING, session.id, state, logger,
+                                        providers=providers)
 
         # --- CANCEL ---
         elif action == "cancel":
@@ -1130,20 +1428,20 @@ Rules:
             loc = p.get("location", "")
             name = p.get("name", "")
             dist = p.get("distance_km")
-            dist_str = f" • {dist} km" if dist else ""
-            provider_lines += f"\n{i}. {name} ({loc}){dist_str}\n   Rs. {rate}/hr | Rating: {rating}/5"
+            dist_str = f" • 📍 {dist} km" if dist else ""
+            provider_lines += f"\n{i}. 👤 {name} ({loc}){dist_str}\n   💰 Rs. {rate}/hr | ⭐ {rating}/5"
 
         if lang == "roman_urdu":
             du = f" {booking_date} ke liye" if booking_date else ""
-            header = f"Yeh hain aap ke nazdeek {count} {service_type}{du}:"
-            footer = "\n\nApna provider aur time slot select karein."
+            header = f"✨ Yeh rahay aap ke nazdeek {count} behtareen {service_type}s{du}:\n"
+            footer = "\n\n👇 Baraye meharbani apna provider aur time slot select karein."
         elif lang == "urdu":
             du = f" {booking_date} کے لیے" if booking_date else ""
-            header = f"یہ ہیں آپ کے نزدیک {count} {service_type}{du}:"
-            footer = "\n\nاپنا پرووائیڈر اور ٹائم سلاٹ منتخب کریں۔"
+            header = f"✨ یہ رہے آپ کے قریب {count} بہترین {service_type}{du}:\n"
+            footer = "\n\n👇 براہ کرم اپنا پرووائیڈر اور ٹائم سلاٹ منتخب کریں۔"
         else:
-            header = f"Here are {count} {service_type}(s) near you{d}:"
-            footer = "\n\nSelect your preferred provider and time slot."
+            header = f"✨ Here are {count} top-rated {service_type}(s) near you{d}:\n"
+            footer = "\n\n👇 Please select your preferred provider and time slot."
 
         return header + provider_lines + footer
 
@@ -1156,28 +1454,28 @@ Rules:
         rating = summary["rating"]
 
         if lang == "roman_urdu":
-            return (f"Booking details:\n"
-                    f"• {name} ({loc})\n"
-                    f"• Date: {date}\n"
-                    f"• Time: {slot}\n"
-                    f"• Charges: Rs. {rate}/hour\n"
-                    f"• Rating: {rating}/5\n\n"
-                    f"Kya confirm karein? Agar time change karna hai toh bata dein.")
+            return (f"📝 Booking ki Tafseelat:\n"
+                    f"👤 {name} ({loc})\n"
+                    f"📅 Date: {date}\n"
+                    f"⏰ Time: {slot}\n"
+                    f"💰 Charges: Rs. {rate}/hour\n"
+                    f"⭐ Rating: {rating}/5\n\n"
+                    f"✅ Kya confirm karein? Agar time change karna hai toh bata dein.")
         elif lang == "urdu":
-            return (f"بکنگ کی تفصیلات:\n"
-                    f"• {name} ({loc})\n"
-                    f"• تاریخ: {date}\n"
-                    f"• وقت: {slot}\n"
-                    f"• چارجز: Rs. {rate}/گھنٹہ\n"
-                    f"• ریٹنگ: {rating}/5\n\n"
-                    f"کیا کنفرم کریں؟ اگر وقت تبدیل کرنا ہو تو بتائیں۔")
-        return (f"Booking details:\n"
-                f"• {name} ({loc})\n"
-                f"• Date: {date}\n"
-                f"• Time: {slot}\n"
-                f"• Charges: Rs. {rate}/hour\n"
-                f"• Rating: {rating}/5\n\n"
-                f"Confirm? You can also change the time if needed.")
+            return (f"📝 بکنگ کی تفصیلات:\n"
+                    f"👤 {name} ({loc})\n"
+                    f"📅 تاریخ: {date}\n"
+                    f"⏰ وقت: {slot}\n"
+                    f"💰 چارجز: Rs. {rate}/گھنٹہ\n"
+                    f"⭐ ریٹنگ: {rating}/5\n\n"
+                    f"✅ کیا کنفرم کریں؟ اگر وقت تبدیل کرنا ہو تو بتائیں۔")
+        return (f"📝 Booking details:\n"
+                f"👤 {name} ({loc})\n"
+                f"📅 Date: {date}\n"
+                f"⏰ Time: {slot}\n"
+                f"💰 Charges: Rs. {rate}/hour\n"
+                f"⭐ Rating: {rating}/5\n\n"
+                f"✅ Confirm? You can also change the time if needed.")
 
     def _booking_confirmed_reply(self, lang, result):
         name = result["provider_name"]
@@ -1189,34 +1487,34 @@ Rules:
         bid = result.get("booking_id", "")
 
         if lang == "roman_urdu":
-            return (f"Booking confirmed!\n\n"
-                    f"Booking #{bid}\n"
-                    f"• Provider: {name}\n"
-                    f"• Location: {loc}\n"
-                    f"• Date: {date}\n"
-                    f"• Time: {slot}\n"
-                    f"• Charges: Rs. {rate}/hour\n"
-                    f"• Rating: {rating}/5\n\n"
-                    f"Shukriya! Aapko notification mil jayega.")
+            return (f"🎉 Booking confirmed!\n\n"
+                    f"🔖 Booking #{bid}\n"
+                    f"👤 Provider: {name}\n"
+                    f"📍 Location: {loc}\n"
+                    f"📅 Date: {date}\n"
+                    f"⏰ Time: {slot}\n"
+                    f"💰 Charges: Rs. {rate}/hour\n"
+                    f"⭐ Rating: {rating}/5\n\n"
+                    f"🙏 Shukriya! Aapko notification mil jayega.")
         elif lang == "urdu":
-            return (f"بکنگ کنفرم!\n\n"
-                    f"بکنگ #{bid}\n"
-                    f"• پرووائیڈر: {name}\n"
-                    f"• مقام: {loc}\n"
-                    f"• تاریخ: {date}\n"
-                    f"• وقت: {slot}\n"
-                    f"• چارجز: Rs. {rate}/گھنٹہ\n"
-                    f"• ریٹنگ: {rating}/5\n\n"
-                    f"شکریہ! آپ کو نوٹیفکیشن مل جائے گا۔")
-        return (f"Booking confirmed!\n\n"
-                f"Booking #{bid}\n"
-                f"• Provider: {name}\n"
-                f"• Location: {loc}\n"
-                f"• Date: {date}\n"
-                f"• Time: {slot}\n"
-                f"• Charges: Rs. {rate}/hour\n"
-                f"• Rating: {rating}/5\n\n"
-                f"Thank you! You'll receive a notification shortly.")
+            return (f"🎉 بکنگ کنفرم!\n\n"
+                    f"🔖 بکنگ #{bid}\n"
+                    f"👤 پرووائیڈر: {name}\n"
+                    f"📍 مقام: {loc}\n"
+                    f"📅 تاریخ: {date}\n"
+                    f"⏰ وقت: {slot}\n"
+                    f"💰 چارجز: Rs. {rate}/گھنٹہ\n"
+                    f"⭐ ریٹنگ: {rating}/5\n\n"
+                    f"🙏 شکریہ! آپ کو نوٹیفکیشن مل جائے گا۔")
+        return (f"🎉 Booking confirmed!\n\n"
+                f"🔖 Booking #{bid}\n"
+                f"👤 Provider: {name}\n"
+                f"📍 Location: {loc}\n"
+                f"📅 Date: {date}\n"
+                f"⏰ Time: {slot}\n"
+                f"💰 Charges: Rs. {rate}/hour\n"
+                f"⭐ Rating: {rating}/5\n\n"
+                f"🙏 Thank you! You'll receive a notification shortly.")
 
     def _slot_unavailable_reply(self, lang, available_slots):
         s = ", ".join(available_slots) if available_slots else "none"
