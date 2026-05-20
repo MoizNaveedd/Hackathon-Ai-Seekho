@@ -924,7 +924,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                 <View style={{ flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <MaterialIcons name="auto-awesome" size={20} color="#92400e" />
-                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#1a1a2e' }}>AI Match Analysis</Text>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#1a1a2e' }}>Antigravity AI Match Analysis</Text>
                   </View>
                   <TouchableOpacity onPress={() => { setWhyHimModalVisible(false); setSelectedWhyHimProvider(null); }} style={{ padding: 4 }}>
                     <MaterialIcons name="close" size={22} color="#6e7979" />

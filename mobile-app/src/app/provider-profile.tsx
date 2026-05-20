@@ -465,7 +465,7 @@ export default function ProviderProfile() {
               <View style={styles.smartMatchHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                   <MaterialIcons name="auto-awesome" size={20} color="#00595c" />
-                  <Text style={styles.smartMatchTitle}>AI Smart Match</Text>
+                  <Text style={styles.smartMatchTitle}>Antigravity AI Smart Match</Text>
                 </View>
                 {smartMatch.is_top_pick && (
                   <View style={styles.topPickBadge}>
@@ -973,6 +973,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 24,
     gap: 8,
+    marginTop: 16
   },
   metricCard: {
     flex: 1,
@@ -1465,7 +1466,7 @@ const styles = StyleSheet.create({
   mapCardContainer: {
     paddingHorizontal: 16,
     marginTop: 16,
-    marginBottom: 8,
+ 
   },
   mapButton: {
     flexDirection: 'row',
