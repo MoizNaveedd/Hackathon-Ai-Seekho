@@ -915,7 +915,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
             <View style={styles.confirmOverlay}>
               <View style={styles.confirmCard}>
                 <MaterialIcons name="chat-bubble-outline" size={32} color="#00595c" style={{ marginBottom: 12 }} />
-                <Text style={styles.confirmTitle}>End this chat?</Text>
+                <Text style={styles.confirmTitle}>Close this chat?</Text>
                 <Text style={styles.confirmBody}>Your conversation will be lost. Are you sure you want to leave?</Text>
                 <View style={styles.confirmActions}>
                   <TouchableOpacity style={styles.confirmKeepBtn} onPress={() => setShowCloseConfirm(false)}>
