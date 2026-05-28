@@ -47,7 +47,7 @@ class ChatRequest(BaseModel):
     session_id: Optional[int] = None  # None = new conversation
     latitude: Optional[float] = None             # GPS from map picker
     longitude: Optional[float] = None            # GPS from map picker
-    location_name: Optional[str] = None          # Location name from map picker (e.g. "G-13")
+    location_name: Optional[str] = None          # Location name from map picker (e.g. "Gulshan")
     selected_provider_id: Optional[int] = None   # When user selects a provider from FE
     selected_slot: Optional[str] = None           # Selected time slot
     selected_date: Optional[str] = None           # Selected date (YYYY-MM-DD)

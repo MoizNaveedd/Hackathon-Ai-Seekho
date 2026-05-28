@@ -45,7 +45,7 @@ def seed_db():
 
     print("Seeding users...")
     mock_users = [
-        User(name="Ahmed Khan", location="G-13", latitude=33.6331, longitude=72.9691),
+        User(name="Ahmed Khan", location="Gulshan", latitude=24.9180, longitude=67.0971),
         User(name="Sara Ali", location="F-8", latitude=33.7087, longitude=73.0397),
         User(name="Hamza Tariq", location="I-8", latitude=33.6900, longitude=73.0700),
     ]
@@ -54,10 +54,10 @@ def seed_db():
     print("Seeding providers...")
     mock_providers = [
         # AC Technicians
-        Provider(name="Ali AC Services", service_type="AC Technician", location="G-13", rating=4.8,
+        Provider(name="Ali AC Services", service_type="AC Technician", location="Gulshan", rating=4.8,
                  hourly_rate=rate_for("AC Technician"),
                  available_slots=generate_date_slots(["09:00 AM", "10:00 AM", "01:00 PM"]),
-                 latitude=33.6350, longitude=72.9700),
+                 latitude=24.9185, longitude=67.0975),
         Provider(name="Usman Cooling Experts", service_type="AC Technician", location="G-11", rating=4.5,
                  hourly_rate=rate_for("AC Technician", -100),
                  available_slots=generate_date_slots(["04:00 PM", "06:00 PM"]),
@@ -72,20 +72,20 @@ def seed_db():
                  hourly_rate=rate_for("Plumber", -50),
                  available_slots=generate_date_slots(["10:00 AM", "06:00 PM"]),
                  latitude=33.6650, longitude=72.9900),
-        Provider(name="Tariq Water Works", service_type="Plumber", location="G-13", rating=4.6,
+        Provider(name="Tariq Water Works", service_type="Plumber", location="Gulshan", rating=4.6,
                  hourly_rate=rate_for("Plumber"),
                  available_slots=generate_date_slots(["09:00 AM", "11:00 AM", "02:00 PM", "05:00 PM"]),
-                 latitude=33.6320, longitude=72.9710),
+                 latitude=24.9175, longitude=67.0980),
         Provider(name="Nadeem Pipe Masters", service_type="Plumber", location="I-8", rating=4.0,
                  hourly_rate=rate_for("Plumber", +100),
                  available_slots=generate_date_slots(["10:00 AM", "01:00 PM", "04:00 PM"]),
                  latitude=33.6880, longitude=73.0680),
 
         # Electricians
-        Provider(name="Imran Electrician", service_type="Electrician", location="G-13", rating=4.0,
+        Provider(name="Imran Electrician", service_type="Electrician", location="Gulshan", rating=4.0,
                  hourly_rate=rate_for("Electrician", -100),
                  available_slots=generate_date_slots(["09:00 AM", "10:00 AM", "01:00 PM", "04:00 PM", "06:00 PM"]),
-                 latitude=33.6340, longitude=72.9650),
+                 latitude=24.9190, longitude=67.0965),
         Provider(name="Zahid Electric Co.", service_type="Electrician", location="F-7", rating=4.7,
                  hourly_rate=rate_for("Electrician", +150),
                  available_slots=generate_date_slots(["10:00 AM", "12:00 PM", "03:00 PM"]),
@@ -100,10 +100,10 @@ def seed_db():
                  hourly_rate=rate_for("Beautician", +500),
                  available_slots=generate_date_slots(["01:00 PM", "04:00 PM"]),
                  latitude=33.7100, longitude=73.0400),
-        Provider(name="Glamour Studio by Hina", service_type="Beautician", location="G-13", rating=4.6,
+        Provider(name="Glamour Studio by Hina", service_type="Beautician", location="Gulshan", rating=4.6,
                  hourly_rate=rate_for("Beautician"),
                  available_slots=generate_date_slots(["10:00 AM", "12:00 PM", "03:00 PM", "05:00 PM"]),
-                 latitude=33.6360, longitude=72.9720),
+                 latitude=24.9182, longitude=67.0972),
 
         # Painters
         Provider(name="Rafiq Paint Masters", service_type="Painter", location="G-10", rating=4.3,
@@ -126,10 +126,10 @@ def seed_db():
                  latitude=33.7310, longitude=73.0620),
 
         # Appliance Repair
-        Provider(name="Sajid Home Appliances", service_type="Appliance Repair", location="G-13", rating=4.4,
+        Provider(name="Sajid Home Appliances", service_type="Appliance Repair", location="Gulshan", rating=4.4,
                  hourly_rate=rate_for("Appliance Repair"),
                  available_slots=generate_date_slots(["09:00 AM", "11:00 AM", "01:00 PM", "04:00 PM"]),
-                 latitude=33.6330, longitude=72.9680),
+                 latitude=24.9188, longitude=67.0978),
         Provider(name="TechFix by Omer", service_type="Appliance Repair", location="F-8", rating=4.7,
                  hourly_rate=rate_for("Appliance Repair", +200),
                  available_slots=generate_date_slots(["10:00 AM", "03:00 PM", "06:00 PM"]),
@@ -150,10 +150,10 @@ def seed_db():
                  hourly_rate=rate_for("Home Cleaning", +100),
                  available_slots=generate_date_slots(["08:00 AM", "10:00 AM", "01:00 PM", "04:00 PM"]),
                  latitude=33.7070, longitude=73.0390),
-        Provider(name="Deepak Cleaning Crew", service_type="Home Cleaning", location="G-13", rating=4.2,
+        Provider(name="Deepak Cleaning Crew", service_type="Home Cleaning", location="Gulshan", rating=4.2,
                  hourly_rate=rate_for("Home Cleaning"),
                  available_slots=generate_date_slots(["09:00 AM", "12:00 PM", "03:00 PM"]),
-                 latitude=33.6355, longitude=72.9695),
+                 latitude=24.9178, longitude=67.0968),
 
         # Locksmith
         Provider(name="Master Key by Irfan", service_type="Locksmith", location="G-10", rating=4.5,

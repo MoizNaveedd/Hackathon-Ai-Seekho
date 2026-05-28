@@ -156,7 +156,7 @@ async def register(
         new_provider = Provider(
             name=name,
             service_type=service_type,
-            location="G-13", # Default location
+            location="Gulshan", # Default location
             rating=5.0,
             available_slots="{}",
             email=email,
@@ -318,7 +318,7 @@ async def get_me(
                     "role": "service_provider",
                     "avatar": "https://cdn.example.com/avatars/usr_123.jpg",
                     "service_type": "Electrical",
-                    "location": "G-13",
+                    "location": "Gulshan",
                     "rating": 5.0
                 }
             }
@@ -376,7 +376,7 @@ async def get_me(
                 "role": "service_provider",
                 "avatar": "https://cdn.example.com/avatars/usr_123.jpg",
                 "service_type": "Electrical",
-                "location": "G-13",
+                "location": "Gulshan",
                 "rating": 5.0
             }
         }

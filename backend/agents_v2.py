@@ -260,7 +260,7 @@ Set "is_complete": true ONLY when service_type AND booking_date are BOTH known A
         except Exception as e:
             log.error(f"All LLM providers failed: {str(e)[:100]}")
             return {
-                "reply": "Something went wrong on our end. Please try again.",
+                "reply": "Something went wrong on our end (free API Quota got exhausted). Please try again.",
                 "language": cached_state.get("language", "english"),
                 "is_valid": True, "rejection_reason": None,
                 "state": cached_state or {"service_type": "Unknown", "booking_type": None, "booking_date": None},
@@ -885,7 +885,7 @@ class OrchestratorV2:
         except Exception as e:
             log.error(f"Orchestrator error: {str(e)[:150]}")
             return self._build_response(
-                "Something went wrong. Please try again.", "english",
+                "Something went wrong (free API Quota got exhausted). Please try again.", "english",
                 PHASE_GATHERING, session_id, {}, logger
             )
 

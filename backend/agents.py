@@ -46,7 +46,7 @@ class IntentUnderstandingAgent:
         if not gemini_client:
             raise Exception("GEMINI_API_KEY is not set in .env file.")
             
-        location_context = f"\n2. Location (We already know the user's location is '{user.location}', so DO NOT ask for it unless they explicitly say they are somewhere else)." if user and user.location else "\n2. Location (e.g., 'G-13', 'F-8', 'G-10')."
+        location_context = f"\n2. Location (We already know the user's location is '{user.location}', so DO NOT ask for it unless they explicitly say they are somewhere else)." if user and user.location else "\n2. Location (e.g., 'Gulshan', 'F-8', 'G-10')."
             
         system_instruction = f"""
         You are a friendly, conversational customer service AI for a karigar ai (home service platform). You speak Urdu, Roman Urdu, and English naturally.
