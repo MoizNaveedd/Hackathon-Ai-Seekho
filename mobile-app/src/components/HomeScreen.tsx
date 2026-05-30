@@ -408,51 +408,19 @@ export default function HomeScreen({
   const [apiBookings, setApiBookings] = useState<any[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
 
-  const getActiveBookingsMock = (): any[] => [
-    {
-      id: 9001,
-      user_intent: "Plumbing Repair",
-      user_id: userId,
-      provider_id: 1,
-      time_slot: "In Progress",
-      booking_date: new Date().toISOString(),
-      status: "Active",
-      service_type: "Plumbing",
-      price: 1500,
-      description: "Fixing kitchen sink leak",
-      feedback: null,
-      customer_feedback: null,
-      customer_rating: null,
-      prompt: null,
-      provider: {
-        id: 1,
-        name: "Shahzad AC and Cooling",
-        service_type: "Plumber",
-        location: "Lahore",
-        rating: 4.8,
-      },
-      user: { id: userId!, name: "You", email: "", location: "" },
-    },
-  ];
-
   const filterToApiStatus: Record<
     string,
-    "upcoming" | "completed" | "cancelled" | undefined
+    "upcoming" | "completed" | "cancelled" | "active"
   > = {
     Upcoming: "upcoming",
     Completed: "completed",
     Cancelled: "cancelled",
-    Active: undefined,
+    Active: "active",
   };
 
   const fetchBookings = async (filter?: string) => {
     if (!userId) return;
     const currentFilter = filter || selectedFilter;
-
-    if (currentFilter === "Active") {
-      setApiBookings(getActiveBookingsMock());
-      return;
-    }
 
     setIsLoadingBookings(true);
     try {

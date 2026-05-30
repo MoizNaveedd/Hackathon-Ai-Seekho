@@ -281,7 +281,7 @@ export async function chat(request: ChatRequest): Promise<ChatResponse> {
  */
 export async function getUserBookings(
   userId: number,
-  status?: "upcoming" | "completed" | "cancelled",
+  status?: "upcoming" | "completed" | "cancelled" | "active",
 ): Promise<BookingsResponse> {
   const statusParam = status ? `&status=${status}` : "";
   return get<BookingsResponse>(`/bookings?user_id=${userId}${statusParam}`);
