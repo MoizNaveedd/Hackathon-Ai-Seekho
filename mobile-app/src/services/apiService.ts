@@ -5,7 +5,9 @@
  * Base URL is read from the EXPO_PUBLIC_API_BASE_URL environment variable.
  */
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://karigar-ai-backend.onrender.com";
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ??
+  "https://karigar-ai-backend.onrender.com";
 
 // ─────────────────────────────────────────────
 // Types (mirroring api-docs.json schemas)
@@ -28,7 +30,7 @@ export interface GoogleUserData {
 }
 
 export interface SSOLoginRequest {
-  type: string;          // e.g. "google"
+  type: string; // e.g. "google"
   data: GoogleUserData;
 }
 
@@ -58,7 +60,7 @@ export interface LocationUpdateRequest {
 // /chat
 // ─────────────────────────────────────────────
 
-export type MessageRole = 'user' | 'assistant';
+export type MessageRole = "user" | "assistant";
 
 export interface ChatMessage {
   role: MessageRole;
@@ -228,7 +230,9 @@ async function get<T>(path: string): Promise<T> {
  * Matches (or auto-registers) the Google user in the backend.
  * Returns the backend user object which includes `user_id`.
  */
-export async function ssoLogin(googleUserData: GoogleUserData): Promise<SSOLoginResponse> {
+export async function ssoLogin(
+  googleUserData: GoogleUserData,
+): Promise<SSOLoginResponse> {
   const body: SSOLoginRequest = {
     type: "google",
     data: googleUserData,
@@ -243,7 +247,7 @@ export async function ssoLogin(googleUserData: GoogleUserData): Promise<SSOLogin
 export async function updateUserLocation(
   userId: number,
   latitude: number,
-  longitude: number
+  longitude: number,
 ): Promise<void> {
   const body: LocationUpdateRequest = { user_id: userId, latitude, longitude };
   await post<unknown>("/update_user_location", body);
@@ -254,9 +258,7 @@ export async function updateUserLocation(
  * Sends the message to the AI orchestrator.
  * @param request - ChatRequest for v2 endpoint
  */
-export async function chat(
-  request: ChatRequest
-): Promise<ChatResponse> {
+export async function chat(request: ChatRequest): Promise<ChatResponse> {
   return post<ChatResponse>("/chat/v2", request);
 }
 
@@ -264,24 +266,44 @@ export async function chat(
  * GET /bookings
  * Lists all bookings for a user.
  */
-export async function getUserBookings(userId: number): Promise<BookingsResponse> {
-  return get<BookingsResponse>(`/bookings?user_id=${userId}`);
+export async function getUserBookings(
+  userId: number,
+  status?: "upcoming" | "completed" | "cancelled",
+): Promise<BookingsResponse> {
+  const statusParam = status ? `&status=${status}` : "";
+  return get<BookingsResponse>(`/bookings?user_id=${userId}${statusParam}`);
 }
 
 /**
  * POST /bookings/{booking_id}/cancel
  * Cancels a booking.
  */
-export async function cancelBooking(bookingId: number, userId: number, reason?: string): Promise<void> {
-  await post<void>(`/bookings/${bookingId}/cancel`, { user_id: userId, reason: reason || null });
+export async function cancelBooking(
+  bookingId: number,
+  userId: number,
+  reason?: string,
+): Promise<void> {
+  await post<void>(`/bookings/${bookingId}/cancel`, {
+    user_id: userId,
+    reason: reason || null,
+  });
 }
 
 /**
  * POST /bookings/{booking_id}/complete
  * Marks a booking as completed.
  */
-export async function completeBooking(bookingId: number, userId: number, rating?: number, feedback?: string): Promise<void> {
-  await post<void>(`/bookings/${bookingId}/complete`, { user_id: userId, rating: rating || null, feedback: feedback || null });
+export async function completeBooking(
+  bookingId: number,
+  userId: number,
+  rating?: number,
+  feedback?: string,
+): Promise<void> {
+  await post<void>(`/bookings/${bookingId}/complete`, {
+    user_id: userId,
+    rating: rating || null,
+    feedback: feedback || null,
+  });
 }
 
 export interface ProviderListResponse {
@@ -304,24 +326,30 @@ export async function getProviders(params?: {
   longitude?: number;
   max_distance_km?: number;
   booking_date?: string;
-  sort_by?: 'rating' | 'distance' | 'name';
+  sort_by?: "rating" | "distance" | "name";
   page?: number;
   limit?: number;
 }): Promise<ProviderListResponse> {
   let query = "";
   if (params) {
     const parts: string[] = [];
-    if (params.service_type) parts.push(`service_type=${encodeURIComponent(params.service_type)}`);
-    if (params.location) parts.push(`location=${encodeURIComponent(params.location)}`);
-    if (params.min_rating !== undefined) parts.push(`min_rating=${params.min_rating}`);
-    if (params.latitude !== undefined && params.latitude !== null) parts.push(`latitude=${params.latitude}`);
-    if (params.longitude !== undefined && params.longitude !== null) parts.push(`longitude=${params.longitude}`);
-    if (params.max_distance_km !== undefined) parts.push(`max_distance_km=${params.max_distance_km}`);
+    if (params.service_type)
+      parts.push(`service_type=${encodeURIComponent(params.service_type)}`);
+    if (params.location)
+      parts.push(`location=${encodeURIComponent(params.location)}`);
+    if (params.min_rating !== undefined)
+      parts.push(`min_rating=${params.min_rating}`);
+    if (params.latitude !== undefined && params.latitude !== null)
+      parts.push(`latitude=${params.latitude}`);
+    if (params.longitude !== undefined && params.longitude !== null)
+      parts.push(`longitude=${params.longitude}`);
+    if (params.max_distance_km !== undefined)
+      parts.push(`max_distance_km=${params.max_distance_km}`);
     if (params.booking_date) parts.push(`booking_date=${params.booking_date}`);
     if (params.sort_by) parts.push(`sort_by=${params.sort_by}`);
     if (params.page !== undefined) parts.push(`page=${params.page}`);
     if (params.limit !== undefined) parts.push(`limit=${params.limit}`);
-    
+
     if (parts.length > 0) {
       query = "?" + parts.join("&");
     }
@@ -333,9 +361,18 @@ export async function getProviders(params?: {
  * GET /providers/{provider_id}
  * Retrieves details of a single provider by ID.
  */
-export async function getProviderDetails(providerId: number, latitude?: number | null, longitude?: number | null): Promise<Provider> {
-  let query = '';
-  if (latitude !== undefined && latitude !== null && longitude !== undefined && longitude !== null) {
+export async function getProviderDetails(
+  providerId: number,
+  latitude?: number | null,
+  longitude?: number | null,
+): Promise<Provider> {
+  let query = "";
+  if (
+    latitude !== undefined &&
+    latitude !== null &&
+    longitude !== undefined &&
+    longitude !== null
+  ) {
     query = `?latitude=${latitude}&longitude=${longitude}`;
   }
   return get<Provider>(`/providers/${providerId}${query}`);
@@ -382,7 +419,10 @@ export interface ChatHistoryResponse {
  * GET /users/{user_id}/sessions
  * Retrieves past chat sessions for a user.
  */
-export async function getUserSessions(userId: number, limit: number = 20): Promise<SessionsResponse> {
+export async function getUserSessions(
+  userId: number,
+  limit: number = 20,
+): Promise<SessionsResponse> {
   return get<SessionsResponse>(`/users/${userId}/sessions?limit=${limit}`);
 }
 
@@ -390,6 +430,9 @@ export async function getUserSessions(userId: number, limit: number = 20): Promi
  * GET /chat/{session_id}/history
  * Retrieves full history of a given chat session.
  */
-export async function getChatHistory(sessionId: number, limit: number = 100): Promise<ChatHistoryResponse> {
+export async function getChatHistory(
+  sessionId: number,
+  limit: number = 100,
+): Promise<ChatHistoryResponse> {
   return get<ChatHistoryResponse>(`/chat/${sessionId}/history?limit=${limit}`);
 }
