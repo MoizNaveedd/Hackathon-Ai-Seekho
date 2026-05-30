@@ -74,6 +74,7 @@ export interface ChatRequest {
   selected_provider_id?: number | null;
   selected_slot?: string | null;
   selected_date?: string | null;
+  selected_cancel_booking_id?: number | null;
   latitude?: number;
   longitude?: number;
   location_name?: string | null;
@@ -119,6 +120,16 @@ export interface ChatState {
   phase: string;
 }
 
+export interface CancelBookingItem {
+  booking_id: number;
+  service_type: string;
+  provider_name: string;
+  provider_id: number;
+  date: string;
+  slot: string;
+  price: number;
+}
+
 export interface ChatResponse {
   reply: string;
   language: string;
@@ -129,6 +140,7 @@ export interface ChatResponse {
   booking_summary: any | null;
   booking_id: number | null;
   requires_location?: boolean;
+  cancel_bookings?: CancelBookingItem[] | null;
 }
 
 export interface BookingProvider {

@@ -10,7 +10,7 @@ import { useRouter, useNavigation } from 'expo-router';
 import MapView from 'react-native-maps';
 import * as Location from 'expo-location';
 import { transcribeVoiceLive } from '../services/transcriptionService';
-import { chat, type ChatResponse, type Provider } from '../services/apiService';
+import { chat, type ChatResponse, type Provider, type CancelBookingItem } from '../services/apiService';
 import { scheduleHeadsUpNotification } from '../services/notificationService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,6 +26,8 @@ export interface Message {
   proposalStatus?: 'pending' | 'confirmed' | 'declined';
   isCompleted?: boolean;
   requireLocation?: boolean;
+  cancelBookings?: CancelBookingItem[] | null;
+  cancelledBookingIds?: number[];
 }
 
 interface BookingProposal {
@@ -358,10 +360,11 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
   }, [messages, isTyping, bookingProposal]);
 
   async function fetchReply(
-    text: string, 
-    currentHistory: Message[], 
+    text: string,
+    currentHistory: Message[],
     selection?: { provider_id: number; slot: string; date: string },
-    customLocation?: { latitude: number; longitude: number; location_name: string }
+    customLocation?: { latitude: number; longitude: number; location_name: string },
+    cancelBookingId?: number
   ) {
     setIsTyping(true);
     try {
@@ -371,6 +374,7 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
       let providers = null;
       let isCompleted = false;
       let requireLocation = false;
+      let cancelBookings: CancelBookingItem[] | null = null;
 
       if (providerMode) {
         // Mock provider responses (provider-to-user chat, not AI)
@@ -416,6 +420,10 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
           request.selected_date = selection.date;
         }
 
+        if (cancelBookingId) {
+          request.selected_cancel_booking_id = cancelBookingId;
+        }
+
         console.log('📤 Sending to /chat/v2:', JSON.stringify(request));
         const response = await chat(request);
         console.log('📥 /chat/v2 response:', JSON.stringify(response));
@@ -449,19 +457,25 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
             provider_id: response.booking_summary.provider_id
           };
         }
+
+        if (response.cancel_bookings && response.cancel_bookings.length > 0) {
+          cancelBookings = response.cancel_bookings;
+        }
       }
 
-      const aiMsg: Message = { 
-        id: `a${Date.now()}`, 
-        role: 'assistant', 
-        text: reply, 
+      const aiMsg: Message = {
+        id: `a${Date.now()}`,
+        role: 'assistant',
+        text: reply,
         timestamp: new Date(),
         selectable,
         providers,
         bookingProposal: proposal,
         proposalStatus: proposal ? 'pending' : undefined,
         isCompleted,
-        requireLocation
+        requireLocation,
+        cancelBookings,
+        cancelledBookingIds: [],
       };
       setMessages(prev => [...prev, aiMsg]);
       if (proposal) setBookingProposal(proposal);
@@ -533,6 +547,21 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
     const updatedHistory = [...messages.map(m => m.id === msgId ? { ...m, proposalStatus: 'confirmed' as const } : m), userMsg];
     setMessages(updatedHistory);
     fetchReply(text, updatedHistory);
+  }
+
+  function handleCancelBooking(msgId: string, booking: CancelBookingItem) {
+    const text = `I want to cancel my ${booking.service_type} booking (ID: ${booking.booking_id}) with ${booking.provider_name} on ${booking.date} at ${booking.slot}.`;
+    const userMsg: Message = { id: `u${Date.now()}`, role: 'user', text, timestamp: new Date() };
+    const updatedHistory = [
+      ...messages.map(m =>
+        m.id === msgId
+          ? { ...m, cancelledBookingIds: [...(m.cancelledBookingIds || []), booking.booking_id] }
+          : m
+      ),
+      userMsg,
+    ];
+    setMessages(updatedHistory);
+    fetchReply(text, updatedHistory, undefined, undefined, booking.booking_id);
   }
 
   const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -806,6 +835,50 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
                         <Text style={[styles.confirmBtnText, isOldMessage && styles.disabledConfirmBtnText]}>Confirm Booking</Text>
                       </TouchableOpacity>
                     </View>
+                  </View>
+                )}
+
+                {msg.cancelBookings && msg.cancelBookings.length > 0 && (
+                  <View style={{ gap: 10, marginTop: 4 }}>
+                    {msg.cancelBookings.map((cb) => {
+                      const isCancelled = msg.cancelledBookingIds?.includes(cb.booking_id);
+                      return (
+                        <View key={cb.booking_id} style={[styles.bookingCard, isCancelled && { opacity: 0.5 }]}>
+                          <View style={styles.bookingCardHeader}>
+                            <MaterialIcons name="event-busy" size={20} color="#c62828" />
+                            <Text style={[styles.bookingCardTitle, { color: '#c62828' }]}>Cancel Booking</Text>
+                          </View>
+                          <View style={styles.bookingRow}>
+                            <Text style={styles.bookingLabel}>Service</Text>
+                            <Text style={styles.bookingValue}>{cb.service_type}</Text>
+                          </View>
+                          <View style={styles.bookingRow}>
+                            <Text style={styles.bookingLabel}>Provider</Text>
+                            <Text style={styles.bookingValue}>{cb.provider_name}</Text>
+                          </View>
+                          <View style={styles.bookingRow}>
+                            <Text style={styles.bookingLabel}>Date & Time</Text>
+                            <Text style={styles.bookingValue}>{cb.date} at {cb.slot}</Text>
+                          </View>
+                          <View style={[styles.bookingRow, { borderBottomWidth: 0 }]}>
+                            <Text style={styles.bookingLabel}>Price</Text>
+                            <Text style={[styles.bookingValue, { color: '#c62828', fontFamily: 'PlusJakartaSans_600SemiBold' }]}>Rs. {cb.price}</Text>
+                          </View>
+                          <View style={styles.bookingActions}>
+                            <TouchableOpacity
+                              style={[styles.confirmBtn, { backgroundColor: '#c62828' }, (isOldMessage || isCancelled) && styles.disabledConfirmBtn]}
+                              disabled={isOldMessage || isCancelled}
+                              onPress={() => handleCancelBooking(msg.id, cb)}
+                            >
+                              <MaterialIcons name="close" size={16} color="#fff" style={(isOldMessage || isCancelled) && { opacity: 0.5 }} />
+                              <Text style={[styles.confirmBtnText, (isOldMessage || isCancelled) && styles.disabledConfirmBtnText]}>
+                                {isCancelled ? 'Cancellation Requested' : 'Cancel Booking'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })}
                   </View>
                 )}
                 </React.Fragment>
