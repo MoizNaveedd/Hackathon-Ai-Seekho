@@ -1767,6 +1767,19 @@ export default function HomeScreen({
                               </Text>
                             </TouchableOpacity>
                           </>
+                        ) : booking.status === "Cancelled" ? (
+                          <>
+                            <TouchableOpacity
+                              style={styles.actionBtnSec}
+                              onPress={() => {
+                                router.push("/provider-profile");
+                              }}
+                            >
+                              <Text style={styles.actionBtnTextSec}>
+                                Book Again
+                              </Text>
+                            </TouchableOpacity>
+                          </>
                         ) : (
                           <>
                             <TouchableOpacity
