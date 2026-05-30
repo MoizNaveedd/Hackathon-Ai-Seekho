@@ -141,6 +141,7 @@ export interface ChatResponse {
   booking_id: number | null;
   requires_location?: boolean;
   cancel_bookings?: CancelBookingItem[] | null;
+  notification?: { title: string; body: string } | null;
 }
 
 export interface BookingProvider {

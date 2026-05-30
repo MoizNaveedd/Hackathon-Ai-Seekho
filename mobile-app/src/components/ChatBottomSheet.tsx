@@ -439,12 +439,10 @@ export default function ChatBottomSheet({ visible, initialQuery, onClose, userNa
         isCompleted = response.phase === 'completed';
         requireLocation = !!response.requires_location;
 
-        if (isCompleted) {
-          const service = response.state?.service_type || 'Selected Service';
+        if (response.notification) {
           scheduleHeadsUpNotification(
-            'Booking Confirmed!',
-            response.reply,
-            { service }
+            response.notification.title,
+            response.notification.body,
           );
         }
 
