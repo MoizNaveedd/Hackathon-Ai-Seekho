@@ -32,6 +32,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchBookings } from "@/lib/api";
+import { KarigarLoader } from "@/components/ui/karigar-loader";
 
 
 export default function Bookings() {
@@ -104,7 +105,7 @@ export default function Bookings() {
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-20">
                   <div className="flex justify-center">
-                    <div className="animate-spin h-8 w-8 border-4 border-[#0D7377] border-t-transparent rounded-full" />
+                    <KarigarLoader label="Loading bookings..." />
                   </div>
                 </TableCell>
               </TableRow>

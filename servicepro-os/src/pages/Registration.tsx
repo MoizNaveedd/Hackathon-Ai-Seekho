@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { fetchServices, registerUser } from "@/lib/api";
 import { toast } from "sonner";
+import { KarigarLoader, KarigarLoaderInline } from "@/components/ui/karigar-loader";
 
 const serviceConfig: Record<string, { icon: any; color: string }> = {
   Locksmith: { icon: Lock, color: 'bg-amber-600' },
@@ -168,7 +169,7 @@ export default function Registration() {
             <div className="space-y-8">
               {loading ? (
                 <div className="flex justify-center py-12">
-                  <div className="animate-spin h-8 w-8 border-4 border-[#0D7377] border-t-transparent rounded-full" />
+                  <KarigarLoader label="Loading services..." />
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -222,7 +223,7 @@ export default function Registration() {
                 >
                   {submitting ? (
                     <span className="flex items-center gap-2">
-                      <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                      <KarigarLoaderInline />
                       Creating...
                     </span>
                   ) : (

@@ -1,7 +1,8 @@
 import * as React from "react"
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CircleCheck, Info, TriangleAlert, CircleX, Loader2 } from "lucide-react"
+import { CircleCheck, Info, TriangleAlert, CircleX } from "lucide-react"
+import { KarigarLoaderInline } from "@/components/ui/karigar-loader"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -24,7 +25,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           <CircleX className="size-4" />
         ),
         loading: (
-          <Loader2 className="size-4 animate-spin" />
+          <KarigarLoaderInline size={16} />
         ),
       }}
       style={

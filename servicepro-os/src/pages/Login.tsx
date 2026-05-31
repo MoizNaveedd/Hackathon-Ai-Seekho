@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn } from "lucide-react";
 import { loginUser } from "@/lib/api";
 import { toast } from "sonner";
+import { KarigarLoaderInline } from "@/components/ui/karigar-loader";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -84,7 +85,7 @@ export default function Login() {
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
-                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                  <KarigarLoaderInline />
                   Logging in...
                 </span>
               ) : (

@@ -128,3 +128,52 @@
     @apply font-sans;
     }
 }
+
+@layer utilities {
+  .scroll-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scroll-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Karigar branded loader animations */
+@keyframes karigar-breathe {
+  0%, 100% {
+    transform: scale(0.88);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes karigar-bob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12%);
+  }
+}
+
+@keyframes karigar-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-karigar-breathe {
+  animation: karigar-breathe 1.4s ease-in-out infinite;
+}
+
+.animate-karigar-bob {
+  animation: karigar-bob 1.2s ease-in-out infinite;
+}
+
+.animate-karigar-orbit {
+  animation: karigar-orbit 0.9s linear infinite;
+}

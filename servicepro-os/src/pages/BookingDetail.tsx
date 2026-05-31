@@ -16,18 +16,21 @@ import {
   CheckCircle2,
   XCircle,
   MessageSquare,
-  Navigation,
-  Star
+  Star,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { fetchBookingById, cancelBooking, completeBooking } from "@/lib/api";
+import { KarigarLoader } from "@/components/ui/karigar-loader";
+import { InvoiceDialog } from "@/components/invoice/InvoiceDialog";
 
 export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
 
   const currentUser = useMemo(() => {
     const stored = localStorage.getItem("user");
@@ -46,7 +49,7 @@ export default function BookingDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin h-8 w-8 border-4 border-[#0D7377] border-t-transparent rounded-full" />
+        <KarigarLoader label="Loading booking..." />
       </div>
     );
   }
@@ -93,6 +96,17 @@ export default function BookingDetail() {
     booking.feedback ||
     booking.status === "Completed";
 
+  const customerLat = booking.customer?.latitude ?? booking.latitude;
+  const customerLng = booking.customer?.longitude ?? booking.longitude;
+  const hasCoords =
+    typeof customerLat === "number" &&
+    typeof customerLng === "number" &&
+    (customerLat !== 0 || customerLng !== 0);
+  const mapQuery = hasCoords
+    ? `${customerLat},${customerLng}`
+    : booking.customer.address || booking.location || "Islamabad, Pakistan";
+  const customerPhone = booking.customer.phone || "+92 300 1234567";
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
       <div className="flex items-center gap-4">
@@ -109,6 +123,7 @@ export default function BookingDetail() {
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Order ID: #{booking.id}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status:</span>
           <Badge className={cn(
             "rounded px-4 py-1 font-black uppercase tracking-widest text-[10px] border-none shadow-none",
             booking.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' :
@@ -127,27 +142,24 @@ export default function BookingDetail() {
           {/* Map & Location Card */}
           <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
             <div className="h-64 bg-slate-100 relative group overflow-hidden">
-                {/* Mock Map Representation */}
-                <div className="absolute inset-0 bg-[url('https://api.dicebear.com/7.x/shapes/svg?seed=map')] opacity-10 grayscale scale-150" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative">
-                        <div className="absolute -inset-4 bg-[#0D7377]/20 rounded-full animate-ping" />
-                        <div className="w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center text-[#0D7377] relative border-2 border-[#0D7377]">
-                            <MapPin size={24} />
-                        </div>
-                    </div>
-                </div>
-                <div className="absolute bottom-4 right-4">
-                  <Button className="bg-[#0D7377] hover:bg-[#0b6366] font-bold text-[10px] uppercase tracking-widest h-9 rounded-xl gap-2 shadow-lg shadow-[#0D7377]/20">
-                    <Navigation size={14} /> Open in Maps
-                  </Button>
-                </div>
+                {/* Real Google Map */}
+                <iframe
+                  title="Job Location Map"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&output=embed`}
+                  className="absolute inset-0 w-full h-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
             </div>
             <CardHeader className="p-8 border-b border-slate-100">
                <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
                     <CardTitle className="text-xl font-black tracking-tight text-slate-800">Job Location</CardTitle>
-                    <p className="text-sm font-medium text-slate-500">{booking.customer.address}</p>
+                    <p className="text-sm font-medium text-slate-500">
+                      {booking.customer.address ||
+                        (hasCoords ? `${customerLat.toFixed(5)}, ${customerLng.toFixed(5)}` : "Location not provided")}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Estimated Distance</p>
@@ -298,7 +310,7 @@ export default function BookingDetail() {
                     <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
                        <Phone size={14} />
                     </div>
-                    <span className="text-sm font-bold">{booking.customer.phone}</span>
+                    <span className="text-sm font-bold">{customerPhone}</span>
                  </div>
                  <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
@@ -309,8 +321,11 @@ export default function BookingDetail() {
               </div>
 
               <div className="pt-8">
-                 <Button className="w-full bg-white text-[#0D7377] hover:bg-white/90 font-black text-xs uppercase tracking-widest h-12 rounded-xl gap-2 shadow-xl">
-                    <MessageSquare size={16} /> Contact Customer
+                 <Button
+                    className="w-full bg-white text-[#0D7377] hover:bg-white/90 font-black text-xs uppercase tracking-widest h-12 rounded-xl gap-2 shadow-xl"
+                    onClick={() => navigate(`/bookings/${id}/chat`, { state: { customerName: booking.customer.name } })}
+                 >
+                    <MessageSquare size={16} /> Chat with Customer
                  </Button>
               </div>
            </Card>
@@ -334,6 +349,16 @@ export default function BookingDetail() {
                     <XCircle size={16} className="mr-2" /> Cancel Booking
                   </Button>
                 </>
+              ) : booking.status === 'Completed' ? (
+                <>
+                  <Button
+                    className="w-full h-12 bg-[#0D7377] hover:bg-[#0b6366] text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all gap-2 shadow-lg shadow-[#0D7377]/20"
+                    onClick={() => setInvoiceOpen(true)}
+                  >
+                    <FileText size={16} /> View Invoice
+                  </Button>
+                  <p className="text-center text-xs font-bold text-slate-400 pt-1">This booking has been completed. View or download the invoice above.</p>
+                </>
               ) : (
                 <div className="text-center py-4 px-2">
                    <p className="text-xs font-bold text-slate-400">This booking has been {booking.status.toLowerCase()}. No further actions required.</p>
@@ -354,6 +379,13 @@ export default function BookingDetail() {
            </Card>
         </div>
       </div>
+
+      <InvoiceDialog
+        open={invoiceOpen}
+        onOpenChange={setInvoiceOpen}
+        booking={booking}
+        provider={currentUser}
+      />
     </div>
   );
 }

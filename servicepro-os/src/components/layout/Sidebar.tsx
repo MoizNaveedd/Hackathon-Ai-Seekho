@@ -4,12 +4,12 @@ import {
   LayoutDashboard,
   Calendar,
   ClipboardList,
+  MessageSquare,
   Settings,
   AlertCircle,
   LogOut,
   ChevronLeft,
-  ChevronRight,
-  Banknote
+  ChevronRight
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -18,8 +18,8 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: ClipboardList, label: "Bookings", path: "/bookings" },
+  { icon: MessageSquare, label: "Customer Chat", path: "/messages" },
   { icon: Calendar, label: "Schedule", path: "/calendar" },
-  { icon: Banknote, label: "Pricing & Invoices", path: "/pricing" },
   { icon: AlertCircle, label: "Disputes", path: "/disputes" },
 ];
 
@@ -86,7 +86,7 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-slate-800">
         {!isCollapsed && (
-          <div className="flex items-center gap-3 p-2 bg-slate-800/50 rounded-xl mb-4">
+          <Link to="/profile" className="flex items-center gap-3 p-2 bg-slate-800/50 rounded-xl mb-4 hover:bg-slate-800 transition-colors">
             <div className="w-10 h-10 rounded-full bg-slate-600 border-2 border-[#0D7377] flex-shrink-0 flex items-center justify-center text-xs overflow-hidden text-white font-bold">
               {initials}
             </div>
@@ -94,7 +94,7 @@ export function Sidebar() {
               <span className="text-white text-xs font-semibold truncate leading-none mb-1">{user?.name || "Alex Rivers"}</span>
               <span className="text-slate-400 text-[10px] truncate uppercase font-bold tracking-wider">{user?.service_type || user?.role || "AC Technician"}</span>
             </div>
-          </div>
+          </Link>
         )}
         <Link
           to="/login"

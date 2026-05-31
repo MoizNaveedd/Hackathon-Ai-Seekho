@@ -1,0 +1,167 @@
+================================================================
+KARIGAR / SERVICE APP — THEME REFERENCE
+(Copy this theme into the Admin Panel)
+================================================================
+
+Stack: Tailwind CSS v4 + shadcn + tw-animate-css
+Font: Geist Variable (@fontsource-variable/geist)
+
+
+----------------------------------------------------------------
+1. CORE / BRAND COLORS
+----------------------------------------------------------------
+Primary (teal)............ #0D7377
+Primary foreground........ oklch(0.985 0 0)   (near-white)
+
+Used for: buttons, active nav items, accents, avatar ring.
+
+
+----------------------------------------------------------------
+2. SIDEBAR  (hardcoded Tailwind classes in Sidebar.tsx)
+----------------------------------------------------------------
+NOTE: The sidebar uses hardcoded Tailwind colors, NOT the
+      --sidebar CSS variables.
+
+Sidebar background........ #0F172A           (slate-900, dark navy)
+Sidebar text (default).... white
+Inactive nav item......... slate-400
+Hover nav item............ white text + slate-800 bg
+ACTIVE nav item........... #0D7377 bg + white text
+Borders................... slate-800
+Logout hover.............. rose-400 text + rose-500/10 bg
+Avatar ring............... border #0D7377
+Profile card bg........... slate-800/50  (hover: slate-800)
+Width..................... 64 (256px) expanded / 20 (80px) collapsed
+Collapse transition....... duration-300
+Nav item transition....... duration-200
+
+
+----------------------------------------------------------------
+3. TYPOGRAPHY
+----------------------------------------------------------------
+Font family............... 'Geist Variable', sans-serif
+Heading font.............. same as sans
+
+Sidebar font sizes:
+  App title............... text-lg (18px)  font-bold  tracking-tight
+  Nav labels.............. text-sm (14px)  font-medium
+  User name............... text-xs (12px)  font-semibold
+  User role/subtitle...... text-[10px]     font-bold uppercase tracking-wider
+  Nav icons............... 18px
+  Logout icon............. 20px
+
+
+----------------------------------------------------------------
+4. FULL LIGHT THEME  (:root)
+----------------------------------------------------------------
+--background: oklch(1 0 0);              /* white */
+--foreground: oklch(0.145 0 0);          /* near-black text */
+--card: oklch(1 0 0);
+--card-foreground: oklch(0.145 0 0);
+--popover: oklch(1 0 0);
+--popover-foreground: oklch(0.145 0 0);
+--primary: #0D7377;                      /* teal */
+--primary-foreground: oklch(0.985 0 0);
+--secondary: oklch(0.97 0 0);
+--secondary-foreground: oklch(0.205 0 0);
+--muted: oklch(0.97 0 0);
+--muted-foreground: oklch(0.556 0 0);    /* gray */
+--accent: oklch(0.97 0 0);
+--accent-foreground: oklch(0.205 0 0);
+--destructive: oklch(0.577 0.245 27.325);/* red */
+--border: oklch(0.922 0 0);
+--input: oklch(0.922 0 0);
+--ring: oklch(0.708 0 0);
+--chart-1: oklch(0.87 0 0);
+--chart-2: oklch(0.556 0 0);
+--chart-3: oklch(0.439 0 0);
+--chart-4: oklch(0.371 0 0);
+--chart-5: oklch(0.269 0 0);
+--radius: 0.625rem;                      /* 10px base */
+--sidebar: oklch(0.985 0 0);
+--sidebar-foreground: oklch(0.145 0 0);
+--sidebar-primary: oklch(0.205 0 0);
+--sidebar-primary-foreground: oklch(0.985 0 0);
+--sidebar-accent: oklch(0.97 0 0);
+--sidebar-accent-foreground: oklch(0.205 0 0);
+--sidebar-border: oklch(0.922 0 0);
+--sidebar-ring: oklch(0.708 0 0);
+
+
+----------------------------------------------------------------
+5. FULL DARK THEME  (.dark)
+----------------------------------------------------------------
+NOTE: In dark mode --primary becomes neutral gray, NOT teal.
+
+--background: oklch(0.145 0 0);
+--foreground: oklch(0.985 0 0);
+--card: oklch(0.205 0 0);
+--card-foreground: oklch(0.985 0 0);
+--popover: oklch(0.205 0 0);
+--popover-foreground: oklch(0.985 0 0);
+--primary: oklch(0.922 0 0);             /* gray, not teal */
+--primary-foreground: oklch(0.205 0 0);
+--secondary: oklch(0.269 0 0);
+--secondary-foreground: oklch(0.985 0 0);
+--muted: oklch(0.269 0 0);
+--muted-foreground: oklch(0.708 0 0);
+--accent: oklch(0.269 0 0);
+--accent-foreground: oklch(0.985 0 0);
+--destructive: oklch(0.704 0.191 22.216);
+--border: oklch(1 0 0 / 10%);
+--input: oklch(1 0 0 / 15%);
+--ring: oklch(0.556 0 0);
+--chart-1: oklch(0.87 0 0);
+--chart-2: oklch(0.556 0 0);
+--chart-3: oklch(0.439 0 0);
+--chart-4: oklch(0.371 0 0);
+--chart-5: oklch(0.269 0 0);
+--sidebar: oklch(0.205 0 0);
+--sidebar-foreground: oklch(0.985 0 0);
+--sidebar-primary: oklch(0.488 0.243 264.376);
+--sidebar-primary-foreground: oklch(0.985 0 0);
+--sidebar-accent: oklch(0.269 0 0);
+--sidebar-accent-foreground: oklch(0.985 0 0);
+--sidebar-border: oklch(1 0 0 / 10%);
+--sidebar-ring: oklch(0.556 0 0);
+
+
+----------------------------------------------------------------
+6. BORDER RADIUS SCALE
+----------------------------------------------------------------
+--radius: 0.625rem;  /* base = 10px */
+--radius-sm:  0.6 x radius   /* ~6px  */
+--radius-md:  0.8 x radius   /* ~8px  */
+--radius-lg:  1.0 x radius   /* 10px  */
+--radius-xl:  1.4 x radius   /* ~14px */
+--radius-2xl: 1.8 x radius   /* ~18px */
+--radius-3xl: 2.2 x radius   /* ~22px */
+--radius-4xl: 2.6 x radius   /* ~26px */
+
+Sidebar uses: rounded-lg (nav items), rounded-xl (profile card).
+
+
+----------------------------------------------------------------
+7. CUSTOM ANIMATIONS (Karigar branded loader)
+----------------------------------------------------------------
+.animate-karigar-breathe : karigar-breathe 1.4s ease-in-out infinite
+.animate-karigar-bob     : karigar-bob 1.2s ease-in-out infinite
+.animate-karigar-orbit   : karigar-orbit 0.9s linear infinite
+
+
+----------------------------------------------------------------
+8. HOW TO REPLICATE IN ADMIN PANEL
+----------------------------------------------------------------
+1. Install font:  @fontsource-variable/geist
+2. Copy the @theme inline, :root, and .dark blocks from src/index.css
+3. Reuse sidebar bg #0F172A with #0D7377 active/accent
+4. Imports needed at top of index.css:
+     @import "tailwindcss";
+     @import "tw-animate-css";
+     @import "shadcn/tailwind.css";
+     @import "@fontsource-variable/geist";
+
+Source files:
+  - src/index.css
+  - src/components/layout/Sidebar.tsx
+================================================================

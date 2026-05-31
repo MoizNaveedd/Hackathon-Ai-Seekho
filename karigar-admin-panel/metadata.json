@@ -1,0 +1,8 @@
+{
+  "name": "Karigar Admin Panel",
+  "description": "Operational control center and AI analytics panel for Karigar.ai service provider and booking marketplace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

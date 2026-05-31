@@ -36,9 +36,27 @@ import {
   Truck,
   Camera,
   Scissors,
-  SquarePlus
+  SquarePlus,
+  Lock,
+  Bug,
+  Paintbrush,
+  Plug,
+  Linkedin,
+  ExternalLink
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
+
+// --- App download config ---
+
+const ANDROID_APP_URL =
+  "https://drive.google.com/drive/folders/1dREQwCcq5UkOpEqi39oXIQv__LvM04Uk?usp=drive_link";
+
+const openAndroidApp = () =>
+  window.open(ANDROID_APP_URL, "_blank", "noopener,noreferrer");
+
+// Lets any button anywhere trigger the shared "iOS coming soon" modal.
+const IosSoonContext = createContext<() => void>(() => {});
+const useIosSoon = () => useContext(IosSoonContext);
 
 // --- Components ---
 
@@ -104,7 +122,10 @@ const Navbar = () => {
               {link.name}
             </a>
           ))}
-          <button className="bg-slate-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-brand-primary transition-all hover:scale-105 active:scale-95 shadow-lg shadow-slate-900/10">
+          <button
+            onClick={openAndroidApp}
+            className="bg-slate-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-brand-primary transition-all hover:scale-105 active:scale-95 shadow-lg shadow-slate-900/10"
+          >
             Download App
           </button>
         </div>
@@ -137,7 +158,13 @@ const Navbar = () => {
                 {link.name}
               </a>
             ))}
-            <button className="bg-brand-primary text-white w-full py-4 rounded-2xl font-bold mt-2 shadow-lg shadow-brand-primary/20">
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                openAndroidApp();
+              }}
+              className="bg-brand-primary text-white w-full py-4 rounded-2xl font-bold mt-2 shadow-lg shadow-brand-primary/20"
+            >
               Download Now
             </button>
           </motion.div>
@@ -152,6 +179,7 @@ const Hero = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [loopNum, setLoopNum] = useState(0);
   const [typingSpeed, setTypingSpeed] = useState(150);
+  const showIosSoon = useIosSoon();
 
   const words = [
     "Plumber chahiye?",
@@ -210,14 +238,20 @@ const Hero = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-10">
-            <button className="flex items-center justify-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-brand-primary transition-all hover:-translate-y-1 shadow-xl shadow-slate-900/20 group">
+            <button
+              onClick={showIosSoon}
+              className="flex items-center justify-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-brand-primary transition-all hover:-translate-y-1 shadow-xl shadow-slate-900/20 group"
+            >
               <AppleLogo size={24} />
               <div className="text-left">
                 <div className="text-[10px] uppercase font-bold opacity-70 leading-none">Download on</div>
                 <div className="text-lg leading-none mt-1">App Store</div>
               </div>
             </button>
-            <button className="flex items-center justify-center gap-3 bg-white text-slate-900 border-2 border-slate-200 px-8 py-4 rounded-2xl font-bold hover:border-brand-primary hover:text-brand-primary transition-all hover:-translate-y-1 shadow-lg group">
+            <button
+              onClick={openAndroidApp}
+              className="flex items-center justify-center gap-3 bg-white text-slate-900 border-2 border-slate-200 px-8 py-4 rounded-2xl font-bold hover:border-brand-primary hover:text-brand-primary transition-all hover:-translate-y-1 shadow-lg group"
+            >
               <PlayCircle size={24} />
               <div className="text-left">
                 <div className="text-[10px] uppercase font-bold opacity-70 leading-none">Get it on</div>
@@ -476,18 +510,18 @@ const HowItWorks = () => {
 
 const Services = () => {
   const services = [
-    { name: "Electrician", icon: <Zap size={24} />, color: "bg-amber-100 text-amber-600" },
-    { name: "Plumber", icon: <Droplets size={24} />, color: "bg-blue-100 text-blue-600" },
-    { name: "AC Repair", icon: <Wind size={24} />, color: "bg-cyan-100 text-cyan-600" },
-    { name: "Cleaning", icon: <Sparkles size={24} />, color: "bg-purple-100 text-purple-600" },
-    { name: "Car Wash", icon: <Car size={24} />, color: "bg-indigo-100 text-indigo-600" },
+    { name: "Locksmith", icon: <Lock size={24} />, color: "bg-amber-100 text-amber-600" },
+    { name: "Pest Control", icon: <Bug size={24} />, color: "bg-lime-100 text-lime-600" },
+    { name: "Electrician", icon: <Zap size={24} />, color: "bg-yellow-100 text-yellow-600" },
+    { name: "Appliance Repair", icon: <Wrench size={24} />, color: "bg-slate-100 text-slate-600" },
+    { name: "Painter", icon: <Paintbrush size={24} />, color: "bg-orange-100 text-orange-600" },
+    { name: "Plumbing", icon: <Droplets size={24} />, color: "bg-blue-100 text-blue-600" },
     { name: "Beautician", icon: <Scissors size={24} />, color: "bg-pink-100 text-pink-600" },
-    { name: "Tutor", icon: <BookOpen size={24} />, color: "bg-emerald-100 text-emerald-600" },
-    { name: "Carpenter", icon: <Hammer size={24} />, color: "bg-orange-100 text-orange-600" },
-    { name: "Delivery", icon: <Truck size={24} />, color: "bg-red-100 text-red-600" },
-    { name: "Mechanic", icon: <Wrench size={24} />, color: "bg-slate-100 text-slate-600" },
-    { name: "Photography", icon: <Camera size={24} />, color: "bg-rose-100 text-rose-600" },
-    { name: "Others", icon: <SquarePlus size={24} />, color: "bg-teal-100 text-teal-600" },
+    { name: "Electrical", icon: <Plug size={24} />, color: "bg-indigo-100 text-indigo-600" },
+    { name: "AC Technician", icon: <Wind size={24} />, color: "bg-cyan-100 text-cyan-600" },
+    { name: "Plumber", icon: <Droplets size={24} />, color: "bg-sky-100 text-sky-600" },
+    { name: "Carpenter", icon: <Hammer size={24} />, color: "bg-red-100 text-red-600" },
+    { name: "Home Cleaning", icon: <Sparkles size={24} />, color: "bg-purple-100 text-purple-600" },
   ];
 
   const container = {
@@ -511,7 +545,7 @@ const Services = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
           <div className="max-w-2xl">
             <h2 className="text-4xl md:text-5xl font-display font-bold mb-4 tracking-tight">Services at your fingertips</h2>
-            <p className="text-slate-500 text-lg font-medium">From daily chores to specialized technical repairs, we have 100+ categories of professionals ready to help you.</p>
+            <p className="text-slate-500 text-lg font-medium">From daily chores to specialized technical repairs, we have verified professionals across every category ready to help you.</p>
           </div>
           <button className="text-brand-primary font-bold flex items-center gap-2 hover:gap-3 transition-all">
             See all categories <ChevronRight size={20} />
@@ -656,17 +690,29 @@ const Testimonials = () => {
 };
 
 const Team = () => {
-  const team = [
-    { name: "Moiz Naveed", role: "Founder & CEO", desc: "Visionary leader passionate about localized AI systems.", img: "/teampictures/Moiz Naveed.png" },
-    { name: "Aun Muhammad", role: "Co-Founder & CTO", desc: "Expert in scalable architectures and AI integration.", img: "/teampictures/Aun Muhammad.png" },
-    { name: "Jazeb Javed", role: "Lead Developer", desc: "Full-stack specialist focused on crafting premium user experiences.", img: "/teampictures/Jazeb Javed.png" },
+  const team: { name: string; role: string; desc: string; img: string; linkedin?: string }[] = [
+    { name: "Jazeb Javed", role: "Founder & CEO", desc: "Full-stack specialist focused on crafting premium user experiences.", img: "/teampictures/Jazeb Javed.png", linkedin: "https://www.linkedin.com/in/muhammad-jazeb-javed-9472ab225/" },
+    { name: "Moiz Naveed", role: "Co-Founder & Lead Developer", desc: "Visionary leader passionate about localized AI systems.", img: "/teampictures/Moiz Naveed.png", linkedin: "https://pk.linkedin.com/in/moiz-naveed-924015231" },
+    { name: "Aun Muhammad", role: "Co-Founder & CTO", desc: "Expert in scalable architectures and AI integration.", img: "/teampictures/Aun Muhammad.png", linkedin: "https://www.linkedin.com/in/syed-aun-muhammad-3066a524a" },
   ];
 
   return (
     <section id="team" className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-display font-bold mb-4 tracking-tight">Meet <span className="gradient-text">MAJ Team</span></h2>
+          <h2 className="text-4xl md:text-5xl font-display font-bold mb-4 tracking-tight">
+            Meet{" "}
+            <a
+              href="https://koderspace.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit Koderspace"
+              className="inline-flex items-center gap-2 align-middle hover:opacity-80 transition-opacity"
+            >
+              <span className="gradient-text">Koderspace Team</span>
+              <ExternalLink size={28} strokeWidth={2.5} className="text-brand-primary" />
+            </a>
+          </h2>
           <p className="text-slate-500 text-lg font-medium max-w-2xl mx-auto">The humans behind the magic, making urban living simpler every day.</p>
         </div>
 
@@ -691,6 +737,17 @@ const Team = () => {
               <h3 className="text-2xl font-display font-bold mb-2 group-hover:text-white transition-colors">{m.name}</h3>
               <div className="text-brand-primary font-bold text-sm uppercase tracking-wider mb-4 group-hover:text-brand-secondary transition-colors underline decoration-2 underline-offset-4">{m.role}</div>
               <p className="text-slate-500 font-medium group-hover:text-slate-300 transition-colors leading-relaxed">{m.desc}</p>
+              {m.linkedin && (
+                <a
+                  href={m.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${m.name} on LinkedIn`}
+                  className="relative z-10 inline-flex items-center justify-center w-11 h-11 mt-6 rounded-full bg-white text-[#0A66C2] border border-slate-200 shadow-sm hover:bg-[#0A66C2] hover:text-white hover:border-[#0A66C2] hover:scale-110 transition-all duration-300 group-hover:border-white/20"
+                >
+                  <Linkedin size={20} fill="currentColor" strokeWidth={1.5} />
+                </a>
+              )}
             </motion.div>
           ))}
         </div>
@@ -700,6 +757,7 @@ const Team = () => {
 };
 
 const CTA = () => {
+  const showIosSoon = useIosSoon();
   return (
     <section className="py-24 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
@@ -720,14 +778,20 @@ const CTA = () => {
             <p className="text-white/80 text-xl mb-12 font-medium">Download Karigar.ai today and book your first service in seconds. Available on iOS and Android.</p>
 
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-              <button className="flex items-center gap-4 bg-white text-brand-primary px-10 py-5 rounded-2xl font-black text-xl hover:bg-slate-50 transition-all hover:-translate-y-2 shadow-2xl group">
+              <button
+                onClick={showIosSoon}
+                className="flex items-center gap-4 bg-white text-brand-primary px-10 py-5 rounded-2xl font-black text-xl hover:bg-slate-50 transition-all hover:-translate-y-2 shadow-2xl group"
+              >
                 <AppleLogo size={32} />
                 <div className="text-left">
                   <div className="text-xs uppercase font-bold opacity-70 leading-none">Download on</div>
                   <div className="leading-none mt-1">App Store</div>
                 </div>
               </button>
-              <button className="flex items-center gap-4 bg-slate-900 text-white px-10 py-5 rounded-2xl font-black text-xl border-2 border-white/10 transition-all hover:bg-black hover:-translate-y-2 shadow-2xl group">
+              <button
+                onClick={openAndroidApp}
+                className="flex items-center gap-4 bg-slate-900 text-white px-10 py-5 rounded-2xl font-black text-xl border-2 border-white/10 transition-all hover:bg-black hover:-translate-y-2 shadow-2xl group"
+              >
                 <PlayCircle size={32} />
                 <div className="text-left">
                   <div className="text-xs uppercase font-bold opacity-70 leading-none">Get it on</div>
@@ -820,23 +884,138 @@ const Footer = () => {
   );
 };
 
-export default function App() {
-  return (
-    <div className="min-h-screen selection:bg-brand-primary selection:text-white overflow-x-hidden">
-      <Navbar />
-      <Hero />
-      <HowItWorks />
-      <Services />
-      <Features />
-      <Testimonials />
-      <Team />
-      <CTA />
-      <Footer />
+const IosComingSoonModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+  // Lock body scroll while the modal is open.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
-      {/* Visual noise/grain overlay for premium feel */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-[100]"
-        style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }} />
-    </div>
+  // Decorative floating sparkles around the icon.
+  const sparkles: { top: string; left?: string; right?: string; size: number; delay: number }[] = [
+    { top: "12%", left: "14%", size: 16, delay: 0 },
+    { top: "20%", right: "16%", size: 22, delay: 0.6 },
+    { top: "44%", left: "8%", size: 14, delay: 1.1 },
+    { top: "38%", right: "9%", size: 18, delay: 0.3 },
+  ];
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85, y: 40 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: "spring", damping: 22, stiffness: 280 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md bg-white rounded-[2rem] p-8 pt-12 text-center shadow-2xl overflow-hidden"
+          >
+            {/* Ambient glow */}
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-72 bg-brand-primary/20 rounded-full blur-[90px] pointer-events-none" />
+            <div className="absolute -bottom-24 -right-10 w-64 h-64 bg-brand-secondary/20 rounded-full blur-[90px] pointer-events-none" />
+
+            {/* Close */}
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="absolute top-5 right-5 w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Floating sparkles */}
+            {sparkles.map((s, i) => (
+              <motion.div
+                key={i}
+                className="absolute text-brand-primary/60 pointer-events-none"
+                style={{ top: s.top, left: s.left, right: s.right }}
+                animate={{ y: [0, -10, 0], opacity: [0.3, 1, 0.3], rotate: [0, 15, 0] }}
+                transition={{ repeat: Infinity, duration: 3, delay: s.delay, ease: "easeInOut" }}
+              >
+                <Sparkles size={s.size} fill="currentColor" />
+              </motion.div>
+            ))}
+
+            {/* Animated Apple icon */}
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+              className="relative mx-auto mb-6 w-20 h-20 rounded-3xl bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/30"
+            >
+              <AppleLogo size={40} />
+              <span className="absolute -top-2 -right-2 flex h-5 w-5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-60" />
+                <span className="relative inline-flex rounded-full h-5 w-5 bg-brand-primary" />
+              </span>
+            </motion.div>
+
+            <span className="inline-block px-4 py-1.5 rounded-full bg-brand-primary/10 text-brand-primary text-xs font-black uppercase tracking-widest mb-4">
+              Coming Soon
+            </span>
+
+            <h3 className="text-2xl font-display font-extrabold text-slate-900 mb-3 tracking-tight">
+              The iOS app is almost here
+            </h3>
+            <p className="text-slate-500 font-medium leading-relaxed mb-8">
+              Our engineers are putting the final polish on the iPhone experience.
+              It'll be live on the App Store very soon. In the meantime, grab the Android
+              build and start booking today.
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => { onClose(); openAndroidApp(); }}
+                className="flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-brand-primary transition-all hover:-translate-y-0.5 shadow-lg"
+              >
+                <PlayCircle size={22} />
+                Get the Android app instead
+              </button>
+              <button
+                onClick={onClose}
+                className="text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors py-1"
+              >
+                I'll wait for iOS
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+export default function App() {
+  const [iosSoonOpen, setIosSoonOpen] = useState(false);
+
+  return (
+    <IosSoonContext.Provider value={() => setIosSoonOpen(true)}>
+      <div className="min-h-screen selection:bg-brand-primary selection:text-white overflow-x-hidden">
+        <Navbar />
+        <Hero />
+        <HowItWorks />
+        <Services />
+        <Features />
+        <Testimonials />
+        <Team />
+        <CTA />
+        <Footer />
+
+        <IosComingSoonModal open={iosSoonOpen} onClose={() => setIosSoonOpen(false)} />
+
+        {/* Visual noise/grain overlay for premium feel */}
+        <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-[100]"
+          style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }} />
+      </div>
+    </IosSoonContext.Provider>
   );
 }
 
