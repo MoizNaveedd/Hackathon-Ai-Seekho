@@ -27,7 +27,7 @@ class ProviderSummary(BaseModel):
     id: int
     name: str
     service_type: str
-    location: str
+    location: Optional[str] = None
     rating: float
 
     class Config:
@@ -37,7 +37,9 @@ class UserSummary(BaseModel):
     id: int
     name: str
     email: Optional[str] = None
-    location: str
+    location: Optional[str] = None
+    longitude: Optional[float] = None
+    latitude: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -58,6 +60,10 @@ class BookingDetailResponse(BaseModel):
     customer_rating: Optional[float] = None
     provider: Optional[ProviderSummary] = None
     user: Optional[UserSummary] = None
+    prompt: Optional[str] = None
+    location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -299,22 +305,35 @@ def trigger_push_notification(device_token: str, title: str, message: str, data:
 def list_bookings(
     user_id: Optional[int] = Query(None, description="Filter bookings by User ID"),
     provider_id: Optional[int] = Query(None, description="Filter bookings by Provider ID"),
+    status: Optional[str] = Query(None, description="Filter by status: upcoming, completed, cancelled"),
     page: int = Query(1, ge=1, description="Page number for pagination"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db)
 ):
     """
-    Get a list of bookings with optional filtering by User ID and/or Provider ID,
-    complete with pagination support.
+    Get a list of bookings with optional filtering by User ID, Provider ID, and status.
+    Status filter: 'upcoming' (confirmed + future date), 'completed', 'cancelled'.
     """
     query = db.query(Booking)
-    
+
     if user_id is not None:
         query = query.filter(Booking.user_id == user_id)
-        
+
     if provider_id is not None:
         query = query.filter(Booking.provider_id == provider_id)
-        
+
+    if status is not None:
+        today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        if status.lower() == "upcoming":
+            query = query.filter(Booking.status == "Confirmed", Booking.booking_date >= today_str)
+        elif status.lower() == "completed":
+            query = query.filter(Booking.status == "Completed")
+        elif status.lower() == "cancelled":
+            query = query.filter(Booking.status == "Cancelled")
+        elif status.lower() == "active":
+            query = query.filter(Booking.status == "Active")
+
+
     # Calculate totals
     total_count = query.count()
     total_pages = (total_count + limit - 1) // limit if total_count > 0 else 1
@@ -349,6 +368,9 @@ def get_booking_detail(booking_id: int, db: Session = Depends(get_db)):
             "phone": user.phone,
             "email": user.email,
             "address": user.address,
+            "location": user.location,
+            "latitude": user.latitude,
+            "longitude": user.longitude,
         }
 
     feedback = None
@@ -370,6 +392,10 @@ def get_booking_detail(booking_id: int, db: Session = Depends(get_db)):
             "time": booking.time_slot,
             "price": booking.price,
             "description": booking.description,
+            "prompt": booking.prompt,
+            "location": user.location if user else None,
+            "latitude": user.latitude if user else None,
+            "longitude": user.longitude if user else None,
             "created_at": booking.created_at.isoformat() if booking.created_at else None,
             "customer": customer,
             "feedback": feedback,
@@ -614,6 +640,21 @@ def complete_booking(
             notif_user_id=user.id if user else None, notif_provider_id=booking.provider_id,
             title=title, body=body, notif_type="booking_completion",
         )
+
+    # Fire the Feedback / Review Agent in the background when the customer left a
+    # rating and/or comment. It judges the comment's tone, derives a sentiment-adjusted
+    # effective rating, and recomputes the provider's overall rating + notifies them.
+    if actor_role == "user" and (request.rating is not None or request.feedback):
+        try:
+            import threading
+            from agents_v2 import FeedbackReviewAgent
+            threading.Thread(
+                target=FeedbackReviewAgent().process,
+                args=(booking.id,),
+                daemon=True,
+            ).start()
+        except Exception as e:
+            logger.error(f"Failed to start FeedbackReviewAgent: {str(e)[:100]}")
 
     return {
         "message": "Booking completed successfully",

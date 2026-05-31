@@ -100,6 +100,7 @@ MAX_RECENT_MESSAGES = 6
 PHASE_GATHERING = "gathering_intent"
 PHASE_SELECTING = "selecting_provider"
 PHASE_CONFIRMING = "confirming_booking"
+PHASE_CANCELLING = "cancelling_booking"
 PHASE_COMPLETED = "completed"
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -178,9 +179,10 @@ class IntentValidationAgent:
     def process(self, messages: list, user: User, cached_state: dict, context_summary: str, logger: AgentExecutionLog):
         today_str = datetime.now().strftime("%Y-%m-%d")
 
+        prev_language = cached_state.get("language")
         language_lock = ""
-        if cached_state.get("language") and cached_state["language"] != "unknown":
-            language_lock = f"\nIMPORTANT: The user's detected language is '{cached_state['language']}'. CONTINUE responding in '{cached_state['language']}' unless the user writes a FULL sentence in a clearly different language. Single words like 'yes', 'ok', 'haan', 'no' do NOT count as a language switch."
+        if prev_language and prev_language != "unknown":
+            language_lock = f"\n(Context only: the user's previous message was in '{prev_language}'. Use this ONLY to break a tie when the CURRENT message is too short to tell — e.g. just 'ok', 'haan', or a number. Otherwise ignore it and go by the current message.)"
 
         state_context = ""
         if cached_state.get("service_type") and cached_state["service_type"] != "Unknown":
@@ -191,7 +193,7 @@ class IntentValidationAgent:
             state_context += f"\nAlready extracted booking_date: {cached_state['booking_date']}."
 
         system_instruction = f"""
-You are a friendly, warm, and empathetic customer service AI for Karigar AI (home service platform). You speak Urdu, Roman Urdu, and English naturally — like a helpful neighbor.
+You are a friendly, warm, and empathetic customer service AI for Karigar AI (home service platform). You speak Urdu, Roman Urdu, and English naturally — like a helpful Pakistani neighbor.
 
 Today's date is: {today_str}
 
@@ -202,8 +204,22 @@ PERSONALITY:
 - Keep replies short but caring — 1-2 sentences max.
 {language_lock}
 
+LANGUAGE MIRRORING (most important rule):
+- Read the user's LATEST message and reply in the EXACT same language and script as that message:
+  - User writes in English (e.g. "I want a plumber", "I want it for today", "Hello") → reply in English.
+  - User writes in Roman Urdu (e.g. "plumber chahiye", "AC kaam nahi kar raha") → reply in Roman Urdu.
+  - User writes in Urdu script → reply in Urdu script.
+- The user may switch languages at any point. Judge EACH message on its own. Do NOT keep replying in an earlier language just because the conversation started that way.
+- Greet in the same language the user greeted you in: "Hello"/"Hi" → English greeting; "Assalam o Alaikum"/"salam" → Roman Urdu greeting.
+
+LANGUAGE PURITY (only when replying in Roman Urdu):
+- Use natural Pakistani Urdu vocabulary. Avoid Hindi-specific words like "swagat", "dhanyavaad", "sahayata", "kripya", "padhariye".
+- Sound like a real friendly Pakistani — casual, warm, conversational. NOT robotic or overly formal.
+- Good Roman Urdu greeting: "Assalam o Alaikum! Karigar AI mein khush aamdeed. Aaj main aapki kya madad kar sakta hoon?"
+- Good English greeting: "Hello! Welcome to Karigar AI. How can I help you today?"
+
 CONVERSATION FLOW:
-- On the FIRST message: Acknowledge their problem with empathy, confirm the service type. Set is_complete: false.
+- On the FIRST message: Greet warmly, introduce Karigar AI briefly, and ask how you can help. Set is_complete: false.
 - Once service_type is confirmed: Ask about timing — "Aaj ke liye chahiye ya kisi aur din ke liye?"
 - If user says "today"/"aaj"/"abhi"/"urgent" → set booking_type: "urgent", booking_date: "{today_str}"
 - If user says a future date or "kal"/"parso"/"next week" → set booking_type: "scheduled", booking_date: the actual date in YYYY-MM-DD format. "kal" = tomorrow ({(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")}), "parso" = day after tomorrow ({(datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")}).
@@ -212,12 +228,13 @@ CONVERSATION FLOW:
 {state_context}
 
 CRITICAL RULES:
-1. LANGUAGE: Detect the user's language and ALWAYS reply in the SAME language.
-2. VALIDATION: If the user's message is NOT related to booking a home service, set "is_valid": false and politely redirect.
+1. LANGUAGE: Mirror the language/script of the user's LATEST message exactly (see LANGUAGE MIRRORING above). Never default to Roman Urdu when the user actually wrote in English.
+2. VALIDATION: If the user's message is NOT related to booking a home service AND NOT about cancelling/checking a booking, set "is_valid": false and politely redirect.
 3. IDENTITY: If the user asks who you are or what Karigar AI is (e.g., 'who is Karigar Ai', 'what is you', 'what are you'), briefly explain that Karigar AI is a home service platform, mention a few services we provide (like AC Repair, Plumbing, Electricians, etc.), and politely ask how you can help them today.
 4. SERVICE EXTRACTION: Extract the service type. It MUST map to one of: "AC Technician", "Plumber", "Electrician", "Beautician", "Painter", "Carpenter", "Appliance Repair", "Pest Control", "Home Cleaning", "Locksmith". Infer from context.
 5. TIMING: After service is confirmed, ask about timing.
 6. Do NOT ask for location or address. It will be provided via map.
+7. CANCELLATION/STATUS: If the user wants to cancel a booking or check booking status (e.g., "booking cancel karo", "meri booking cancel karni hai", "cancel my booking", "booking ka status", "meri bookings dikhao"), set "intent_type": "cancellation". Do NOT try to extract service_type for cancellation requests.
 
 LOCATION CHANGE:
 - If the user asks to change, update, or switch their location/address (e.g. "location change karni hai", "jagah badlo", "different location"), set "wants_location_change": true.
@@ -227,6 +244,7 @@ You MUST return ONLY a valid JSON object:
 {{
   "reply": "Your conversational response in the user's language.",
   "language": "english" | "roman_urdu" | "urdu",
+  "intent_type": "booking" | "cancellation",
   "is_valid": true/false,
   "rejection_reason": "Only if is_valid is false.",
   "wants_location_change": true/false,
@@ -238,7 +256,8 @@ You MUST return ONLY a valid JSON object:
   "is_complete": false
 }}
 
-Set "is_complete": true ONLY when service_type AND booking_date are BOTH known AND user has confirmed.
+Set "intent_type" to "cancellation" if the user wants to cancel or check a booking. Otherwise "booking".
+Set "is_complete": true ONLY when intent_type is "booking" AND service_type AND booking_date are BOTH known AND user has confirmed.
 """
 
         chat_transcript = ""
@@ -286,16 +305,10 @@ Set "is_complete": true ONLY when service_type AND booking_date are BOTH known A
                 old_val = cached_state.get(key)
                 if (not new_val or new_val == "Unknown" or new_val is None) and old_val and old_val != "Unknown":
                     new_state[key] = old_val
-            if cached_state.get("language") and cached_state["language"] != "unknown":
-                detected_lang = result.get("language", "english")
-                if detected_lang != cached_state["language"]:
-                    last_user_msg = ""
-                    for msg in reversed(messages):
-                        if msg["role"] == "user":
-                            last_user_msg = msg["content"]
-                            break
-                    if len(last_user_msg.split()) <= 3:
-                        result["language"] = cached_state["language"]
+            # Language: trust the model's per-message detection. Only fall back to
+            # the previous language when the model returned nothing usable.
+            if not result.get("language") or result.get("language") == "unknown":
+                result["language"] = cached_state.get("language") or "english"
 
         result["state"] = new_state
         logger.add_log(self.name, "Intent Extraction & Validation", result)
@@ -643,6 +656,7 @@ Rules:
 - "cancel": user wants to abandon the whole thing — cancel/band karo/rehne do/forget it/no thanks/abhi nahi.
 - NEVER default to "confirm". Only use "confirm" when the user clearly agrees. A plain "no"/"nahi" is a "reject", not a "confirm". If the intent is genuinely unclear, set action to "clarify" and ask what they'd like to do.
 - Reply MUST be in {language}.
+- If replying in Roman Urdu, use ONLY Pakistani Urdu words. NEVER use Hindi words (swagat, dhanyavaad, sahayata, kripya). Use Pakistani equivalents (khush aamdeed, shukriya, madad, meharbani).
 """
 
         try:
@@ -770,15 +784,24 @@ class ChatSummarizerAgent:
                 role = "User" if m["role"] == "user" else "Assistant"
                 convo += f"{role}: {m['content']}\n"
 
+            user = booking.user
+            user_name = (user.name if user and user.name else None) or "User"
+            user_address = (user.address if user and user.address else None) or (user.location if user and user.location else None)
+
             system_instruction = (
                 "You are a helpful summarizer for Karigar AI. "
-                "Analyze the following conversation and write a single, plain text paragraph summarizing the interaction. "
+                "Analyze the following conversation and write a single, plain text paragraph summarizing the interaction in Roman Urdu (Urdu written using English/Latin letters). "
+                "You MUST write the entire summary in Roman Urdu, NOT in English or Urdu script. "
                 "You MUST NOT use bullet points, numbered lists, asterisks, bold text, or headings. "
+                "Refer to the user by their actual name (provided below) instead of saying 'user', and mention their address/location where the service is needed. "
                 "Your summary should naturally explain what the user wanted, why they reached out, which specific service provider they booked, and for what date and time. "
-                "Example format: 'The user reached out to book a plumbing service because their sink was leaking. They successfully booked Ali Raza for May 25th at 14:00.' "
-                "Return ONLY the plain text paragraph."
+                "Example format: 'Ahmed Khan ne plumbing service book karne ke liye contact kiya kyunki unke Gulshan wale ghar mein sink leak ho raha tha. Unhone Ali Raza ko 25 May ko 14:00 baje ke liye successfully book kiya.' "
+                "Return ONLY the plain text paragraph in Roman Urdu."
             )
-            prompt = f"Conversation:\n{convo}"
+            user_details = f"User Name: {user_name}\n"
+            if user_address:
+                user_details += f"User Address: {user_address}\n"
+            prompt = f"{user_details}\nConversation:\n{convo}"
 
             summary_text = _call_llm(
                 system_instruction=system_instruction,
@@ -797,6 +820,362 @@ class ChatSummarizerAgent:
 
 
 # ============================================================
+# Agent 6: Cancellation Agent
+# ============================================================
+
+class CancellationAgent:
+    """Handles booking cancellation through conversation.
+
+    Sub-phases managed via session state["cancel_phase"]:
+        identify  -> user's bookings are fetched, shown, awaiting selection
+        confirm   -> user selected a booking, awaiting yes/no confirmation
+    """
+
+    def __init__(self):
+        self.name = "Cancellation Agent"
+
+    def get_user_bookings(self, user_id: int, db: Session, logger: AgentExecutionLog):
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        bookings = (
+            db.query(Booking)
+            .filter(
+                Booking.user_id == user_id,
+                Booking.status == "Confirmed",
+                Booking.booking_date >= today_str,
+            )
+            .order_by(Booking.booking_date.asc())
+            .limit(5)
+            .all()
+        )
+        logger.add_log(self.name, "Fetch Upcoming Bookings", f"Found {len(bookings)} upcoming confirmed bookings for user {user_id}")
+        results = []
+        for b in bookings:
+            provider = db.query(Provider).filter(Provider.id == b.provider_id).first()
+            results.append({
+                "booking_id": b.id,
+                "service_type": b.service_type,
+                "provider_name": provider.name if provider else "Unknown",
+                "provider_id": b.provider_id,
+                "date": b.booking_date,
+                "slot": b.time_slot,
+                "price": b.price,
+            })
+        return results
+
+    def cancel_booking(self, booking_id: int, user_id: int, db: Session, logger: AgentExecutionLog):
+        booking = db.query(Booking).filter(Booking.id == booking_id, Booking.user_id == user_id).first()
+        if not booking:
+            logger.add_log(self.name, "Cancel Failed", f"Booking {booking_id} not found for user {user_id}")
+            return {"status": "failed", "message": "Booking not found."}
+
+        if booking.status != "Confirmed":
+            logger.add_log(self.name, "Cancel Failed", f"Booking {booking_id} is already {booking.status}")
+            return {"status": "failed", "message": f"Booking is already {booking.status}."}
+
+        # Restore the slot to provider's available_slots
+        provider = db.query(Provider).filter(Provider.id == booking.provider_id).first()
+        slot_restored = False
+        if provider and booking.booking_date and booking.time_slot:
+            try:
+                slots_data = json.loads(provider.available_slots) if provider.available_slots else {}
+            except (json.JSONDecodeError, TypeError):
+                slots_data = {}
+            if isinstance(slots_data, list):
+                slots_data = {booking.booking_date: slots_data}
+            day_slots = slots_data.get(booking.booking_date, [])
+            if booking.time_slot not in day_slots:
+                day_slots.append(booking.time_slot)
+            slots_data[booking.booking_date] = day_slots
+            provider.available_slots = json.dumps(slots_data)
+            slot_restored = True
+
+        booking.status = "Cancelled"
+        db.commit()
+
+        logger.add_log(self.name, "Booking Cancelled", {
+            "booking_id": booking.id,
+            "provider": provider.name if provider else "Unknown",
+            "slot_restored": slot_restored,
+        })
+
+        # Create notification
+        try:
+            notification = Notification(
+                title="Booking Cancelled",
+                message=f"Your booking #{booking.id} with {provider.name if provider else 'provider'} on {booking.booking_date} at {booking.time_slot} has been cancelled.",
+                type="booking_cancellation",
+                is_read=False,
+                created_at=datetime.now().isoformat(),
+                user_id=user_id,
+                provider_id=booking.provider_id,
+                booking_id=booking.id,
+            )
+            db.add(notification)
+            db.commit()
+            logger.add_log(self.name, "Notification Created", f"Cancellation notification for user {user_id}")
+        except Exception as e:
+            log.error(f"CancellationAgent notification failed: {str(e)[:100]}")
+
+        return {
+            "status": "cancelled",
+            "booking_id": booking.id,
+            "provider_name": provider.name if provider else "Unknown",
+            "date": booking.booking_date,
+            "slot": booking.time_slot,
+        }
+
+    def analyze_selection(self, message: str, bookings: list, language: str, logger: AgentExecutionLog):
+        """Use LLM to figure out which booking the user wants to cancel."""
+        booking_lines = ""
+        for i, b in enumerate(bookings, 1):
+            booking_lines += f"{i}. Booking #{b['booking_id']}: {b['service_type']} by {b['provider_name']} on {b['date']} at {b['slot']} (Rs. {b['price']})\n"
+
+        system_instruction = f"""You are a cancellation assistant for Karigar AI (a Pakistani home service platform).
+The user has these active bookings:
+{booking_lines}
+
+The user sent a message to select which booking to cancel.
+Determine which booking they mean. They might say a number (1, 2, 3), a provider name, a service type, or a date.
+
+IMPORTANT: If replying in Roman Urdu, use ONLY Pakistani Urdu words. NEVER use Hindi words like "swagat", "dhanyavaad", "sahayata", "kripya". Use Pakistani equivalents: "shukriya", "madad", "meharbani".
+
+Return ONLY a JSON object:
+{{
+  "selected_booking_id": <the booking_id integer they selected, or null if unclear>,
+  "reply": "A short confirmation question in {language} asking if they really want to cancel this specific booking. Include the provider name, date, and time in the confirmation."
+}}
+
+If you cannot determine which booking, set selected_booking_id to null and ask them to clarify.
+"""
+        try:
+            response_text = _call_llm(
+                system_instruction=system_instruction,
+                prompt=f"User's message: \"{message}\"",
+                json_mode=True, temperature=0.1,
+            )
+            result = json.loads(response_text)
+            logger.add_log(self.name, "Selection Analysis", result)
+            return result
+        except Exception:
+            return {"selected_booking_id": None, "reply": "Could you clarify which booking you'd like to cancel?"}
+
+    def analyze_confirmation(self, message: str, language: str, logger: AgentExecutionLog):
+        """Use LLM to determine if user confirmed or denied cancellation."""
+        system_instruction = f"""You are analyzing a user's response to a cancellation confirmation for Karigar AI (Pakistani platform).
+The user was asked "Are you sure you want to cancel this booking?"
+Determine their intent.
+
+IMPORTANT: If replying in Roman Urdu, use ONLY Pakistani Urdu words. NEVER use Hindi words like "swagat", "dhanyavaad", "sahayata". Use Pakistani equivalents: "shukriya", "madad", "meharbani".
+
+Return ONLY a JSON object:
+{{
+  "action": "yes" | "no",
+  "reply": "A short response in {language}"
+}}
+
+- "yes": user confirms cancellation (haan, yes, ok, confirm, kar do, cancel karo, ha)
+- "no": user declines (nahi, no, rehne do, nah, mat karo, ruko)
+"""
+        try:
+            response_text = _call_llm(
+                system_instruction=system_instruction,
+                prompt=f"User's message: \"{message}\"",
+                json_mode=True, temperature=0.1,
+            )
+            result = json.loads(response_text)
+            logger.add_log(self.name, "Confirmation Analysis", result)
+            return result
+        except Exception:
+            return {"action": "no", "reply": "Theek hai, booking cancel nahi ki."}
+
+
+# ============================================================
+# Agent 7: Feedback / Review Agent (Background)
+# ============================================================
+
+class FeedbackReviewAgent:
+    """Runs after a user completes a booking and leaves a rating/comment.
+
+    1. Judges the comment's tone via the LLM (sentiment in [-1, 1]).
+    2. Derives a sentiment-adjusted "effective" rating from the raw star + tone.
+    3. Recomputes the provider's overall rating as the average of effective
+       scores across all completed, rated bookings (idempotent / self-healing).
+    4. Notifies the provider of the new review and updated average.
+
+    Follows the ChatSummarizerAgent pattern: opens its own DB session, never
+    raises (so it can run fire-and-forget in a background thread).
+    """
+
+    # How hard the comment's tone is allowed to move the star rating.
+    NEG_NUDGE = 1.0   # a negative comment can pull a rating down by up to 1.0
+    POS_NUDGE = 0.5   # a positive comment can lift a rating by up to 0.5
+
+    def __init__(self):
+        self.name = "Feedback / Review Agent"
+
+    def _analyze_sentiment(self, comment: str) -> dict:
+        """Return {sentiment: float[-1,1], label: str, summary: str}. Safe defaults on failure."""
+        if not comment or not comment.strip():
+            return {"sentiment": 0.0, "label": "neutral", "summary": ""}
+
+        system_instruction = """
+You analyze a customer's review comment for a home-service booking on Karigar AI.
+Judge ONLY the tone of the comment. Comments may be in English, Roman Urdu, or Urdu.
+
+Return ONLY a JSON object:
+{
+  "sentiment": <float between -1.0 (very negative) and 1.0 (very positive), 0.0 = neutral>,
+  "label": "positive" | "neutral" | "negative",
+  "summary": "A neutral one-line summary of the feedback in English (max 15 words)."
+}
+"""
+        try:
+            response_text = _call_llm(
+                system_instruction=system_instruction,
+                prompt=f"Review comment: \"{comment.strip()}\"",
+                json_mode=True,
+                max_tokens=200,
+                temperature=0.0,
+            )
+            result = json.loads(response_text)
+            sentiment = float(result.get("sentiment", 0.0))
+            sentiment = max(-1.0, min(1.0, sentiment))  # clamp
+            return {
+                "sentiment": sentiment,
+                "label": result.get("label", "neutral"),
+                "summary": (result.get("summary") or "").strip(),
+            }
+        except Exception as e:
+            log.warning(f"FeedbackReview: sentiment analysis failed ({str(e)[:80]}), treating as neutral.")
+            return {"sentiment": 0.0, "label": "neutral", "summary": ""}
+
+    def _compute_effective_rating(self, star: float, comment: str, sentiment: float) -> float:
+        """Blend the raw star with the comment's tone.
+
+        - Star + comment: nudge the star by the tone (bad pulls harder than good lifts).
+        - Star only:      use the star as-is.
+        - Comment only:   derive a rating from tone, centred on 3.
+        """
+        has_comment = bool(comment and comment.strip())
+
+        if star is not None and has_comment:
+            nudge = sentiment * (self.NEG_NUDGE if sentiment < 0 else self.POS_NUDGE)
+            effective = star + nudge
+        elif star is not None:
+            effective = star
+        else:  # comment only
+            effective = 3.0 + sentiment * 2.0
+
+        return round(max(1.0, min(5.0, effective)), 1)
+
+    def _recompute_provider_rating(self, provider: Provider, db: Session) -> float:
+        """Average effective scores (falling back to raw star) over completed, rated bookings."""
+        rated = (
+            db.query(Booking)
+            .filter(
+                Booking.provider_id == provider.id,
+                Booking.status == "Completed",
+            )
+            .all()
+        )
+        scores = []
+        for b in rated:
+            score = b.effective_rating if b.effective_rating is not None else b.customer_rating
+            if score is not None:
+                scores.append(score)
+
+        if not scores:
+            return provider.rating
+
+        new_rating = round(sum(scores) / len(scores), 1)
+        provider.rating = new_rating
+        return new_rating
+
+    def _notify_provider(self, provider: Provider, booking: Booking, new_rating: float,
+                         star: float, summary: str, db: Session):
+        """Record + push a notification to the provider about the new review."""
+        star_txt = f"{star:g}⭐ " if star is not None else ""
+        detail = f' — "{summary}"' if summary else ""
+        title = "New Review Received"
+        body = (
+            f"You received a {star_txt}review on your {booking.service_type or 'service'} booking "
+            f"(#{booking.id}){detail}. Your overall rating is now {new_rating}/5."
+        )
+        try:
+            notification = Notification(
+                title=title,
+                message=body,
+                type="review_received",
+                is_read=False,
+                created_at=datetime.now().isoformat(),
+                user_id=booking.user_id,
+                provider_id=provider.id,
+                booking_id=booking.id,
+            )
+            db.add(notification)
+            db.commit()
+        except Exception as e:
+            log.error(f"FeedbackReview: notification record failed ({str(e)[:80]})")
+            db.rollback()
+
+        if provider.device_token:
+            try:
+                # Lazy import to avoid a circular import at module load time.
+                from bookings_notifications import trigger_push_notification
+                trigger_push_notification(
+                    device_token=provider.device_token,
+                    title=title,
+                    message=body,
+                    data={"booking_id": str(booking.id), "type": "review_received",
+                          "new_rating": str(new_rating)},
+                )
+            except Exception as e:
+                log.error(f"FeedbackReview: push dispatch failed ({str(e)[:80]})")
+
+    def process(self, booking_id: int):
+        """Entry point — safe to call in a background thread. Opens its own DB session."""
+        db = SessionLocal()
+        try:
+            booking = db.query(Booking).filter(Booking.id == booking_id).first()
+            if not booking:
+                log.error(f"FeedbackReview: Booking {booking_id} not found.")
+                return
+
+            star = booking.customer_rating
+            comment = booking.customer_feedback
+            if star is None and not (comment and comment.strip()):
+                log.info(f"FeedbackReview: Booking {booking_id} has no rating or comment, skipping.")
+                return
+
+            sentiment_data = self._analyze_sentiment(comment)
+            effective = self._compute_effective_rating(star, comment, sentiment_data["sentiment"])
+            booking.effective_rating = effective
+            db.commit()
+
+            provider = db.query(Provider).filter(Provider.id == booking.provider_id).first()
+            if not provider:
+                log.error(f"FeedbackReview: Provider {booking.provider_id} not found.")
+                return
+
+            new_rating = self._recompute_provider_rating(provider, db)
+            db.commit()
+
+            log.info(
+                f"FeedbackReview: Booking {booking_id} | star={star} "
+                f"sentiment={sentiment_data['sentiment']:+.2f} ({sentiment_data['label']}) "
+                f"-> effective={effective} | Provider {provider.id} rating -> {new_rating}"
+            )
+
+            self._notify_provider(provider, booking, new_rating, star,
+                                  sentiment_data.get("summary", ""), db)
+        except Exception as e:
+            log.error(f"FeedbackReviewAgent failed: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+
+# ============================================================
 # Orchestrator V2 (Phase-based)
 # ============================================================
 
@@ -805,6 +1184,7 @@ class OrchestratorV2:
 
     Phases:
         gathering_intent -> selecting_provider -> confirming_booking -> completed
+        gathering_intent -> cancelling_booking -> completed  (cancellation flow)
     """
 
     def __init__(self):
@@ -812,6 +1192,7 @@ class OrchestratorV2:
         self.discovery_agent = ProviderDiscoveryAgent()
         self.smart_match_agent = SmartMatchAgent()
         self.booking_agent = BookingConfirmationAgent()
+        self.cancellation_agent = CancellationAgent()
 
     # --- Session helpers ---
 
@@ -858,17 +1239,28 @@ class OrchestratorV2:
 
     def _build_response(self, reply, language, phase, session_id, state, logger,
                         providers=None, booking_summary=None, booking_id=None,
-                        requires_location=False):
+                        requires_location=False, cancel_bookings=None, notification=None):
+        # Map internal cancellation phase to gathering_intent for FE compatibility
+        external_phase = PHASE_GATHERING if phase == PHASE_CANCELLING else phase
+        # Build a FE-safe copy of state (strip internal cancel data — sent as top-level fields)
+        fe_state = dict(state)
+        if fe_state.get("phase") == PHASE_CANCELLING:
+            fe_state["phase"] = PHASE_GATHERING
+        fe_state.pop("cancel_bookings", None)
+        fe_state.pop("cancel_booking_id", None)
+        fe_state.pop("cancel_phase", None)
         return {
             "reply": reply,
             "language": language,
-            "phase": phase,
+            "phase": external_phase,
             "requires_location": requires_location,
             "session_id": session_id,
-            "state": state,
+            "state": fe_state,
             "providers": providers,
             "booking_summary": booking_summary,
             "booking_id": booking_id,
+            "cancel_bookings": cancel_bookings,
+            "notification": notification,
             "debug_logs": logger.logs,
         }
 
@@ -876,12 +1268,14 @@ class OrchestratorV2:
 
     def process_chat(self, message: str, user_id: int, db: Session, session_id: int = None,
                      latitude: float = None, longitude: float = None, location_name: str = None,
-                     selected_provider_id: int = None, selected_slot: str = None, selected_date: str = None):
+                     selected_provider_id: int = None, selected_slot: str = None, selected_date: str = None,
+                     selected_cancel_booking_id: int = None):
         logger = AgentExecutionLog()
 
         try:
             return self._route(message, user_id, db, session_id, latitude, longitude, location_name,
-                               selected_provider_id, selected_slot, selected_date, logger)
+                               selected_provider_id, selected_slot, selected_date,
+                               selected_cancel_booking_id, logger)
         except Exception as e:
             log.error(f"Orchestrator error: {str(e)[:150]}")
             return self._build_response(
@@ -890,7 +1284,8 @@ class OrchestratorV2:
             )
 
     def _route(self, message, user_id, db, session_id, latitude, longitude, location_name,
-               selected_provider_id, selected_slot, selected_date, logger):
+               selected_provider_id, selected_slot, selected_date,
+               selected_cancel_booking_id, logger):
         user = db.query(User).filter(User.id == user_id).first() if user_id else None
         session = self._get_or_create_session(session_id, user_id, db)
         state = self._get_state(session)
@@ -916,8 +1311,8 @@ class OrchestratorV2:
         if message:
             self._save_message(session, "user", message, db, state=state)
 
-        # Detect location change request in non-gathering phases via LLM
-        if message and phase != PHASE_GATHERING and self._detect_location_change_intent(message):
+        # Detect location change request in non-gathering phases via LLM (skip during cancellation)
+        if message and phase not in (PHASE_GATHERING, PHASE_CANCELLING) and self._detect_location_change_intent(message):
             state.pop("latitude", None)
             state.pop("longitude", None)
             state.pop("location_name", None)
@@ -964,6 +1359,11 @@ class OrchestratorV2:
         elif phase == PHASE_CONFIRMING:
             return self._handle_confirming(session, user, state, message, db, logger)
 
+        elif phase == PHASE_CANCELLING:
+            if selected_cancel_booking_id:
+                return self._handle_cancel_booking_selected(session, user, state, selected_cancel_booking_id, db, logger)
+            return self._handle_cancellation_message(session, user, state, message, db, logger)
+
         elif phase == PHASE_COMPLETED:
             return self._handle_completed_restart(session, user, state, message, user_id, db, logger)
 
@@ -985,9 +1385,17 @@ class OrchestratorV2:
         is_valid = intent_result.get("is_valid", True)
         is_complete = intent_result.get("is_complete", False)
         wants_location_change = intent_result.get("wants_location_change", False)
+        intent_type = intent_result.get("intent_type", "booking")
         reply = intent_result.get("reply", "...")
         language = intent_result.get("language", "english")
         new_state = intent_result.get("state", {})
+
+        # --- Cancellation intent detected: branch to cancellation flow ---
+        if intent_type == "cancellation" and is_valid:
+            new_state["language"] = language
+            new_state["phase"] = PHASE_CANCELLING
+            self._save_state(session, new_state, db)
+            return self._handle_cancellation_start(session, user, new_state, language, db, logger)
 
         # Carry forward location from session state
         if state.get("latitude"):
@@ -1150,6 +1558,7 @@ Rules:
 - "change_intent": user wants a COMPLETELY different service type (e.g., "mujhe plumber chahiye", "actually electrician")
 - "change_date": user wants to change the booking date (e.g., "kal ke liye dikhao", "tomorrow")
 - "other": anything else (greeting, question, etc.) — reply conversationally and guide them to select
+- If replying in Roman Urdu, use ONLY Pakistani Urdu words. NEVER use Hindi words (swagat, dhanyavaad, sahayata, kripya). Use Pakistani equivalents (khush aamdeed, shukriya, madad, meharbani).
 """
 
         try:
@@ -1271,7 +1680,12 @@ Rules:
             db.commit()
 
             return self._build_response(reply, language, PHASE_COMPLETED, session.id, state, logger,
-                                        booking_id=booking_result["booking_id"])
+                                        booking_id=booking_result["booking_id"],
+                                        notification={
+                                            "title": "Booking Confirmed!",
+                                            "body": f"{booking_result['provider_name']} will arrive on {booking_result['booking_date']} at {booking_result['slot']}.",
+                                            "notification_type": "completed",
+                                        })
 
         # --- CHANGE TIME ---
         elif action == "change_time":
@@ -1350,6 +1764,218 @@ Rules:
         self._save_message(session, "assistant", reply, db, state=state)
         return self._build_response(reply, language, PHASE_CONFIRMING, session.id, state, logger,
                                     booking_summary=booking_summary)
+
+    # --- Phase: cancelling_booking ---
+
+    def _handle_cancellation_start(self, session, user, state, language, db, logger):
+        """Entry point: fetch user's bookings and show them."""
+        user_id = session.user_id
+        if not user_id:
+            reply = self._cancel_no_bookings_reply(language)
+            self._save_message(session, "assistant", reply, db, state=state)
+            state["phase"] = PHASE_COMPLETED
+            self._save_state(session, state, db)
+            session.status = "completed"
+            db.commit()
+            return self._build_response(reply, language, PHASE_COMPLETED, session.id, state, logger)
+
+        bookings = self.cancellation_agent.get_user_bookings(user_id, db, logger)
+
+        if not bookings:
+            reply = self._cancel_no_bookings_reply(language)
+            self._save_message(session, "assistant", reply, db, state=state)
+            state["phase"] = PHASE_COMPLETED
+            self._save_state(session, state, db)
+            session.status = "completed"
+            db.commit()
+            return self._build_response(reply, language, PHASE_COMPLETED, session.id, state, logger)
+
+        if len(bookings) == 1:
+            # Only one booking — go straight to confirmation
+            b = bookings[0]
+            state["cancel_booking_id"] = b["booking_id"]
+            state["cancel_bookings"] = bookings
+            state["cancel_phase"] = "confirm"
+            self._save_state(session, state, db)
+            reply = self._cancel_confirm_reply(language, b)
+            self._save_message(session, "assistant", reply, db, state=state,
+                               extra_data={"cancel_booking": b})
+            return self._build_response(reply, language, PHASE_CANCELLING, session.id, state, logger,
+                                        cancel_bookings=bookings)
+
+        # Multiple bookings — show list and ask which one
+        state["cancel_bookings"] = bookings
+        state["cancel_phase"] = "identify"
+        self._save_state(session, state, db)
+        reply = self._cancel_list_reply(language, bookings)
+        self._save_message(session, "assistant", reply, db, state=state,
+                           extra_data={"cancel_bookings": bookings})
+        return self._build_response(reply, language, PHASE_CANCELLING, session.id, state, logger,
+                                    cancel_bookings=bookings)
+
+    def _handle_cancel_booking_selected(self, session, user, state, booking_id, db, logger):
+        """Handle FE tap: user selected a booking card to cancel (skips LLM selection)."""
+        language = state.get("language", "english")
+        bookings = state.get("cancel_bookings", [])
+        matched = next((b for b in bookings if b["booking_id"] == booking_id), None)
+
+        if not matched:
+            # booking_id not in the list — could be stale; re-fetch
+            bookings = self.cancellation_agent.get_user_bookings(session.user_id, db, logger)
+            matched = next((b for b in bookings if b["booking_id"] == booking_id), None)
+
+        if not matched:
+            reply = self._cancel_clarify_reply(language)
+            self._save_message(session, "assistant", reply, db, state=state)
+            return self._build_response(reply, language, PHASE_CANCELLING, session.id, state, logger,
+                                        cancel_bookings=bookings or None)
+
+        state["cancel_booking_id"] = booking_id
+        state["cancel_phase"] = "confirm"
+        self._save_state(session, state, db)
+        reply = self._cancel_confirm_reply(language, matched)
+        self._save_message(session, "assistant", reply, db, state=state,
+                           extra_data={"cancel_booking": matched})
+        return self._build_response(reply, language, PHASE_CANCELLING, session.id, state, logger)
+
+    def _handle_cancellation_message(self, session, user, state, message, db, logger):
+        """Handle user text messages during cancellation flow."""
+        language = state.get("language", "english")
+        cancel_phase = state.get("cancel_phase", "identify")
+
+        if not message:
+            bookings = state.get("cancel_bookings", [])
+            if bookings:
+                reply = self._cancel_list_reply(language, bookings)
+            else:
+                reply = self._cancel_no_bookings_reply(language)
+            return self._build_response(reply, language, PHASE_CANCELLING, session.id, state, logger,
+                                        cancel_bookings=bookings or None)
+
+        # Note: user message already saved by _route(), no need to save again
+
+        # --- Sub-phase: identify which booking ---
+        if cancel_phase == "identify":
+            bookings = state.get("cancel_bookings", [])
+            analysis = self.cancellation_agent.analyze_selection(message, bookings, language, logger)
+            selected_id = analysis.get("selected_booking_id")
+
+            if selected_id:
+                # Verify the booking_id is in the user's list
+                matched = next((b for b in bookings if b["booking_id"] == selected_id), None)
+                if matched:
+                    state["cancel_booking_id"] = selected_id
+                    state["cancel_phase"] = "confirm"
+                    self._save_state(session, state, db)
+                    reply = self._cancel_confirm_reply(language, matched)
+                    self._save_message(session, "assistant", reply, db, state=state)
+                    return self._build_response(reply, language, PHASE_CANCELLING, session.id, state, logger)
+
+            # Could not identify — ask again
+            reply = analysis.get("reply", self._cancel_clarify_reply(language))
+            self._save_message(session, "assistant", reply, db, state=state)
+            return self._build_response(reply, language, PHASE_CANCELLING, session.id, state, logger)
+
+        # --- Sub-phase: confirm cancellation ---
+        elif cancel_phase == "confirm":
+            analysis = self.cancellation_agent.analyze_confirmation(message, language, logger)
+            action = analysis.get("action", "no")
+
+            if action == "yes":
+                booking_id = state.get("cancel_booking_id")
+                result = self.cancellation_agent.cancel_booking(booking_id, session.user_id, db, logger)
+
+                if result["status"] == "cancelled":
+                    reply = self._cancel_success_reply(language, result)
+                else:
+                    reply = result["message"]
+
+                self._save_message(session, "assistant", reply, db, state=state,
+                                   extra_data={"action": "cancel_confirmed", "cancel_result": result})
+                state["phase"] = PHASE_COMPLETED
+                state.pop("cancel_booking_id", None)
+                state.pop("cancel_bookings", None)
+                state.pop("cancel_phase", None)
+                self._save_state(session, state, db)
+                session.status = "completed"
+                db.commit()
+
+                notif = None
+                if result["status"] == "cancelled":
+                    notif = {
+                        "title": "Booking Cancelled",
+                        "body": f"Your booking with {result['provider_name']} on {result['date']} at {result['slot']} has been cancelled.",
+                        "notification_type": "canceled",
+                    }
+                return self._build_response(reply, language, PHASE_COMPLETED, session.id, state, logger,
+                                            notification=notif)
+
+            else:
+                # User declined cancellation
+                reply = analysis.get("reply") or self._cancel_declined_reply(language)
+                self._save_message(session, "assistant", reply, db, state=state,
+                                   extra_data={"action": "cancel_declined"})
+                state["phase"] = PHASE_COMPLETED
+                state.pop("cancel_booking_id", None)
+                state.pop("cancel_bookings", None)
+                state.pop("cancel_phase", None)
+                self._save_state(session, state, db)
+                session.status = "completed"
+                db.commit()
+                return self._build_response(reply, language, PHASE_COMPLETED, session.id, state, logger)
+
+    # --- Cancellation reply templates ---
+
+    def _cancel_no_bookings_reply(self, lang):
+        if lang == "roman_urdu":
+            return "Aapki koi active booking nahi hai jo cancel ki ja sake."
+        elif lang == "urdu":
+            return "آپ کی کوئی ایکٹو بکنگ نہیں ہے جو کینسل کی جا سکے۔"
+        return "You don't have any active bookings to cancel."
+
+    def _cancel_list_reply(self, lang, bookings):
+        count = len(bookings)
+        if lang == "roman_urdu":
+            return f"Aapki {count} upcoming bookings hain.\n\n👇 Jo booking cancel karni hai usse select karein."
+        elif lang == "urdu":
+            return f"آپ کی {count} آنے والی بکنگز ہیں۔\n\n👇 جو بکنگ کینسل کرنی ہے اسے منتخب کریں۔"
+        return f"You have {count} upcoming bookings.\n\n👇 Select the booking you'd like to cancel."
+
+    def _cancel_confirm_reply(self, lang, booking):
+        name = booking["provider_name"]
+        date = booking["date"]
+        slot = booking["slot"]
+        service = booking["service_type"]
+        if lang == "roman_urdu":
+            return f"Kya aap waaqi {name} ki {service} booking ({date}, {slot}) cancel karna chahte hain?"
+        elif lang == "urdu":
+            return f"کیا آپ واقعی {name} کی {service} بکنگ ({date}، {slot}) کینسل کرنا چاہتے ہیں؟"
+        return f"Are you sure you want to cancel your {service} booking with {name} on {date} at {slot}?"
+
+    def _cancel_success_reply(self, lang, result):
+        name = result["provider_name"]
+        date = result["date"]
+        slot = result["slot"]
+        bid = result["booking_id"]
+        if lang == "roman_urdu":
+            return f"Booking #{bid} ({name}, {date} {slot}) cancel ho gayi hai. Agar dobara zaroorat ho toh hum yahan hain. Thank You!"
+        elif lang == "urdu":
+            return f"بکنگ #{bid} ({name}، {date} {slot}) کینسل ہو گئی ہے۔ اگر دوبارہ ضرورت ہو تو ہم یہاں ہیں!"
+        return f"Booking #{bid} ({name}, {date} {slot}) has been cancelled. We're here if you need us again. Thank You!"
+
+    def _cancel_declined_reply(self, lang):
+        if lang == "roman_urdu":
+            return "Theek hai, booking cancel nahi ki. Aapki booking safe hai!"
+        elif lang == "urdu":
+            return "ٹھیک ہے، بکنگ کینسل نہیں کی۔ آپ کی بکنگ محفوظ ہے!"
+        return "Alright, booking not cancelled. Your booking is safe!"
+
+    def _cancel_clarify_reply(self, lang):
+        if lang == "roman_urdu":
+            return "Samajh nahi aayi. Kya aap booking ka number bata sakte hain?"
+        elif lang == "urdu":
+            return "سمجھ نہیں آئی۔ کیا آپ بکنگ کا نمبر بتا سکتے ہیں؟"
+        return "I didn't catch that. Could you tell me the booking number?"
 
     # --- Phase: completed (user sends another message -> new session) ---
 

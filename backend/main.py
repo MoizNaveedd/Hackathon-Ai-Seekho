@@ -51,6 +51,7 @@ class ChatRequest(BaseModel):
     selected_provider_id: Optional[int] = None   # When user selects a provider from FE
     selected_slot: Optional[str] = None           # Selected time slot
     selected_date: Optional[str] = None           # Selected date (YYYY-MM-DD)
+    selected_cancel_booking_id: Optional[int] = None  # When user taps a booking card to cancel
 
 class BookingRequest(BaseModel):
     user_id: int
@@ -104,6 +105,7 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
         selected_provider_id=request.selected_provider_id,
         selected_slot=request.selected_slot,
         selected_date=request.selected_date,
+        selected_cancel_booking_id=request.selected_cancel_booking_id,
     )
     return response
 

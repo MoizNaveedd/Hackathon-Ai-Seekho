@@ -61,10 +61,25 @@ class Booking(Base):
     created_at = Column(DateTime, server_default=func.now())
     feedback = Column(Text, nullable=True)  # provider's feedback
     customer_feedback = Column(Text, nullable=True)  # user's feedback comment
-    customer_rating = Column(Float, nullable=True)  # user's 1-5 rating
+    customer_rating = Column(Float, nullable=True)  # user's raw 1-5 star rating
+    effective_rating = Column(Float, nullable=True)  # sentiment-adjusted rating used in provider aggregate
+    prompt = Column(Text, nullable=True)  # concise chat summary after booking
 
     provider = relationship("Provider", back_populates="bookings")
     user = relationship("User", back_populates="bookings")
+
+    # Service location derived from the booking's user (where the service is delivered)
+    @property
+    def location(self):
+        return self.user.location if self.user else None
+
+    @property
+    def latitude(self):
+        return self.user.latitude if self.user else None
+
+    @property
+    def longitude(self):
+        return self.user.longitude if self.user else None
 
 class Notification(Base):
     __tablename__ = "notifications"
