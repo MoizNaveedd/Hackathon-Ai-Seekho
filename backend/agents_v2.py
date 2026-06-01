@@ -1,6 +1,8 @@
 import json
 import math
 import os
+import time
+import uuid
 import logging
 import threading
 from datetime import datetime, timedelta
@@ -37,12 +39,112 @@ if GROQ_API_KEY:
 GEMINI_MODEL = "gemini-2.5-flash"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
+# ============================================================
+# LLM Cost & Trace Instrumentation
+# ============================================================
 
-def _call_llm(system_instruction: str, prompt: str, json_mode: bool = True, max_tokens: int = 1024, temperature: float = 0.2) -> str:
-    """Call LLM with automatic fallback: Groq (primary) -> Gemini (fallback)."""
+# Dedicated logger for per-call LLM traces + per-request cost rollups.
+# Propagates to the root logger configured in main.py, so it uses the same
+# "%(asctime)s | %(name)-20s | %(levelname)-7s | %(message)s" format.
+trace_log = logging.getLogger("llm.trace")
+
+# Static pricing — USD per 1,000,000 tokens (input, output).
+# Both providers are on free tiers today; these are the published list prices
+# so the logs show what each request WOULD cost at scale. Tune as prices change.
+LLM_PRICING = {
+    "llama-3.3-70b-versatile": {"in": 0.59, "out": 0.79},
+    "gemini-2.5-flash":        {"in": 0.30, "out": 2.50},
+}
+USD_TO_PKR = 280.0  # rough FX, for a human-readable Rs. figure in the logs
+
+# Process-wide cumulative totals since server start. Every call — request-bound
+# AND background — funnels through _record_call, so this captures everything.
+# Guarded by a lock because background agents run in their own threads.
+_cumulative = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+_cumulative_lock = threading.Lock()
+
+
+def get_cumulative_cost() -> dict:
+    """Snapshot of total LLM usage/cost since the server started (thread-safe)."""
+    with _cumulative_lock:
+        snap = dict(_cumulative)
+    snap["cost_pkr"] = round(snap["cost_usd"] * USD_TO_PKR, 3)
+    snap["cost_usd"] = round(snap["cost_usd"], 6)
+    return snap
+
+
+def _extract_usage(provider: str, response) -> tuple:
+    """Pull (input_tokens, output_tokens) out of a provider's raw response.
+    Returns (0, 0) if the SDK shape is unexpected — never raises."""
+    try:
+        if provider == "groq":
+            u = response.usage
+            return (u.prompt_tokens or 0, u.completion_tokens or 0)
+        if provider == "gemini":
+            u = response.usage_metadata
+            return (u.prompt_token_count or 0, (u.candidates_token_count or 0))
+    except Exception:
+        pass
+    return (0, 0)
+
+
+def _compute_cost(model: str, in_tok: int, out_tok: int) -> float:
+    """USD cost for a single call from the static pricing table."""
+    p = LLM_PRICING.get(model)
+    if not p:
+        return 0.0
+    return in_tok / 1_000_000 * p["in"] + out_tok / 1_000_000 * p["out"]
+
+
+def _record_call(tracer, agent: str, provider: str, model: str, response,
+                 started: float, fell_back: bool, req_id: str) -> None:
+    """Emit a structured per-call trace line and accumulate it on the request tracer."""
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    in_tok, out_tok = _extract_usage(provider, response)
+    cost = _compute_cost(model, in_tok, out_tok)
+
+    # Fold into the process-wide running total (covers background calls too).
+    with _cumulative_lock:
+        _cumulative["calls"] += 1
+        _cumulative["input_tokens"] += in_tok
+        _cumulative["output_tokens"] += out_tok
+        _cumulative["cost_usd"] += cost
+        cum_cost = _cumulative["cost_usd"]
+        cum_calls = _cumulative["calls"]
+
+    trace_log.info(
+        f"[{req_id}] {agent} | {provider}/{model} | "
+        f"in={in_tok} out={out_tok} tok | "
+        f"${cost:.6f} (~Rs.{cost * USD_TO_PKR:.3f}) | {latency_ms}ms"
+        + (" | FALLBACK" if fell_back else "")
+        + f" | cumulative: {cum_calls} calls ${cum_cost:.6f} (~Rs.{cum_cost * USD_TO_PKR:.2f})"
+    )
+
+    if tracer is not None:
+        tracer.add_llm_call({
+            "agent": agent,
+            "provider": provider,
+            "model": model,
+            "input_tokens": in_tok,
+            "output_tokens": out_tok,
+            "cost_usd": round(cost, 6),
+            "latency_ms": latency_ms,
+            "fell_back": fell_back,
+        })
+
+
+def _call_llm(system_instruction: str, prompt: str, json_mode: bool = True, max_tokens: int = 1024,
+              temperature: float = 0.2, agent: str = "Unknown Agent", tracer=None) -> str:
+    """Call LLM with automatic fallback: Groq (primary) -> Gemini (fallback).
+
+    `agent` labels the caller in the trace logs; `tracer` is the request's
+    AgentExecutionLog (when available) so per-call cost rolls up into a request total.
+    """
+    req_id = tracer.request_id if tracer is not None else "background"
 
     # --- Try Groq first (faster, higher free quota) ---
     if groq_client:
+        started = time.perf_counter()
         try:
             messages = [
                 {"role": "system", "content": system_instruction},
@@ -58,7 +160,7 @@ def _call_llm(system_instruction: str, prompt: str, json_mode: bool = True, max_
                 kwargs["response_format"] = {"type": "json_object"}
 
             response = groq_client.chat.completions.create(**kwargs)
-            log.info(f"LLM: Groq ({GROQ_MODEL}) succeeded")
+            _record_call(tracer, agent, "groq", GROQ_MODEL, response, started, False, req_id)
             return response.choices[0].message.content
         except Exception as e:
             error_msg = str(e)
@@ -66,6 +168,7 @@ def _call_llm(system_instruction: str, prompt: str, json_mode: bool = True, max_
 
     # --- Fallback to Gemini ---
     if gemini_client:
+        started = time.perf_counter()
         try:
             config = types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -80,7 +183,9 @@ def _call_llm(system_instruction: str, prompt: str, json_mode: bool = True, max_
                 contents=prompt,
                 config=config,
             )
-            log.info(f"LLM: Gemini ({GEMINI_MODEL}) succeeded")
+            # If Groq exists, reaching here means Groq was tried and failed -> fallback.
+            _record_call(tracer, agent, "gemini", GEMINI_MODEL, response, started,
+                         bool(groq_client), req_id)
             return response.text
         except Exception as e:
             error_msg = str(e)
@@ -95,6 +200,37 @@ def _call_llm(system_instruction: str, prompt: str, json_mode: bool = True, max_
 # ============================================================
 
 MAX_RECENT_MESSAGES = 6
+
+# Fallback service list — used only if the DB has no providers yet or is unreachable.
+# The live catalog comes from get_service_catalog() (distinct provider.service_type).
+SERVICE_CATALOG = [
+    "AC Technician", "Plumber", "Electrician", "Beautician", "Painter",
+    "Carpenter", "Appliance Repair", "Pest Control", "Home Cleaning", "Locksmith",
+]
+
+# Cached live catalog so we don't hit the DB on every Concierge answer.
+_service_catalog_cache = {"services": None, "ts": 0.0}
+_SERVICE_CACHE_TTL = 300  # seconds
+
+
+def get_service_catalog(db: Session) -> list:
+    """Live list of bookable services = DISTINCT provider.service_type from the DB,
+    cached for a few minutes. Falls back to SERVICE_CATALOG when the DB is empty or
+    unreachable, so answers stay grounded in what we can actually book right now."""
+    now = datetime.now().timestamp()
+    cached = _service_catalog_cache["services"]
+    if cached and (now - _service_catalog_cache["ts"] < _SERVICE_CACHE_TTL):
+        return cached
+    try:
+        rows = db.query(Provider.service_type).distinct().all()
+        services = sorted({r[0].strip() for r in rows if r[0] and r[0].strip()})
+        if services:
+            _service_catalog_cache["services"] = services
+            _service_catalog_cache["ts"] = now
+            return services
+    except Exception as e:
+        log.warning(f"Service catalog DB fetch failed ({str(e)[:80]}), using static fallback.")
+    return SERVICE_CATALOG
 
 # Phases
 PHASE_GATHERING = "gathering_intent"
@@ -115,6 +251,10 @@ def haversine(lat1, lon1, lat2, lon2):
 class AgentExecutionLog:
     def __init__(self):
         self.logs = []
+        # Per-request LLM trace: short id ties all of this request's log lines
+        # together, and llm_calls accumulates each call for the cost rollup.
+        self.request_id = uuid.uuid4().hex[:8]
+        self.llm_calls = []
 
     def add_log(self, agent_name, action, result):
         self.logs.append({
@@ -123,6 +263,32 @@ class AgentExecutionLog:
             "result": result,
             "timestamp": datetime.now().isoformat()
         })
+
+    def add_llm_call(self, record: dict):
+        self.llm_calls.append(record)
+
+    def log_llm_summary(self):
+        """Emit a single per-request rollup line: call count, total tokens, total cost."""
+        if not self.llm_calls:
+            return
+        n = len(self.llm_calls)
+        in_t = sum(c["input_tokens"] for c in self.llm_calls)
+        out_t = sum(c["output_tokens"] for c in self.llm_calls)
+        cost = sum(c["cost_usd"] for c in self.llm_calls)
+        fallbacks = sum(1 for c in self.llm_calls if c["fell_back"])
+        by_agent = {}
+        for c in self.llm_calls:
+            by_agent[c["agent"]] = round(by_agent.get(c["agent"], 0.0) + c["cost_usd"], 6)
+        cum = get_cumulative_cost()
+        trace_log.info(
+            f"[{self.request_id}] REQUEST TOTAL | {n} LLM call(s)"
+            + (f", {fallbacks} fallback(s)" if fallbacks else "")
+            + f" | in={in_t} out={out_t} tok | "
+            f"${cost:.6f} (~Rs.{cost * USD_TO_PKR:.3f}) | by_agent={by_agent}"
+            + f" || SERVER CUMULATIVE: {cum['calls']} calls, "
+            f"in={cum['input_tokens']} out={cum['output_tokens']} tok, "
+            f"${cum['cost_usd']} (~Rs.{cum['cost_pkr']})"
+        )
 
 
 # ============================================================
@@ -143,6 +309,7 @@ def _summarize_messages(messages: list) -> str:
             json_mode=False,
             max_tokens=200,
             temperature=0.1,
+            agent="Context Summarizer",
         )
         return result.strip()
     except Exception:
@@ -220,7 +387,7 @@ LANGUAGE PURITY (only when replying in Roman Urdu):
 
 CONVERSATION FLOW:
 - On the FIRST message: Greet warmly, introduce Karigar AI briefly, and ask how you can help. Set is_complete: false.
-- Once service_type is confirmed: Ask about timing — "Aaj ke liye chahiye ya kisi aur din ke liye?"
+- Once service_type is confirmed: Ask about timing — whether they need it today or on another day. Phrase this question in the SAME language as the user's latest message (see LANGUAGE MIRRORING). Examples of the SAME question in each language — pick the one matching the user's current language
 - If user says "today"/"aaj"/"abhi"/"urgent" → set booking_type: "urgent", booking_date: "{today_str}"
 - If user says a future date or "kal"/"parso"/"next week" → set booking_type: "scheduled", booking_date: the actual date in YYYY-MM-DD format. "kal" = tomorrow ({(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")}), "parso" = day after tomorrow ({(datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")}).
 - is_complete: true ONLY when service_type AND booking_date are both known (not 'Unknown'/null) AND user has confirmed.
@@ -275,6 +442,8 @@ Set "is_complete": true ONLY when intent_type is "booking" AND service_type AND 
                 prompt=prompt,
                 json_mode=True,
                 temperature=0.2,
+                agent=self.name,
+                tracer=logger,
             )
         except Exception as e:
             log.error(f"All LLM providers failed: {str(e)[:100]}")
@@ -392,13 +561,23 @@ class ProviderDiscoveryAgent:
 
             provider_list.append(provider_entry)
 
-        if provider_list and provider_list[0]["distance_km"] is not None:
-            max_distance = max(p["distance_km"] for p in provider_list) or 1
-            provider_list.sort(
-                key=lambda p: -(p["rating"] / 5.0 * 0.4 + (1 - p["distance_km"] / max_distance) * 0.6)
-            )
+        # Rank by a weighted rating + distance score. Some providers may have no
+        # coordinates (distance_km is None) — they must NOT crash the sort, so they
+        # score on rating alone and rank after providers that do have a distance.
+        distances = [p["distance_km"] for p in provider_list if p["distance_km"] is not None]
+        if distances:
+            max_distance = max(distances) or 1
+
+            def _score(p):
+                rating_part = (p["rating"] or 0) / 5.0 * 0.4
+                if p["distance_km"] is None:
+                    # No distance: rating-only, and pushed below those with a distance.
+                    return -rating_part
+                return -(rating_part + (1 - p["distance_km"] / max_distance) * 0.6)
+
+            provider_list.sort(key=_score)
         else:
-            provider_list.sort(key=lambda p: -p["rating"])
+            provider_list.sort(key=lambda p: -(p["rating"] or 0))
 
         top_providers = provider_list[:3]
 
@@ -544,6 +723,8 @@ Include every provider from the fact sheet in the "providers" array.
                 json_mode=True,
                 max_tokens=2048,
                 temperature=0.3,
+                agent=self.name,
+                tracer=logger,
             )
             result = json.loads(response_text)
             top_pick = result.get("top_pick_provider_id")
@@ -665,6 +846,8 @@ Rules:
                 prompt=f"User's message: \"{message}\"",
                 json_mode=True,
                 temperature=0.1,
+                agent=self.name,
+                tracer=logger,
             )
             result = json.loads(response_text)
             logger.add_log(self.name, "Analyze User Intent", result)
@@ -807,7 +990,8 @@ class ChatSummarizerAgent:
                 system_instruction=system_instruction,
                 prompt=prompt,
                 temperature=0.3,
-                json_mode=False
+                json_mode=False,
+                agent=self.name,
             )
 
             booking.prompt = summary_text.strip()
@@ -952,6 +1136,7 @@ If you cannot determine which booking, set selected_booking_id to null and ask t
                 system_instruction=system_instruction,
                 prompt=f"User's message: \"{message}\"",
                 json_mode=True, temperature=0.1,
+                agent=self.name, tracer=logger,
             )
             result = json.loads(response_text)
             logger.add_log(self.name, "Selection Analysis", result)
@@ -981,6 +1166,7 @@ Return ONLY a JSON object:
                 system_instruction=system_instruction,
                 prompt=f"User's message: \"{message}\"",
                 json_mode=True, temperature=0.1,
+                agent=self.name, tracer=logger,
             )
             result = json.loads(response_text)
             logger.add_log(self.name, "Confirmation Analysis", result)
@@ -1036,6 +1222,7 @@ Return ONLY a JSON object:
                 json_mode=True,
                 max_tokens=200,
                 temperature=0.0,
+                agent=self.name,
             )
             result = json.loads(response_text)
             sentiment = float(result.get("sentiment", 0.0))
@@ -1176,6 +1363,199 @@ Return ONLY a JSON object:
 
 
 # ============================================================
+# Agent 8: Orchestrator (top-level router / agentic brain)
+# ============================================================
+
+class OrchestratorAgent:
+    """Top-level router. Reasons about each user turn and decides the next action.
+
+    This is the agentic 'brain' that sits ABOVE the phase state machine: the LLM
+    decides WHICH lane the turn belongs to — answer a general question, or proceed
+    with the booking/cancellation flow. The phase machine then guards the rails
+    within the chosen lane. Conservatively biased toward 'proceed_flow' and never
+    raises — on any error it defaults to 'proceed_flow' (i.e. today's behavior).
+    """
+
+    VALID_ACTIONS = {"answer_question", "proceed_flow"}
+
+    def __init__(self):
+        self.name = "Orchestrator Agent"
+
+    def route(self, messages: list, state: dict, phase: str, logger: AgentExecutionLog) -> dict:
+        known = {
+            "service_type": state.get("service_type"),
+            "booking_date": state.get("booking_date"),
+            "has_location": bool(state.get("latitude") and state.get("longitude")),
+            "providers_shown": bool(state.get("providers")),
+            "booking_summary": bool(state.get("booking_summary")),
+        }
+        prev_language = state.get("language", "english")
+
+        transcript = ""
+        for msg in messages:
+            role = "User" if msg["role"] == "user" else "Assistant"
+            transcript += f"{role}: {msg['content']}\n"
+
+        system_instruction = f"""
+You are the Orchestrator for Karigar AI, a Pakistani home-service booking assistant.
+You decide what to do with the user's LATEST message. You do NOT answer the user yourself.
+
+Current phase: "{phase}"
+What we already know this session: {json.dumps(known)}
+
+Choose ONE next_action:
+- "answer_question": the user is asking a GENERAL / informational question that is NOT a step in the booking flow — e.g. what services we offer, which areas we cover, how the platform works, how pricing works, who/what Karigar AI is, our capabilities.
+- "proceed_flow": the message is part of the booking/cancellation flow — a service request, a date/time, a provider choice, a yes/no/confirm/cancel, a greeting that leads to booking, a location, "show more", "change provider", a location-change request, etc.
+
+CRITICAL — "asking ABOUT a service" vs "asking FOR a service":
+- Wanting a service, or SWITCHING to a different service, is ALWAYS "proceed_flow" — even mid-booking, even if it changes the current service. The booking flow handles service changes itself.
+  - "I need a painter", "no I want to book a painter instead", "actually book an electrician", "change it to AC repair", "mujhe plumber nahi painter chahiye", "painter chahiye" -> proceed_flow
+- "answer_question" is ONLY for a purely INFORMATIONAL question that does NOT ask to book anything:
+  - "do you also do pest control?", "what services do you offer?", "how does pricing work?", "what areas do you cover?", "who are you?" -> answer_question
+- Rule of thumb: if the message expresses INTENT TO BOOK or CHANGE a service (it contains words like "book", "chahiye", "I need", "I want", "instead", "change to", or just names a service the user wants) -> "proceed_flow". If it only asks whether/what/how something exists, with no request to book -> "answer_question".
+
+DECISION RULES (bias strongly toward "proceed_flow"):
+- When in doubt, choose "proceed_flow".
+- During phase "selecting_provider" or "confirming_booking", SHORT replies (e.g. "yes", "haan", "theek hai", "ok", "1", "2", a time like "3pm", a date like "kal", "no", "nahi", "doosra dikhao") are ALWAYS flow actions -> "proceed_flow".
+- A request to actually book, cancel, change a service, or pick a provider is NEVER "answer_question".
+
+Detect the language of the user's LATEST message: "english" | "roman_urdu" | "urdu".
+
+Return ONLY a JSON object:
+{{
+  "reasoning": "One short sentence: why this action.",
+  "next_action": "answer_question" | "proceed_flow",
+  "language": "english" | "roman_urdu" | "urdu"
+}}
+"""
+        try:
+            response_text = _call_llm(
+                system_instruction=system_instruction,
+                prompt=f"Recent conversation:\n{transcript}\n\nDecide the next_action for the user's LATEST message.",
+                json_mode=True,
+                max_tokens=200,
+                temperature=0.0,
+                agent=self.name,
+                tracer=logger,
+            )
+            result = json.loads(response_text)
+            action = result.get("next_action")
+            if action not in self.VALID_ACTIONS:
+                action = "proceed_flow"
+            decision = {
+                "reasoning": result.get("reasoning", ""),
+                "next_action": action,
+                "language": result.get("language") or prev_language,
+            }
+            logger.add_log(self.name, "Route Decision", decision)
+            return decision
+        except Exception as e:
+            log.warning(f"Orchestrator routing failed ({str(e)[:80]}), proceeding with flow.")
+            logger.add_log(self.name, "Route Decision (fallback)", {"next_action": "proceed_flow"})
+            return {"next_action": "proceed_flow", "language": prev_language, "reasoning": "fallback"}
+
+
+# ============================================================
+# Agent 9: Concierge (general-query answerer, grounded)
+# ============================================================
+
+class ConciergeAgent:
+    """Answers general / off-script questions (services, coverage, pricing model,
+    identity, how-it-works) WITHOUT leaving the current booking flow. Grounded:
+    cites only the real service catalog and platform facts — never invents
+    specific providers, prices, certifications, or coverage areas.
+    """
+
+    def __init__(self):
+        self.name = "Concierge Agent"
+
+    def answer(self, messages: list, state: dict, phase: str, language: str,
+               db: Session, logger: AgentExecutionLog) -> dict:
+        language = language or state.get("language", "english")
+        services = ", ".join(get_service_catalog(db))
+
+        transcript = ""
+        for msg in messages:
+            role = "User" if msg["role"] == "user" else "Assistant"
+            transcript += f"{role}: {msg['content']}\n"
+
+        in_flow = phase in (PHASE_SELECTING, PHASE_CONFIRMING)
+        nudge = (
+            "The user is in the MIDDLE of a booking — after answering, gently invite them "
+            "to continue where they left off."
+            if in_flow else
+            "After answering, gently invite them to tell you what service they need."
+        )
+
+        system_instruction = f"""
+You are the friendly, knowledgeable assistant for Karigar AI, a home-service booking platform in Pakistan.
+Answer the user's question warmly, clearly, and helpfully. You speak Urdu, Roman Urdu, and English.
+
+SELF-REFERENCE: When you refer to yourself, say you are "Karigar AI ka assistant" / "Karigar AI's assistant" (or just "Karigar AI"). NEVER call yourself a "concierge" — that is an internal label and must never appear in your reply.
+
+You handle TWO kinds of question — keep them separate:
+
+1) GENERAL TRADE KNOWLEDGE (you MAY use your own knowledge here):
+- If the user asks what a service/trade does (e.g. "what does a plumber do?", "electrician kya kaam karta hai?", "AC technician kis cheez mein madad karta hai?"), explain the COMMON, everyday tasks that professional honestly handles — using general real-world knowledge.
+  - e.g. a plumber: leaks, pipe & tap repairs, drain blockages, water-tank and bathroom/kitchen fittings.
+  - e.g. an electrician: wiring, switches/sockets, breaker/fuse faults, light & fan installation, power issues.
+- Be genuinely informative and intelligent — it is fine to list a few typical tasks. Only describe things that trade REALISTICALLY does. If unsure whether a specific task falls under a trade, say it's best to ask the provider.
+
+2) PLATFORM-SPECIFIC FACTS (use ONLY the grounded facts below — NEVER invent):
+- Services we offer: {services}.
+- How it works: the user tells us what they need by chatting, we find nearby top-rated providers, the user picks one and a time slot, confirms, and gets a notification. Bookings can be cancelled anytime by chatting "cancel my booking".
+- Pricing: each provider sets their own hourly rate (in PKR), so prices vary by provider. Exact rates are shown when we display matches. Do NOT quote a specific number.
+- Identity: Karigar AI is an AI assistant that books trusted home-service professionals (karigars) across Pakistan.
+- Coverage: we match providers near the user's location. If asked about a specific area, say we look for the nearest available providers once they share their location — do NOT promise or deny a specific city/area.
+
+HARD GUARDRAILS (never break these):
+- NEVER invent specific providers, names, prices/rates, ratings, certifications, years of experience, job counts, guarantees, warranties, or availability. Those come only from real data shown during booking.
+- Do NOT claim a service exists on Karigar AI if it is not in the "Services we offer" list above.
+
+RULES:
+- Be concise but complete — up to ~5 sentences. A service explanation can be a short, helpful list of typical tasks.
+- If the question is entirely unrelated to home services, politely say that's outside what you help with, and steer back.
+- {nudge}
+
+LANGUAGE: Reply in {language} (mirror the user). If Roman Urdu, use ONLY Pakistani Urdu words — NEVER Hindi words (swagat, dhanyavaad, sahayata, kripya). Use Pakistani equivalents (khush aamdeed, shukriya, madad, meharbani).
+
+Return ONLY a JSON object:
+{{
+  "reply": "Your answer in {language}.",
+  "language": "{language}"
+}}
+"""
+        try:
+            response_text = _call_llm(
+                system_instruction=system_instruction,
+                prompt=f"Recent conversation:\n{transcript}\n\nAnswer the user's latest question.",
+                json_mode=True,
+                max_tokens=400,
+                temperature=0.4,
+                agent=self.name,
+                tracer=logger,
+            )
+            result = json.loads(response_text)
+            reply = result.get("reply") or self._fallback_reply(language, services)
+            out = {"reply": reply, "language": result.get("language") or language}
+            logger.add_log(self.name, "General Query Answered", {"phase": phase})
+            return out
+        except Exception as e:
+            log.error(f"Concierge failed ({str(e)[:80]}), using fallback.")
+            return {"reply": self._fallback_reply(language, services), "language": language}
+
+    def _fallback_reply(self, language, services):
+        if language == "roman_urdu":
+            return (f"Karigar AI ke zariye aap yeh services book kar sakte hain: {services}. "
+                    f"Bataiye aapko kya chahiye?")
+        elif language == "urdu":
+            return (f"کریگر اے آئی کے ذریعے آپ یہ سروسز بک کر سکتے ہیں: {services}۔ "
+                    f"بتائیے آپ کو کیا چاہیے؟")
+        return (f"With Karigar AI you can book these services: {services}. "
+                f"What do you need help with?")
+
+
+# ============================================================
 # Orchestrator V2 (Phase-based)
 # ============================================================
 
@@ -1193,6 +1573,8 @@ class OrchestratorV2:
         self.smart_match_agent = SmartMatchAgent()
         self.booking_agent = BookingConfirmationAgent()
         self.cancellation_agent = CancellationAgent()
+        self.orchestrator_agent = OrchestratorAgent()
+        self.concierge_agent = ConciergeAgent()
 
     # --- Session helpers ---
 
@@ -1282,11 +1664,20 @@ class OrchestratorV2:
                 "Something went wrong (free API Quota got exhausted). Please try again.", "english",
                 PHASE_GATHERING, session_id, {}, logger
             )
+        finally:
+            # One rollup line per chat request: total LLM calls, tokens, and cost.
+            logger.log_llm_summary()
 
     def _route(self, message, user_id, db, session_id, latitude, longitude, location_name,
                selected_provider_id, selected_slot, selected_date,
                selected_cancel_booking_id, logger):
         user = db.query(User).filter(User.id == user_id).first() if user_id else None
+        # A stale/unknown user_id must not reach a ChatSession insert: Postgres enforces
+        # the users FK (SQLite didn't), so it would raise ForeignKeyViolation. Degrade to
+        # an anonymous session (user_id is nullable) instead of 500-ing the request.
+        if user_id and not user:
+            log.warning(f"user_id={user_id} not found in DB; creating an anonymous session.")
+            user_id = None
         session = self._get_or_create_session(session_id, user_id, db)
         state = self._get_state(session)
         phase = state.get("phase", PHASE_GATHERING)
@@ -1310,6 +1701,16 @@ class OrchestratorV2:
 
         if message:
             self._save_message(session, "user", message, db, state=state)
+
+        # --- Orchestrator Agent: decide the lane for this turn (agentic top-level router) ---
+        # Skip for structured FE actions (provider/cancel taps) — those are explicit flow steps.
+        if message and not selected_provider_id and not selected_cancel_booking_id:
+            recent = self._load_messages(session)[-MAX_RECENT_MESSAGES:]
+            decision = self.orchestrator_agent.route(recent, state, phase, logger)
+            if decision.get("next_action") == "answer_question":
+                return self._handle_general_query(
+                    session, user, state, phase, decision.get("language"), db, logger
+                )
 
         # Detect location change request in non-gathering phases via LLM (skip during cancellation)
         if message and phase not in (PHASE_GATHERING, PHASE_CANCELLING) and self._detect_location_change_intent(message):
@@ -1368,6 +1769,33 @@ class OrchestratorV2:
             return self._handle_completed_restart(session, user, state, message, user_id, db, logger)
 
         return self._handle_gathering(session, user, state, db, logger)
+
+    # --- General query (off-script question, any phase) ---
+
+    def _handle_general_query(self, session, user, state, phase, language, db, logger):
+        """Answer an off-script general question without leaving the current phase.
+
+        The Concierge replies, then we re-attach the phase-appropriate data so the
+        FE keeps its current view (provider list / booking summary / cancel list).
+        """
+        language = language or state.get("language", "english")
+        recent = self._load_messages(session)[-MAX_RECENT_MESSAGES:]
+        result = self.concierge_agent.answer(recent, state, phase, language, db, logger)
+        reply = result.get("reply")
+        language = result.get("language", language)
+
+        self._save_message(session, "assistant", reply, db, state=state,
+                           extra_data={"action": "answer_question", "phase": phase})
+
+        providers = state.get("providers") if phase == PHASE_SELECTING else None
+        booking_summary = state.get("booking_summary") if phase == PHASE_CONFIRMING else None
+        cancel_bookings = state.get("cancel_bookings") if phase == PHASE_CANCELLING else None
+
+        return self._build_response(
+            reply, language, phase, session.id, state, logger,
+            providers=providers, booking_summary=booking_summary,
+            cancel_bookings=cancel_bookings,
+        )
 
     # --- Phase: gathering_intent ---
 
@@ -1566,6 +1994,7 @@ Rules:
                 system_instruction=system_instruction,
                 prompt=f"User's message: \"{message}\"",
                 json_mode=True, temperature=0.1,
+                agent="Selection Phase Analyzer", tracer=logger,
             )
             analysis = json.loads(response_text)
             logger.add_log("Selection Phase Analyzer", "Analyze", analysis)
@@ -1583,10 +2012,43 @@ Rules:
 
             return self._discover_and_respond(session, user, state, language, db, logger, exclude_ids=shown_ids)
 
-        # --- CHANGE INTENT ---
+        # --- CHANGE INTENT (user wants a different service mid-selection) ---
         elif action == "change_intent":
+            new_service = analysis.get("new_service")
+            if new_service:
+                # Canonicalize against the known catalog (case-insensitive); else title-case.
+                canon = next(
+                    (s for s in SERVICE_CATALOG if s.lower() == new_service.strip().lower()),
+                    new_service.strip().title(),
+                )
+                state["service_type"] = canon
+                # Fresh search for the new service — drop the old list/selection.
+                state.pop("providers", None)
+                state.pop("shown_provider_ids", None)
+                state.pop("booking_summary", None)
+                state["phase"] = PHASE_SELECTING
+
+                # We already know location + date, so go straight to discovery and
+                # actually SHOW the new list (don't just promise it).
+                if state.get("latitude") and state.get("longitude"):
+                    self._save_state(session, state, db)
+                    return self._discover_and_respond(session, user, state, language, db, logger)
+
+                # No location yet — ask for it instead of promising a list we can't show.
+                state["phase"] = PHASE_GATHERING
+                self._save_state(session, state, db)
+                location_reply = self._requires_location_reply(language)
+                self._save_message(session, "assistant", location_reply, db, state=state,
+                                   extra_data={"requires_location": True, "action": "change_intent"})
+                return self._build_response(location_reply, language, PHASE_GATHERING, session.id,
+                                            state, logger, requires_location=True)
+
+            # Could not extract the new service — ask, but carry location forward.
             reply = analysis.get("reply") or "Theek hai, batayein aapko kya service chahiye?"
             new_state = {"language": language, "phase": PHASE_GATHERING}
+            for k in ("latitude", "longitude", "location_name"):
+                if state.get(k) is not None:
+                    new_state[k] = state[k]
             self._save_message(session, "assistant", reply, db, state=new_state,
                                extra_data={"action": "change_intent"})
             self._save_state(session, new_state, db)
@@ -2208,6 +2670,7 @@ Rules:
                 prompt=f"User message: {message}",
                 json_mode=False,
                 temperature=0.0,
+                agent="Location Change Detector",
             )
             return result.strip().lower().startswith("yes")
         except Exception:
