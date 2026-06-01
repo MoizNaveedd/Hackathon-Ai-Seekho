@@ -248,6 +248,64 @@ def haversine(lat1, lon1, lat2, lon2):
     return round(R * c, 2)
 
 
+# ------------------------------------------------------------------
+# Dynamic pricing
+# ------------------------------------------------------------------
+# Job complexity raises the effective rate; urgency adds a surge; repeat
+# customers get a loyalty discount. Mirrors a `calculate_price_quote` tool.
+COMPLEXITY_MULTIPLIERS = {"basic": 1.0, "intermediate": 1.5, "complex": 2.0}
+URGENCY_SURGE = 0.30        # +30% on the subtotal for high-urgency bookings
+LOYALTY_DISCOUNT = 0.05     # -5% for returning customers
+_URGENT_TOKENS = {"high", "urgent", "high urgency", "emergency", "asap"}
+
+
+def calculate_price_quote(
+    hourly_rate,
+    *,
+    hours: float = 1.0,
+    complexity: str = "basic",
+    urgency: str = "normal",
+    is_repeat_customer: bool = False,
+):
+    """Return a transparent, itemized price quote in PKR.
+
+    base = hourly_rate * hours
+    subtotal = base * complexity_multiplier (basic 1.0 / intermediate 1.5 / complex 2.0)
+    + urgency surge (30% of subtotal if high urgency)
+    - loyalty discount (5% of the surged total for returning customers)
+    """
+    rate = hourly_rate or 500
+    base = rate * (hours or 1.0)
+
+    complexity_key = (complexity or "basic").lower()
+    complexity_mult = COMPLEXITY_MULTIPLIERS.get(complexity_key, 1.0)
+    subtotal = base * complexity_mult
+    complexity_amount = subtotal - base
+
+    is_urgent = (urgency or "").strip().lower() in _URGENT_TOKENS
+    surge_amount = subtotal * URGENCY_SURGE if is_urgent else 0.0
+
+    pre_discount = subtotal + surge_amount
+    loyalty_discount = pre_discount * LOYALTY_DISCOUNT if is_repeat_customer else 0.0
+    total = pre_discount - loyalty_discount
+
+    return {
+        "currency": "PKR",
+        "hourly_rate": round(rate, 2),
+        "hours": hours or 1.0,
+        "base": round(base, 2),
+        "complexity": complexity_key,
+        "complexity_multiplier": complexity_mult,
+        "complexity_amount": round(complexity_amount, 2),
+        "urgency": (urgency or "normal").lower(),
+        "is_urgent": is_urgent,
+        "surge_amount": round(surge_amount, 2),
+        "is_repeat_customer": is_repeat_customer,
+        "loyalty_discount": round(loyalty_discount, 2),
+        "total": round(total, 2),
+    }
+
+
 class AgentExecutionLog:
     def __init__(self):
         self.logs = []
@@ -398,7 +456,7 @@ CRITICAL RULES:
 1. LANGUAGE: Mirror the language/script of the user's LATEST message exactly (see LANGUAGE MIRRORING above). Never default to Roman Urdu when the user actually wrote in English.
 2. VALIDATION: If the user's message is NOT related to booking a home service AND NOT about cancelling/checking a booking, set "is_valid": false and politely redirect.
 3. IDENTITY: If the user asks who you are or what Karigar AI is (e.g., 'who is Karigar Ai', 'what is you', 'what are you'), briefly explain that Karigar AI is a home service platform, mention a few services we provide (like AC Repair, Plumbing, Electricians, etc.), and politely ask how you can help them today.
-4. SERVICE EXTRACTION: Extract the service type. It MUST map to one of: "AC Technician", "Plumber", "Electrician", "Beautician", "Painter", "Carpenter", "Appliance Repair", "Pest Control", "Home Cleaning", "Locksmith". Infer from context.
+4. SERVICE EXTRACTION: Extract the service the user needs and map it to one of: "AC Technician", "Plumber", "Electrician", "Beautician", "Painter", "Carpenter", "Appliance Repair", "Pest Control", "Home Cleaning", "Locksmith". Infer from context (e.g. "AC band hai" → "AC Technician", "nalka leak" → "Plumber"). Do NOT force-map a trade that genuinely doesn't fit any of these — e.g. "welder", "mechanic", "tailor", "driver", "gardener" are NOT in our list. For such a request, set service_type to the user's own term (e.g. "Welder"), keep is_complete false, and do NOT invent a date or claim availability — a later step will tell the user we don't offer it. Never silently substitute an unrelated listed service for one we don't offer.
 5. TIMING: After service is confirmed, ask about timing.
 6. Do NOT ask for location or address. It will be provided via map.
 7. CANCELLATION/STATUS: If the user wants to cancel a booking or check booking status (e.g., "booking cancel karo", "meri booking cancel karni hai", "cancel my booking", "booking ka status", "meri bookings dikhao"), set "intent_type": "cancellation". Do NOT try to extract service_type for cancellation requests.
@@ -551,6 +609,9 @@ class ProviderDiscoveryAgent:
                 "rating": p.rating,
                 "hourly_rate": p.hourly_rate or 500,
                 "distance_km": distance_km,
+                "reliability_score": p.reliability_score,
+                "on_time_score": p.on_time_score,
+                "cancellation_rate": p.cancellation_rate,
             }
 
             if booking_date:
@@ -1886,7 +1947,24 @@ class OrchestratorV2:
         providers = discovery_result.get("recommended_providers", [])
 
         if not providers:
-            reply = self._no_provider_reply(language, state.get("service_type"), state.get("booking_date"))
+            service_type = state.get("service_type")
+            # Distinguish "we don't offer this service at all" from "we offer it but
+            # nobody is free on that date". Saying a non-existent trade (e.g. welder)
+            # is "unavailable on <date>" wrongly implies it exists — so when NO
+            # provider of this type exists, tell the user it's not offered and reset
+            # the service so they can pick a real one.
+            if not self._service_offered(service_type, db):
+                reply = self._service_not_offered_reply(language, service_type, db)
+                state["service_type"] = "Unknown"
+                state["booking_type"] = None
+                state["booking_date"] = None
+                state["phase"] = PHASE_GATHERING
+                state["providers"] = []
+                self._save_message(session, "assistant", reply, db, state=state)
+                self._save_state(session, state, db)
+                return self._build_response(reply, language, PHASE_GATHERING, session.id, state, logger)
+
+            reply = self._no_provider_reply(language, service_type, state.get("booking_date"))
             self._save_message(session, "assistant", reply, db, state=state)
             state["phase"] = PHASE_SELECTING
             state["providers"] = []
@@ -1966,12 +2044,18 @@ class OrchestratorV2:
     def _handle_message_during_selection(self, session, user, state, message, db, logger):
         language = state.get("language", "english")
         service = state.get("service_type", "Unknown")
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        tomorrow_str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        day_after_str = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")
+        current_date = state.get("booking_date")
 
         # Use LLM to understand what the user wants
         system_instruction = f"""
 You are analyzing a user's message during provider selection for Karigar AI.
 The user was shown a list of {service} providers and is expected to select one from the UI.
 Instead, they typed a message. Determine their intent.
+
+Today's date is: {today_str}. The booking is currently set for: {current_date or "not set"}.
 
 Return ONLY a JSON object:
 {{
@@ -1984,7 +2068,7 @@ Return ONLY a JSON object:
 Rules:
 - "show_more": user wants more/different providers for the SAME service (e.g., "show more", "doosra dikhao", "koi aur", "different area")
 - "change_intent": user wants a COMPLETELY different service type (e.g., "mujhe plumber chahiye", "actually electrician")
-- "change_date": user wants to change the booking date (e.g., "kal ke liye dikhao", "tomorrow")
+- "change_date": user wants a different booking date — this INCLUDES making it sooner OR later. Examples: "today"/"aaj"/"abhi"/"aj kar do" → {today_str}; "kal"/"tomorrow" → {tomorrow_str}; "parso"/"day after" → {day_after_str}; "next week" → a date about 7 days from today; or any specific date the user names. ALWAYS resolve "new_date" to a concrete YYYY-MM-DD using today's date above. Never leave new_date null when the user clearly named a day.
 - "other": anything else (greeting, question, etc.) — reply conversationally and guide them to select
 - If replying in Roman Urdu, use ONLY Pakistani Urdu words. NEVER use Hindi words (swagat, dhanyavaad, sahayata, kripya). Use Pakistani equivalents (khush aamdeed, shukriya, madad, meharbani).
 """
@@ -2071,7 +2155,13 @@ Rules:
         # --- OTHER (guide user) ---
         else:
             providers = state.get("providers", [])
-            reply = analysis.get("reply") or self._selection_reply(language, service, len(providers), state.get("booking_date"), providers)
+            if providers:
+                reply = analysis.get("reply") or self._selection_reply(language, service, len(providers), state.get("booking_date"), providers)
+            else:
+                # No providers in the list — the analyzer's free-text reply may wrongly
+                # say "here are the providers, select one". Don't trust it; tell the user
+                # plainly that nothing is available and offer to change date/service.
+                reply = self._no_provider_reply(language, service, state.get("booking_date"))
             self._save_message(session, "assistant", reply, db, state=state)
             return self._build_response(reply, language, PHASE_SELECTING, session.id, state, logger, providers=providers)
 
@@ -2532,6 +2622,39 @@ Rules:
     # ============================================================
     # Reply templates
     # ============================================================
+
+    def _service_offered(self, service_type, db):
+        """True if at least one provider of this service type exists in the DB
+        (regardless of date/availability). Uses the SAME match as discovery so the
+        two stay consistent. On a DB error, default to True so we never wrongly
+        reject a real service."""
+        if not service_type or service_type == "Unknown":
+            return False
+        try:
+            exists = (
+                db.query(Provider.id)
+                .filter(Provider.service_type.ilike(f"%{service_type}%"))
+                .first()
+            )
+            return exists is not None
+        except Exception as e:
+            log.warning(f"_service_offered check failed ({str(e)[:80]}), assuming offered.")
+            return True
+
+    def _service_not_offered_reply(self, lang, service_type, db):
+        """Reply for a service Karigar does not offer at all — names what we DO offer
+        instead of pretending the trade is merely unavailable on a date."""
+        services_str = ", ".join(get_service_catalog(db))
+        if lang == "roman_urdu":
+            return (f"Maaf kijiye, hum filhaal \"{service_type}\" ki service offer nahi karte. "
+                    f"Hum yeh services provide karte hain: {services_str}. "
+                    f"In mein se kuch chahiye to bataiye!")
+        elif lang == "urdu":
+            return (f"معذرت، ہم فی الحال \"{service_type}\" کی سروس فراہم نہیں کرتے۔ "
+                    f"ہم یہ سروسز فراہم کرتے ہیں: {services_str}۔ "
+                    f"ان میں سے کوئی درکار ہو تو بتائیں!")
+        return (f"Sorry, we don't currently offer \"{service_type}\" service. "
+                f"We provide: {services_str}. Let me know if you need any of these!")
 
     def _no_provider_reply(self, lang, service_type, booking_date=None):
         d = f" on {booking_date}" if booking_date else ""

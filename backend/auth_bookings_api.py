@@ -84,7 +84,7 @@ async def register(
     """
     # 1. Validate service type
     accepted_services = [
-        "Electrical", "Plumbing", "AC Repair", "Cleaning", "Car Wash", 
+        "Electrical", "Plumber", "AC Repair", "Cleaning", "Car Wash", 
         "Salon", "Tutoring", "Carpentry", "Moving", "Appliance Repair", 
         "Photography", "Locksmith", "Pest Control", "Electrician", 
         "Painter", "Beautician", "AC Technician", "Plumber", 

@@ -31,6 +31,11 @@ class Provider(Base):
     service_type = Column(String, index=True)
     location = Column(String, index=True)
     rating = Column(Float)
+    # Trust signals used by provider ranking (review-count is intentionally NOT
+    # stored separately — review volume already shapes `rating` upstream).
+    reliability_score = Column(Float, default=90.0)   # completion rate %, 0-100 (higher better)
+    on_time_score = Column(Float, default=90.0)       # punctuality %, 0-100 (higher better)
+    cancellation_rate = Column(Float, default=0.05)   # fraction 0-1 (lower better)
     hourly_rate = Column(Float, default=500.0)  # PKR per hour
     available_slots = Column(Text, default="{}")  # JSON: {"2026-05-19": ["10:00 AM", "2:00 PM"], ...}
     latitude = Column(Float, nullable=True)
