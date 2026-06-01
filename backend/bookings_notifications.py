@@ -647,7 +647,7 @@ def complete_booking(
     if actor_role == "user" and (request.rating is not None or request.feedback):
         try:
             import threading
-            from agents_v2 import FeedbackReviewAgent
+            from agents.feedback_review import FeedbackReviewAgent
             threading.Thread(
                 target=FeedbackReviewAgent().process,
                 args=(booking.id,),

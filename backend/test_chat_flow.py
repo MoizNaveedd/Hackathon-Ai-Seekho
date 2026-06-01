@@ -87,7 +87,7 @@ def test_date_keyed_slots():
 
 def test_phase_constants():
     section("Unit: Phase constants")
-    from agents_v2 import PHASE_GATHERING, PHASE_SELECTING, PHASE_CONFIRMING, PHASE_COMPLETED
+    from agents.common import PHASE_GATHERING, PHASE_SELECTING, PHASE_CONFIRMING, PHASE_COMPLETED
     check("Gathering", PHASE_GATHERING == "gathering_intent")
     check("Selecting", PHASE_SELECTING == "selecting_provider")
     check("Confirming", PHASE_CONFIRMING == "confirming_booking")
@@ -96,7 +96,7 @@ def test_phase_constants():
 
 def test_rolling_window():
     section("Unit: Rolling window logic")
-    from agents_v2 import _build_windowed_context, MAX_RECENT_MESSAGES
+    from agents.common import _build_windowed_context, MAX_RECENT_MESSAGES
 
     small = [{"role": "user", "content": f"msg {i}"} for i in range(4)]
     recent, summary, needs_update = _build_windowed_context(small, None)
@@ -128,7 +128,8 @@ def test_language_lock_logic():
 
 def test_booking_with_date():
     section("Unit: Booking with date")
-    from agents_v2 import BookingConfirmationAgent, AgentExecutionLog
+    from agents.booking_confirmation import BookingConfirmationAgent
+    from agents.common import AgentExecutionLog
 
     db = SessionLocal()
     user, provider = ensure_test_data(db)

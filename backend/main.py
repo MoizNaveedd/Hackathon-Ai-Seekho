@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from database import get_db, engine, Base
-from agents_v2 import OrchestratorV2
+from agents.orchestrator import OrchestratorV2
 from typing import Dict, Any, List, Optional
 from models import User, ChatSession, ChatMessage
 from bookings_notifications import bookings_router, notifications_router
