@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import sys
 import time
 import uuid
 import logging
@@ -48,6 +49,18 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 # "%(asctime)s | %(name)-20s | %(levelname)-7s | %(message)s" format.
 trace_log = logging.getLogger("llm.trace")
 
+# Highlight the agent name in the trace logs (bold cyan) so it stands out in a
+# terminal. Guarded by an isatty() check so log files / pipes stay plain text.
+_COLOR_ENABLED = os.getenv("NO_COLOR") is None and sys.stderr.isatty()
+_AGENT_COLOR = "\033[1;36m"  # bold cyan
+_COLOR_RESET = "\033[0m"
+
+
+def _hl_agent(agent: str) -> str:
+    """Wrap the agent name in ANSI color for terminal output (no-op otherwise)."""
+    return f"{_AGENT_COLOR}{agent}{_COLOR_RESET}" if _COLOR_ENABLED else agent
+
+
 # Static pricing — USD per 1,000,000 tokens (input, output).
 # Both providers are on free tiers today; these are the published list prices
 # so the logs show what each request WOULD cost at scale. Tune as prices change.
@@ -55,22 +68,6 @@ LLM_PRICING = {
     "llama-3.3-70b-versatile": {"in": 0.59, "out": 0.79},
     "gemini-2.5-flash":        {"in": 0.30, "out": 2.50},
 }
-USD_TO_PKR = 280.0  # rough FX, for a human-readable Rs. figure in the logs
-
-# Process-wide cumulative totals since server start. Every call — request-bound
-# AND background — funnels through _record_call, so this captures everything.
-# Guarded by a lock because background agents run in their own threads.
-_cumulative = {"calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
-_cumulative_lock = threading.Lock()
-
-
-def get_cumulative_cost() -> dict:
-    """Snapshot of total LLM usage/cost since the server started (thread-safe)."""
-    with _cumulative_lock:
-        snap = dict(_cumulative)
-    snap["cost_pkr"] = round(snap["cost_usd"] * USD_TO_PKR, 3)
-    snap["cost_usd"] = round(snap["cost_usd"], 6)
-    return snap
 
 
 def _extract_usage(provider: str, response) -> tuple:
@@ -103,21 +100,11 @@ def _record_call(tracer, agent: str, provider: str, model: str, response,
     in_tok, out_tok = _extract_usage(provider, response)
     cost = _compute_cost(model, in_tok, out_tok)
 
-    # Fold into the process-wide running total (covers background calls too).
-    with _cumulative_lock:
-        _cumulative["calls"] += 1
-        _cumulative["input_tokens"] += in_tok
-        _cumulative["output_tokens"] += out_tok
-        _cumulative["cost_usd"] += cost
-        cum_cost = _cumulative["cost_usd"]
-        cum_calls = _cumulative["calls"]
-
     trace_log.info(
-        f"[{req_id}] {agent} | {provider}/{model} | "
+        f"[{req_id}] {_hl_agent(agent)} | {provider}/{model} | "
         f"in={in_tok} out={out_tok} tok | "
-        f"${cost:.6f} (~Rs.{cost * USD_TO_PKR:.3f}) | {latency_ms}ms"
+        f"${cost:.6f} | {latency_ms}ms"
         + (" | FALLBACK" if fell_back else "")
-        + f" | cumulative: {cum_calls} calls ${cum_cost:.6f} (~Rs.{cum_cost * USD_TO_PKR:.2f})"
     )
 
     if tracer is not None:
@@ -337,15 +324,11 @@ class AgentExecutionLog:
         by_agent = {}
         for c in self.llm_calls:
             by_agent[c["agent"]] = round(by_agent.get(c["agent"], 0.0) + c["cost_usd"], 6)
-        cum = get_cumulative_cost()
         trace_log.info(
             f"[{self.request_id}] REQUEST TOTAL | {n} LLM call(s)"
             + (f", {fallbacks} fallback(s)" if fallbacks else "")
             + f" | in={in_t} out={out_t} tok | "
-            f"${cost:.6f} (~Rs.{cost * USD_TO_PKR:.3f}) | by_agent={by_agent}"
-            + f" || SERVER CUMULATIVE: {cum['calls']} calls, "
-            f"in={cum['input_tokens']} out={cum['output_tokens']} tok, "
-            f"${cum['cost_usd']} (~Rs.{cum['cost_pkr']})"
+            f"${cost:.6f} | by_agent={by_agent}"
         )
 
 
@@ -1789,7 +1772,6 @@ class OrchestratorV2:
                                state=state, extra_data={"requires_location": True, "reason": "user_requested_change"})
             return self._build_response(location_reply, language, PHASE_GATHERING, session.id,
                                         state, logger, requires_location=True)
-        log.info(f"Session {session.id} | Phase: {phase} | Provider selection: {selected_provider_id} | Location: {bool(state.get('latitude'))}")
 
         # --- Route based on phase ---
 
