@@ -1,0 +1,6 @@
+- [x] Update default fallback coordinates to Gulshan, Karachi (`24.9215, 67.0935`)
+- [x] Add conditional check: only apply default when session has no stored coordinates
+- [x] Catch `OVER_QUERY_LIMIT` error from Google Maps API
+- [x] Return user-friendly fallback message instead of raw exception
+- [x] Fall back to default location on quota exhaustion
+- [x] Add logging for default location usage tracking

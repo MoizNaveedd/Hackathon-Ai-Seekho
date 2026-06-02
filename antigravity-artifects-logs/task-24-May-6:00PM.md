@@ -1,0 +1,10 @@
+- [x] Implement `CancellationAgent` with three-step flow (identify → confirm → cancel)
+- [x] Add `get_user_bookings()` to fetch active bookings for the current user
+- [x] Implement atomic cancellation + slot restoration in a single DB transaction
+- [x] Add `cancelling_booking` phase to the phase state machine
+- [x] Teach Intent Agent to detect cancellation intent from free-form text
+- [x] Implement `ChatSummarizerAgent` with Roman-Urdu output
+- [x] Spawn summarizer as background thread with isolated DB session
+- [x] Wire cancellation routing through Orchestrator Agent
+- [x] Add FCM push notification on booking cancellation
+- [x] Test slot restoration after cancellation

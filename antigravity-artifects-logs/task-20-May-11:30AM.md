@@ -1,0 +1,12 @@
+- [x] Define phase state machine (`gathering_intent → selecting_provider → confirming_booking → completed`)
+- [x] Implement `_call_llm()` with dual-provider failover (Groq primary → Gemini fallback)
+- [x] Build Orchestrator Agent with LLM-based routing (`answer_question` vs `proceed_flow`)
+- [x] Implement Intent & Validation Agent (service extraction, date parsing, language detection)
+- [x] Implement Provider Discovery Agent (DB query + haversine ranking)
+- [x] Implement Smart Match Agent (grounded fact-sheet reasoning)
+- [x] Implement Booking Confirmation Agent (confirm/change/reject + atomic slot decrement)
+- [x] Implement Concierge Agent (off-script Q&A grounded in live catalog)
+- [x] Implement Cancellation Agent (identify → confirm → cancel + slot restoration)
+- [x] Add `AgentExecutionLog` and `debug_logs` for visible reasoning traces
+- [x] Persist conversation state in `ChatSession.extracted_state` (JSON)
+- [x] Wire all agents into `POST /chat/v2` endpoint in `main.py`

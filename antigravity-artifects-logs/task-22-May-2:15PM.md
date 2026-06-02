@@ -1,0 +1,8 @@
+- [x] Implement dynamic pricing formula (`base_rate * demand_multiplier * experience_factor`)
+- [x] Add price cap at 1.5x base rate to prevent gouging
+- [x] Add real-time slot availability query in Provider Discovery Agent
+- [x] Filter out fully-booked providers from discovery results
+- [x] Update Smart Match fact sheets with calculated price and availability status
+- [x] Add comparative flags (`cheapest`, `most_available`, `top_rated`, `closest`)
+- [x] Update booking confirmation summary to show dynamic price
+- [x] Add unit tests for pricing edge cases
